@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installer l’extension · Budgétable</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;600&display=swap">
+<style>
+:root { --papier:#f6f4ec; --encre:#1f2a24; --doux:#5d6a62; --poireau:#2f6b47; --trait:#ddd8c8; --carte:#fffdf7; --surligne:#fbe7a6; }
+@media (prefers-color-scheme: dark) { :root { --papier:#171d19; --encre:#eef0ea; --doux:#a9b3ab; --poireau:#7cc49a; --trait:#334039; --carte:#1f2722; --surligne:#5a4a12; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--papier); color:var(--encre); font:16px/1.65 Figtree, system-ui, sans-serif; }
+main { max-width:760px; margin:0 auto; padding:28px 16px 64px; }
+.marque { display:inline-flex; align-items:center; gap:8px; font:700 1.1rem 'Bricolage Grotesque', sans-serif; color:var(--encre); text-decoration:none; }
+.marque svg { width:28px; height:28px; }
+h1 { font:700 clamp(1.7rem,4vw,2.3rem)/1.15 'Bricolage Grotesque', sans-serif; margin:22px 0 4px; }
+h2 { font:700 1.25rem/1.3 'Bricolage Grotesque', sans-serif; margin:34px 0 8px; }
+h3 { font-size:1rem; margin:20px 0 4px; }
+p, li { max-width:68ch; }
+.maj { color:var(--doux); font-size:.9rem; margin:0 0 20px; }
+a { color:var(--poireau); text-underline-offset:3px; }
+.encadre { background:var(--carte); border:1px solid var(--trait); border-radius:14px; padding:14px 18px; margin:16px 0; }
+table { border-collapse:collapse; width:100%; font-size:.94rem; margin:10px 0; display:block; overflow-x:auto; }
+th, td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid var(--trait); }
+th { font-weight:600; }
+mark.a-completer { background:var(--surligne); color:inherit; padding:0 4px; border-radius:4px; font-weight:600; }
+a.bouton { display:inline-block; background:var(--poireau); color:#fff; text-decoration:none; font-weight:600; padding:12px 22px; border-radius:999px; }
+ol li { margin-bottom: 8px; }
+nav.pied { margin-top:44px; padding-top:16px; border-top:1px solid var(--trait); font-size:.92rem; display:flex; flex-wrap:wrap; gap:6px 16px; }
+</style>
+</head>
+<body>
+<main>
+<a class="marque" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>
+<h1>Installer l’extension Budgétable</h1>
+<p class="maj">Version 0.2.0 · ordinateur uniquement, navigateur Chrome ou Edge · gratuite</p>
+<div class="encadre"><p><strong>À quoi elle sert :</strong> votre liste de courses Budgétable vous suit sur le site de votre drive (E.Leclerc, Carrefour, Auchan, Intermarché, Courses U). Un panneau vous montre, article par article, les produits correspondants les moins chers affichés ; vous ajoutez au panier d’un clic. Elle compare aussi les prix relevés entre vos drives. Rien n’est envoyé ailleurs : tout reste sur votre ordinateur.</p></div>
+
+<p><a class="bouton" href="telechargements/budgetable-extension.zip" download>Télécharger l’extension (fichier .zip, 27 Ko)</a></p>
+
+<h2>Installation, en 2 minutes</h2>
+<ol>
+<li><strong>Décompressez</strong> le fichier téléchargé : clic droit sur <em>budgetable-extension.zip</em> › « Extraire tout… ». Vous obtenez un dossier <em>budgetable-extension</em>. Gardez-le (par exemple dans Documents) : Chrome en a besoin.</li>
+<li>Dans Chrome, tapez <strong>chrome://extensions</strong> dans la barre d’adresse (dans Edge : <strong>edge://extensions</strong>).</li>
+<li>Activez le <strong>Mode développeur</strong> (interrupteur en haut à droite ; dans Edge, à gauche).</li>
+<li>Cliquez sur <strong>Charger l’extension non empaquetée</strong> et choisissez le dossier <em>budgetable-extension</em> (celui qui contient le fichier manifest.json).</li>
+<li>La carte « Budgétable – courses en drive » apparaît, en version <strong>0.2.0</strong>. Épinglez-la : icône puzzle en haut à droite › épingle à côté de Budgétable.</li>
+<li><strong>Rechargez la page Budgétable</strong> si elle était ouverte.</li>
+</ol>
+
+<h2>Utilisation</h2>
+<ol>
+<li>Sur Budgétable, onglet <strong>Courses</strong> : cliquez sur <strong>Envoyer vers l’extension</strong>. Le message « Liste envoyée à l’extension » confirme.</li>
+<li>Ouvrez le site de votre drive dans le même navigateur, connectez-vous et choisissez votre magasin.</li>
+<li>Le panneau vert Budgétable apparaît en bas à droite avec votre liste. Pour chaque article : « Chercher », puis « Ajouter au panier » sur le produit qui vous convient.</li>
+<li>Vérifiez votre panier et validez la commande sur le site du drive, comme d’habitude.</li>
+</ol>
+
+<h2>Mettre à jour</h2>
+<p>Téléchargez la nouvelle version, remplacez le contenu du dossier <em>budgetable-extension</em>, puis cliquez sur la flèche circulaire « Actualiser » de la carte Budgétable dans chrome://extensions.</p>
+
+<h2>Ça ne marche pas ?</h2>
+<ul>
+<li><strong>« Extension non détectée »</strong> sur Budgétable : vérifiez que la carte Budgétable est activée et en version 0.2.0 dans chrome://extensions, puis rechargez la page Budgétable. L’envoi direct fonctionne depuis <strong>budgetable.onrender.com</strong>.</li>
+<li><strong>Pas de panneau sur le drive</strong> : rechargez la page du drive ; vérifiez que l’adresse est bien celle d’un drive pris en charge.</li>
+<li><strong>Sur téléphone</strong> : les extensions ne fonctionnent pas sur Chrome mobile. Utilisez les boutons de recherche par drive de l’onglet Courses.</li>
+</ul>
+<p>Chrome peut afficher au démarrage un message sur les extensions en mode développeur : c’est normal tant que l’extension n’est pas publiée sur le Chrome Web Store (prévu).</p>
+<nav class="pied" aria-label="Informations légales"><a href="./">Retour au site</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>
+</main>
+</body>
+</html>

@@ -5,6 +5,7 @@ const path = require('path');
 const dist = path.join(__dirname, 'dist');
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
+fs.mkdirSync(path.join(dist, 'telechargements'), { recursive: true });
 
 const corps = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const debut = corps.indexOf('<style>');
@@ -25,7 +26,7 @@ ${reste.slice(finStyle).trim()}
 </html>
 `;
 fs.writeFileSync(path.join(dist, 'index.html'), html);
-for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html']) {
+for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
 console.log('dist/ prêt');

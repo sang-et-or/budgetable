@@ -586,23 +586,34 @@
   // L'extension Budgétable, si elle est installée, se signale sur la page (data-budgetable-extension)
   // et reçoit la liste directement. Sinon : copie dans le presse-papiers, à coller dans l'extension.
   function envoyerExtension(texte) {
-    const copie = async (msg) => {
-      try { await navigator.clipboard.writeText(texte); toast(msg); }
-      catch (e) { toast('L’extension n’est pas détectée et la copie est impossible ici : ouvrez Budgétable dans Chrome avec l’extension installée'); }
+    const absente = async () => {
+      let copie = false;
+      try { await navigator.clipboard.writeText(texte); copie = true; } catch (e) { /* copie refusée */ }
+      S.envoiExt = { etat: 'absente', copie };
+      toast('Extension Budgétable non détectée');
+      rendre();
     };
-    if (!document.documentElement.dataset.budgetableExtension) {
-      copie('Extension non détectée : liste copiée, collez-la dans l’extension Budgétable');
-      return;
-    }
-    const fin = setTimeout(() => { window.removeEventListener('message', reponse); copie('L’extension n’a pas répondu : liste copiée, collez-la dans l’extension'); }, 3000);
+    if (!document.documentElement.dataset.budgetableExtension) { absente(); return; }
+    const fin = setTimeout(() => { window.removeEventListener('message', reponse); absente(); }, 3000);
     function reponse(ev) {
       if (ev.source !== window || !ev.data || !/^budgetable:liste-(recue|erreur)$/.test(ev.data.type)) return;
       clearTimeout(fin); window.removeEventListener('message', reponse);
-      if (ev.data.type === 'budgetable:liste-recue') toast(`Liste envoyée à l’extension (${ev.data.n} articles) : ouvrez votre drive, elle vous y attend`);
-      else toast('L’extension a refusé la liste : ' + ev.data.message);
+      if (ev.data.type === 'budgetable:liste-recue') { S.envoiExt = { etat: 'ok', n: ev.data.n }; toast(`Liste envoyée à l’extension (${ev.data.n} articles)`); }
+      else { S.envoiExt = { etat: 'erreur', message: ev.data.message }; toast('L’extension a refusé la liste'); }
+      rendre();
     }
     window.addEventListener('message', reponse);
     window.postMessage({ type: 'budgetable:liste', texte }, location.origin);
+  }
+
+  function etatEnvoiExtension() {
+    const e = S.envoiExt;
+    if (!e) return '';
+    if (e.etat === 'ok') return `<div class="bandeau bandeau-ok small" role="status"><span><strong>Liste envoyée à l’extension : ${e.n} articles.</strong> Ouvrez votre drive dans ce navigateur : le panneau Budgétable vous y attend, en bas à droite.</span></div>`;
+    if (e.etat === 'erreur') return `<div class="bandeau bandeau-alerte small" role="status"><span>L’extension a refusé la liste : ${esc(e.message)}</span></div>`;
+    return `<div class="bandeau bandeau-alerte small" role="status"><div class="stack" style="gap:6px"><strong>L’extension Budgétable n’est pas détectée dans ce navigateur.</strong>
+      <span>Elle s’installe en 2 minutes sur ordinateur, dans Chrome ou Edge (pas sur téléphone). ${e.copie ? 'En attendant, la liste a été copiée : vous pouvez la coller dans l’extension.' : ''}</span>
+      <div><a class="btn btn-petit btn-plein" href="extension.html" target="_blank" rel="noopener">Installer l’extension</a></div></div></div>`;
   }
 
   function listeTexte(liste) {
@@ -622,10 +633,11 @@
         <button class="btn" data-a="export-extension">Envoyer vers l’extension</button>
         <button class="btn" data-a="imprimable">${S.imprimable ? 'Quitter la version imprimable' : 'Version imprimable'}</button>
         ${imprimerDispo ? '<button class="btn btn-plein" data-a="imprimer">Imprimer ou PDF</button>' : ''}
-      </div></div>
+      </div>${etatEnvoiExtension()}</div>
       ${S.imprimable && !imprimerDispo ? '<p class="bandeau bandeau-info small ecran-seul">Pour obtenir un PDF, ouvrez Budgétable installé sur votre appareil et utilisez « Imprimer ou PDF ». Ici, la version imprimable sert d’aperçu.</p>' : ''}
       <section class="carte stack ecran-seul" style="gap:12px"><div class="spread"><h2>Remplir mon panier drive</h2>${S.drives.enseigne ? `<a class="btn btn-petit" href="${DRIVES[S.drives.enseigne].accueil}" target="_blank" rel="noopener">Ouvrir ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
         <p class="small">Choisissez votre drive : chaque article aura un bouton qui ouvre sa recherche sur le site du drive. Vous comparez et ajoutez au panier vous-même, puis vous validez votre commande chez eux.</p>
+        <p class="small">Plus rapide sur ordinateur : avec l’<a href="extension.html" target="_blank" rel="noopener">extension Budgétable</a>, votre liste vous suit sur le site du drive et les prix les plus bas sont repérés pour vous.</p>
         <div class="choix" role="radiogroup" aria-label="Mon drive">${enseignesOrdonnees().map(([k, d, lieu]) => `<button class="chip" role="radio" data-a="enseigne" data-k="${k}" aria-pressed="${S.drives.enseigne === k}" aria-checked="${S.drives.enseigne === k}">${esc(d.nom)}${lieu ? ` <span class="small muted">· ${esc(lieu)}</span>` : ''}</button>`).join('')}</div>
         ${S.drives.enseigne && DRIVES[S.drives.enseigne].note ? `<p class="small muted">${esc(DRIVES[S.drives.enseigne].note)}</p>` : ''}
         ${S.drives.enseigne && !DRIVES[S.drives.enseigne].verifie ? '<p class="small muted">Lien de recherche pas encore vérifié pour ce site : s’il n’affiche pas le bon produit, dites-le-nous.</p>' : ''}
