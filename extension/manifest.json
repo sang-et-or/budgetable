@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Budgétable – courses en drive",
+  "short_name": "Budgétable",
+  "version": "0.1.0",
+  "description": "Retrouvez votre liste Budgétable sur votre drive, comparez les prix affichés et remplissez votre panier en quelques clics.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.carrefour.fr/*",
+    "https://www.auchan.fr/*",
+    "https://www.e.leclerc/*",
+    "https://*.leclercdrive.fr/*",
+    "https://www.intermarche.com/*",
+    "https://www.coursesu.com/*",
+    "https://www.chronodrive.com/*"
+  ],
+  "action": {
+    "default_title": "Budgétable",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.carrefour.fr/*",
+        "https://www.auchan.fr/*",
+        "https://www.e.leclerc/*",
+        "https://*.leclercdrive.fr/*",
+        "https://www.intermarche.com/*",
+        "https://www.coursesu.com/*",
+        "https://www.chronodrive.com/*"
+      ],
+      "js": ["drives.js", "lecture.js", "stockage.js", "panneau.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

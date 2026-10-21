@@ -1,0 +1,15 @@
+{
+  "name": "Budgétable",
+  "short_name": "Budgétable",
+  "description": "Vos repas de la semaine selon vos goûts, vos besoins et votre budget, avec la liste de courses.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f0",
+  "theme_color": "#2f6b47",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Drive d'essai — résultats « lentilles corail »</title>
+<style>body{font-family:sans-serif;margin:20px} .grid{display:grid;grid-template-columns:repeat(3,220px);gap:12px} article{border:1px solid #ccc;padding:10px} #panier{font-weight:bold}</style></head>
+<body>
+<h1>Résultats pour « lentilles corail » (page d'essai, produits fictifs)</h1>
+<p id="panier">Panier : 0 article</p>
+<div class="grid">
+  <article class="product-card"><h3 class="product-title">Lentilles corail Marque Repère 500 g</h3><div class="price">1,89 €</div><div class="unit">3,78 € / kg</div><button aria-label="Ajouter au panier Lentilles corail 500 g" data-sku="A1">+</button></article>
+  <article class="product-card"><h3 class="product-title">Lentilles corail bio 1 kg</h3><div class="price">4,20 €</div><div class="unit">4,20 € / kg</div><button data-sku="A2">Ajouter</button></article>
+  <article class="product-card"><div><a title="Lentilles corail premier prix 500 g" href="#">Lentilles corail premier prix 500 g</a></div><span>1,49 €</span><small>2,98 € le kg</small><button data-sku="A3">Ajouter au panier</button></article>
+  <article class="product-card"><h3 class="product-title">Lentilles vertes du Puy 500 g</h3><div class="price">2,10 €</div><button data-sku="B1">Ajouter au panier</button></article>
+  <article class="product-card"><h3 class="product-title">Riz basmati 1 kg</h3><div class="price">2,35 €</div><button data-sku="C1">Ajouter au panier</button></article>
+  <!-- structure façon Auchan : prix et bouton enfermés dans un pied de fiche, bouton « liste » à part -->
+  <article class="product-thumbnail"><div class="content"><span>(15)</span><p>AUCHAN Lentilles corail 500g</p><span>3,66€ / kg</span>
+    <footer><span>Dans mon drive</span><div class="footer-wrapper"><span>1,83€</span><div class="cta"><div class="qty"><button aria-label="Ajouter AUCHAN Lentilles corail 500g au panier" data-sku="D1">+</button></div></div></div></footer></div>
+    <button aria-label="Ajouter le produit : Lentilles corail à une liste">♡</button></article>
+  <!-- structure façon E.Leclerc : « 2 € ,79 », lien « Ajouter au panier » et lien « Ajouter à mes listes » -->
+  <li class="liWCRS310_Product"><div class="content"><span>Lentilles corail Marque Repère - 1kg</span>
+    <div class="panier"><a href="#" class="aWCRS310_Add" data-sku="E1">Ajouter au panier</a></div><span>2</span><span>€</span><span>,79</span><span>2,79 € / kg</span></div>
+    <a href="#" title="Voir le rayon">Voir le rayon</a><a href="#">Ajouter à mes listes</a></li>
+</div>
+<script>
+  let n = 0; const ajoutes = [];
+  document.querySelectorAll('[data-sku]').forEach((b) => b.addEventListener('click', () => { n++; ajoutes.push(b.dataset.sku); document.getElementById('panier').textContent = 'Panier : ' + n + ' article(s)'; window.__ajoutes = ajoutes; }));
+</script>
+</body>
+</html>
