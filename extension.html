@@ -34,10 +34,21 @@ nav.pied { margin-top:44px; padding-top:16px; border-top:1px solid var(--trait);
 <main>
 <a class="marque" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>
 <h1>Installer l’extension Budgétable</h1>
-<p class="maj">Version 0.2.0 · ordinateur uniquement, navigateur Chrome ou Edge · gratuite</p>
+<p class="maj">Version 1.0.0 · ordinateur uniquement, navigateur Chrome ou Edge · gratuite</p>
 <div class="encadre"><p><strong>À quoi elle sert :</strong> votre liste de courses Budgétable vous suit sur le site de votre drive (E.Leclerc, Carrefour, Auchan, Intermarché, Courses U). Un panneau vous montre, article par article, les produits correspondants les moins chers affichés ; vous ajoutez au panier d’un clic. Elle compare aussi les prix relevés entre vos drives. Rien n’est envoyé ailleurs : tout reste sur votre ordinateur.</p></div>
 
+<p id="boutiques" hidden></p>
 <p><a class="bouton" href="telechargements/budgetable-extension.zip" download>Télécharger l’extension (fichier .zip, 27 Ko)</a></p>
+<p class="maj">Bientôt sur le Chrome Web Store et Microsoft Edge Add-ons : l’installation se fera alors en un clic, sans les étapes ci-dessous.</p>
+<script>
+  // Liens des boutiques, à renseigner une fois l'extension publiée : les boutons remplacent alors l'installation manuelle.
+  const BOUTIQUES = { chrome: '', edge: '' };
+  if (BOUTIQUES.chrome || BOUTIQUES.edge) {
+    const p = document.getElementById('boutiques');
+    p.innerHTML = (BOUTIQUES.chrome ? '<a class="bouton" href="' + BOUTIQUES.chrome + '" rel="noopener">Ajouter à Chrome</a> ' : '') + (BOUTIQUES.edge ? '<a class="bouton" href="' + BOUTIQUES.edge + '" rel="noopener">Obtenir pour Edge</a>' : '');
+    p.hidden = false;
+  }
+</script>
 
 <h2>Installation, en 2 minutes</h2>
 <ol>
@@ -45,7 +56,7 @@ nav.pied { margin-top:44px; padding-top:16px; border-top:1px solid var(--trait);
 <li>Dans Chrome, tapez <strong>chrome://extensions</strong> dans la barre d’adresse (dans Edge : <strong>edge://extensions</strong>).</li>
 <li>Activez le <strong>Mode développeur</strong> (interrupteur en haut à droite ; dans Edge, à gauche).</li>
 <li>Cliquez sur <strong>Charger l’extension non empaquetée</strong> et choisissez le dossier <em>budgetable-extension</em> (celui qui contient le fichier manifest.json).</li>
-<li>La carte « Budgétable – courses en drive » apparaît, en version <strong>0.2.0</strong>. Épinglez-la : icône puzzle en haut à droite › épingle à côté de Budgétable.</li>
+<li>La carte « Budgétable – courses en drive » apparaît, en version <strong>1.0.0</strong>. Épinglez-la : icône puzzle en haut à droite › épingle à côté de Budgétable.</li>
 <li><strong>Rechargez la page Budgétable</strong> si elle était ouverte.</li>
 </ol>
 
@@ -62,7 +73,7 @@ nav.pied { margin-top:44px; padding-top:16px; border-top:1px solid var(--trait);
 
 <h2>Ça ne marche pas ?</h2>
 <ul>
-<li><strong>« Extension non détectée »</strong> sur Budgétable : vérifiez que la carte Budgétable est activée et en version 0.2.0 dans chrome://extensions, puis rechargez la page Budgétable. L’envoi direct fonctionne depuis <strong>budgetable.onrender.com</strong>.</li>
+<li><strong>« Extension non détectée »</strong> sur Budgétable : vérifiez que la carte Budgétable est activée et en version 1.0.0 (ou plus) dans chrome://extensions, puis rechargez la page Budgétable. L’envoi direct fonctionne depuis <strong>budgetable.onrender.com</strong>.</li>
 <li><strong>Pas de panneau sur le drive</strong> : rechargez la page du drive ; vérifiez que l’adresse est bien celle d’un drive pris en charge.</li>
 <li><strong>Sur téléphone</strong> : les extensions ne fonctionnent pas sur Chrome mobile. Utilisez les boutons de recherche par drive de l’onglet Courses.</li>
 </ul>
