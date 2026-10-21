@@ -182,7 +182,7 @@
       case 'consentement': return `<div class="stack">
         <p>Vos allergies${p.objectifs.includes('perte') ? ' et votre objectif de perte de poids' : ''} sont des données de santé. Sans votre accord, elles servent pour cette séance uniquement et ne sont pas enregistrées.</p>
         <label class="case"><input type="checkbox" id="consent-sante" data-a="consent" ${p.consentementSante ? 'checked' : ''}><span>J’accepte que ces informations soient enregistrées <strong>sur cet appareil uniquement</strong>. Je peux les modifier ou les supprimer à tout moment dans « Profil ».</span></label>
-        <p class="small muted">Rien n’est envoyé à un serveur dans cette version.</p></div>`;
+        <p class="small muted">Rien n’est envoyé à un serveur. <a href="confidentialite.html" target="_blank" rel="noopener">Politique de confidentialité</a></p></div>`;
       case 'temps': return `<div class="stack">
         <div class="champ"><span>En semaine</span>${chips('temps.semaine', { 15: '15 min', 20: '20 min', 30: '30 min', 45: '45 min', 60: '1 h ou plus' }, p.temps.semaine, false)}</div>
         <div class="champ"><span>Le week-end</span>${chips('temps.weekend', { 20: '20 min', 30: '30 min', 45: '45 min', 60: '1 h', 90: 'J’ai le temps' }, p.temps.weekend, false)}</div></div>`;
@@ -337,6 +337,7 @@
     <g fill="var(--moutarde)" stroke="var(--encre)" stroke-width="2.5"><ellipse cx="352" cy="232" rx="22" ry="7"/><ellipse cx="352" cy="222" rx="22" ry="7"/><ellipse cx="352" cy="212" rx="22" ry="7"/></g>
   </svg>`;
 
+  const PIED = '<nav class="pied small" aria-label="Informations légales"><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
   function vueAccueil() {
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="stack" style="max-width:980px;margin:0 auto;gap:28px">
       <div class="marque">${LOGO}Budgétable</div>
@@ -355,6 +356,7 @@
         <div class="promesse"><span class="pastille rouge">0</span><div><strong>Zéro gaspillage</strong><p class="small muted">Les mêmes ingrédients reviennent pour finir les paquets.</p></div></div>
       </div>
       <div class="bandeau bandeau-demo small"><span class="tag tag-demo">Version de test</span><span>Les menus et listes fonctionnent réellement. Les prix sont des estimations de démonstration : aucun prix de magasin n’est encore branché.</span></div>
+      ${PIED}
     </div></div>`;
   }
 
@@ -620,7 +622,8 @@
         <div class="champ"><span>Export de vos données (format JSON)</span><textarea id="export" readonly aria-label="Export JSON de vos données">${esc(exportJson)}</textarea></div>
         <div class="row"><button class="btn" data-a="copier-export">Copier l’export</button>
           ${S.confirmerSuppression ? '<span class="small">Tout effacer sur cet appareil ? Cette action est définitive.</span><button class="btn btn-petit" data-a="suppr-non">Annuler</button><button class="btn btn-petit" style="border-color:var(--tomate);color:var(--tomate)" data-a="suppr-oui">Oui, tout effacer</button>' : '<button class="btn" data-a="supprimer">Supprimer toutes mes données</button>'}</div>
-      </section>`;
+      </section>
+      ${PIED}`;
   }
 
   /* ---------- fiche recette ---------- */

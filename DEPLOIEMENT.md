@@ -22,8 +22,13 @@ hébergement dans l'Union européenne si vous stockez des données de comptes (�
 
 ## 3. Obligations avant d'ouvrir au public
 
-- **Mentions légales** (éditeur, hébergeur), **politique de confidentialité** (RGPD, données de santé
-  facultatives et consentement), **conditions d'utilisation**.
+- **Pages légales** : `mentions-legales.html`, `confidentialite.html`, `conditions.html` sont prêtes et liées
+  depuis l'accueil, le profil et la question de consentement. Il reste à remplacer les passages surlignés
+  **[À COMPLÉTER : …]** (éditeur, adresse de contact, directeur de publication, SIREN si entreprise, médiateur
+  de la consommation dès qu'un abonnement est vendu), puis à faire relire par un juriste avant l'ouverture.
+- **Polices et photos servies par le site** : vérifier dans le journal de publication Render les lignes
+  « Photos copiées avec le site : 140 / 140 » et « Polices servies par le site ». Sinon, la politique de
+  confidentialité devient inexacte (le site contacterait Wikimedia ou Google) : republier.
 - **Attribution des données ouvertes**, déjà affichée sous les résultats :
   « © contributeurs OpenStreetMap (ODbL) » et « Base Adresse Nationale ».
 - **Statut** : micro-entreprise ou société, pour encaisser l'abonnement Premium.
