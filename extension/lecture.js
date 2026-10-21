@@ -66,7 +66,8 @@
         prix: m ? nombre(m[1] + '.' + (m[2] || m[3])) : null,
         prixUnite: mu ? nombre(mu[1]) : null,
         unite: mu ? mu[2].toLowerCase().replace('kilo', 'kg').replace('litre', 'l') : null,
-        bouton: cartes.get(c)
+        bouton: cartes.get(c),
+        carte: c
       };
     }).filter((p) => p.prix != null && p.titre);
   }
@@ -95,7 +96,33 @@
     return pertinents.sort((a, b) => cle(a) - cle(b));
   }
 
-  const api = { lireProduits, meilleursPour, sansAccents };
+  // bouton « + » (augmenter la quantité) dans un bloc
+  const PLUS = /augmenter|ajouter (un|une|1)\b|quantit[ée] \+|^\s*\+\s*$|^\s*\+\s*1\s*$/i;
+  const MOINS = /retirer|diminuer|moins|supprimer|enlever|réduire|reduire/i;
+  function boutonPlus(bloc) {
+    const cands = [...bloc.querySelectorAll('button, [role="button"]')].filter((b) => {
+      const t = [b.getAttribute('aria-label'), b.getAttribute('title'), b.getAttribute('data-testid'), b.textContent].join(' ');
+      return PLUS.test(t) && !MOINS.test(t) && !b.disabled;
+    });
+    return cands.length === 1 ? cands[0] : null;
+  }
+  /** Retrouve le bouton « + » du produit (le bouton « Ajouter » du site est souvent remplacé par un compteur). */
+  function plusDuProduit(produit, doc) {
+    if (produit.carte && produit.carte.isConnected) { const b = boutonPlus(produit.carte); if (b) return b; }
+    const cle = produit.titre.slice(0, 28);
+    const noeuds = [...(doc || document).querySelectorAll('h2, h3, h4, a, span, p')].filter((e) => (e.getAttribute('title') || e.textContent || '').includes(cle));
+    for (const n of noeuds) {
+      let el = n;
+      for (let i = 0; i < 8 && el.parentElement; i++) {
+        el = el.parentElement;
+        const b = boutonPlus(el);
+        if (b) return b;
+      }
+    }
+    return null;
+  }
+
+  const api = { lireProduits, meilleursPour, sansAccents, plusDuProduit };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BudgetableLecture = api;
 })(typeof window !== 'undefined' ? window : globalThis);
