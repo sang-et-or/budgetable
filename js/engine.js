@@ -199,6 +199,8 @@
     s -= Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 1.2;
     if (ctx.hier && ctx.hier.includes(rec.id)) s -= 3;
     s += scoreGout(rec, p.gouts);
+    // « nos classiques » : 2 par semaine environ (valeurs sûres), sans les répéter
+    if (ctx.classiques.includes(rec.id) && !ctx.utilisations[rec.id] && ctx.nbClassiques < ctx.cibleClassiques) s += 6;
     return s;
   }
 
@@ -217,18 +219,56 @@
     ctx.sigs[rec.sig || rec.id] = true;
     if (rec.prot) ctx.prots[rec.prot] = (ctx.prots[rec.prot] || 0) + 1;
     if (contientViande(rec)) ctx.repasViande++;
+    if (ctx.classiques && ctx.classiques.includes(rec.id)) ctx.nbClassiques++;
     for (const [id, q] of rec.ing) ctx.quantites[id] = (ctx.quantites[id] || 0) + q * nb;
   }
 
-  function nouveauContexte(notes) {
-    return { utilisations: {}, modeles: {}, prots: {}, sigs: {}, quantites: {}, repasViande: 0, notes: notes || {}, hier: null };
+  function nouveauContexte(notes, classiques) {
+    const cl = classiques || [];
+    return { utilisations: {}, modeles: {}, prots: {}, sigs: {}, quantites: {}, repasViande: 0, notes: notes || {}, hier: null,
+      classiques: cl, nbClassiques: 0, cibleClassiques: Math.min(2, cl.length) };
+  }
+
+  /* ---------- rituels de la semaine (thème d'un dîner) ---------- */
+  const aIng = (r, f) => r.ing.some(([id]) => f(ING[id], id));
+  const avecFeculent = (r, f) => r.id.split('-').includes(f) || (r.modele === 'maison' && aIng(r, (i, id) => id === f));
+  const THEMES = {
+    pates: { libelle: 'Soirée pâtes', ok: (r) => r.modele === 'pates' || (r.modele === 'gratin' && avecFeculent(r, 'pates')) || (r.modele === 'maison' && aIng(r, (i, id) => id === 'pates') && !/salade/i.test(r.nom)) },
+    pizza: { libelle: 'Pizza maison', ok: (r) => r.modele === 'pizza' || /pizza/i.test(r.nom) },
+    mijote: { libelle: 'Petit plat mijoté', ok: (r) => ['mijote', 'curry'].includes(r.modele) || /mijot|chili|dahl|couscous|potée|curry|parmentier|hachis|haricots blancs à la tomate|lentilles vertes mijotées|saucisses/i.test(r.nom) },
+    soupe: { libelle: 'Soupe et tartines', ok: (r) => r.modele === 'veloute' || /soupe|velouté/i.test(r.nom) },
+    monde: { libelle: 'Tour du monde', ok: (r) => r.cuisine !== 'francaise' },
+    vege: { libelle: 'Soirée veggie', ok: (r) => !aIng(r, (i) => i.tags.includes('viande') || i.tags.includes('poisson')) },
+    poisson: { libelle: 'Soirée poisson', ok: (r) => aIng(r, (i) => i.tags.includes('poisson')) },
+    rapide: { libelle: 'Soirée express (20 min)', ok: (r) => r.temps <= 20 },
+    oeufs: { libelle: 'Omelettes et quiches', ok: (r) => ['omelette', 'quiche'].includes(r.modele) || /omelette|quiche|tortilla espagnole|shakshuka|œufs cocotte|crêpes/i.test(r.nom) },
+    enfants: { libelle: 'Le choix des enfants', ok: (r) => r.tags.includes('enfants') },
+    classique: { libelle: 'Un classique de la famille', ok: (r, ctx) => ((ctx && ctx.classiques) || []).includes(r.id) }
+  };
+  // rituels proposés pour démarrer (lundi pâtes, mercredi choix des enfants, vendredi pizza, dimanche mijoté)
+  function rituelsSuggeres(p) {
+    const r = { 0: 'pates', 4: 'pizza', 6: 'mijote' };
+    r[2] = p.foyer.enfants.length ? 'enfants' : 'monde';
+    return r;
+  }
+  function themeDuSlot(p, jour, slot) {
+    if (slot !== 'diner' || !p.rituels) return null;
+    const t = p.rituels[jour];
+    if (!t || !THEMES[t]) return null;
+    if (t === 'enfants' && !p.foyer.enfants.length) return null;
+    return t;
+  }
+  function filtreTheme(liste, theme, ctx) {
+    if (!theme || !THEMES[theme]) return liste;
+    const f = liste.filter((r) => THEMES[theme].ok(r, ctx));
+    return f.length ? f : liste;
   }
 
   /** Génère 7 déjeuners + 7 dîners. */
   function genererSemaine(p, opts = {}) {
     const seed = opts.seed != null ? opts.seed : 1;
     const r = rng(seed);
-    const ctx = nouveauContexte(opts.notes);
+    const ctx = nouveauContexte(opts.notes, opts.classiques);
     const jours = [];
     const alertes = [];
     if (recettesCompatibles(p).length < 14) {
@@ -240,13 +280,16 @@
       for (const slot of SLOTS) {
         const nb = portions(p, j, slot);
         if (nb <= 0) { jourPlan[slot] = null; continue; }
-        const liste = candidats(p, j, slot, ctx, aujourdHui);
+        const theme = themeDuSlot(p, j, slot);
+        const liste = filtreTheme(candidats(p, j, slot, ctx, aujourdHui), theme, ctx);
         if (!liste.length) { jourPlan[slot] = null; alertes.push(`Aucune recette compatible pour ${JOURS[j]} (${slot}).`); continue; }
         let best = null, bestS = -Infinity;
         for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
         ajouterAuContexte(ctx, best, nb);
         aujourdHui.push(best.id);
         jourPlan[slot] = { recette: best.id, portions: nb };
+        if (theme) jourPlan[slot].theme = theme;
+        if (theme === 'enfants') jourPlan[slot].aChoisir = true;
       }
       ctx.hier = aujourdHui;
       jours.push(jourPlan);
@@ -254,8 +297,8 @@
     return { seed, jours, alertes, remplacements: 0 };
   }
 
-  function contexteDepuisPlan(plan, notes, sauf) {
-    const ctx = nouveauContexte(notes);
+  function contexteDepuisPlan(plan, notes, sauf, classiques) {
+    const ctx = nouveauContexte(notes, classiques);
     plan.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
       if (!jp[slot] || (sauf && sauf.jour === j && sauf.slot === slot)) return;
       ajouterAuContexte(ctx, REC[jp[slot].recette], jp[slot].portions);
@@ -267,16 +310,87 @@
   function remplacerRepas(plan, jour, slot, p, opts = {}) {
     const actuel = plan.jours[jour][slot];
     if (!actuel) return plan;
-    const ctx = contexteDepuisPlan(plan, opts.notes, { jour, slot });
+    const ctx = contexteDepuisPlan(plan, opts.notes, { jour, slot }, opts.classiques);
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
     const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
     const r = rng((plan.seed * 31 + jour * 7 + (slot === 'diner' ? 3 : 1) + (plan.remplacements + 1) * 101) >>> 0);
-    let liste = candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]);
+    let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
     if (!liste.length) return plan;
     let best = null, bestS = -Infinity;
     for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
     const jours = plan.jours.map((jp, i) => (i === jour ? { ...jp, [slot]: { ...actuel, recette: best.id } } : jp));
     return { ...plan, jours, remplacements: plan.remplacements + 1 };
+  }
+
+  /**
+   * Propose d'autres plats pour un repas (par défaut 2, en plus du plat actuel), variés entre eux :
+   * familles de plats différentes quand c'est possible, même thème que le rituel du jour.
+   * opts : { notes, classiques, n, exclure, tour }  (tour : pour « encore d'autres idées »)
+   */
+  function propositions(plan, jour, slot, p, opts = {}) {
+    const actuel = plan.jours[jour][slot];
+    if (!actuel) return [];
+    const n = opts.n || 2;
+    const ctx = contexteDepuisPlan(plan, opts.notes, { jour, slot }, opts.classiques);
+    const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
+    const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
+    const liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    const r = rng((plan.seed * 17 + jour * 13 + (slot === 'diner' ? 5 : 2) + (opts.tour || 0) * 977) >>> 0);
+    const classes = liste.map((rec) => [rec, score(rec, p, ctx, r)]).sort((a, b) => b[1] - a[1]).map(([rec]) => rec);
+    const choix = [];
+    const familles = new Set([REC[actuel.recette].modele]);
+    const sigs = new Set([REC[actuel.recette].sig || actuel.recette]);
+    for (const rec of classes) {
+      if (choix.length >= n) break;
+      if (sigs.has(rec.sig || rec.id) || (familles.has(rec.modele) && rec.modele !== 'maison')) continue;
+      choix.push(rec); familles.add(rec.modele); sigs.add(rec.sig || rec.id);
+    }
+    for (const rec of classes) {
+      if (choix.length >= n) break;
+      if (!choix.includes(rec) && !sigs.has(rec.sig || rec.id)) { choix.push(rec); sigs.add(rec.sig || rec.id); }
+    }
+    return choix.map((rec) => rec.id);
+  }
+
+  /** Met le plat choisi à la place du plat prévu (choix parmi les propositions : ne compte pas comme un remplacement). */
+  function choisirRepas(plan, jour, slot, recetteId) {
+    const actuel = plan.jours[jour][slot];
+    if (!actuel || !REC[recetteId]) return plan;
+    const jours = plan.jours.map((jp, i) => (i === jour ? { ...jp, [slot]: { ...actuel, recette: recetteId, aChoisir: false, choisi: true } } : jp));
+    return { ...plan, jours };
+  }
+
+  const virgule = (n) => n.toFixed(2).replace('.', ',') + ' €';
+  const deOu = (mot) => (/^[aeiouyéèêhœ]/i.test(mot) ? 'd’' : 'de ') + mot;
+  /** Jusqu'à 3 raisons courtes de proposer ce plat pour ce repas (« Pourquoi ce plat ? »). */
+  function pourquoi(recetteId, plan, jour, slot, p, opts = {}) {
+    const rec = REC[recetteId];
+    if (!rec) return [];
+    const raisons = [];
+    const classiques = opts.classiques || [];
+    const m = plan.jours[jour] && plan.jours[jour][slot];
+    const th = m && m.theme && THEMES[m.theme];
+    if (th && m.theme !== 'enfants' && th.ok(rec, { classiques })) raisons.push(`${th.libelle} du ${JOURS[jour].toLowerCase()}`);
+    if (classiques.includes(rec.id)) raisons.push('Un classique de la famille');
+    const note = (opts.notes || {})[rec.id];
+    if (note >= 4) raisons.push(`Vous l’avez noté ${note} ★`);
+    const g = p.gouts || goutsVides();
+    const aime = rec.ing.map(([id]) => id).filter((id) => (g.ing[id] || 0) >= 1 && ['P', 'L', 'F', 'D'].includes(ING[id].groupe)).sort((a, b) => g.ing[b] - g.ing[a])[0];
+    if (aime) raisons.push(`Vous aimez : ${ING[aime].nom.toLowerCase()}`);
+    else if ((g.cuisine[rec.cuisine] || 0) >= 1 || p.cuisines.includes(rec.cuisine)) raisons.push(`Vous aimez la cuisine ${(LIBELLES.cuisines[rec.cuisine] || rec.cuisine).toLowerCase()}`);
+    const autres = [];
+    plan.jours.forEach((jp, i) => SLOTS.forEach((s2) => { if (jp[s2] && !(i === jour && s2 === slot)) autres.push([i, REC[jp[s2].recette]]); }));
+    const BANALS = ['oignon', 'ail', 'citron', 'persil', 'salade', 'beurre'];
+    const partage = rec.ing.map(([id]) => id).find((id) => PERISSABLES.has(ING[id].rayon) && ING[id].groupe !== 'A' && !BANALS.includes(id) && autres.some(([, r2]) => r2.ing.some(([x]) => x === id)));
+    if (partage) {
+      const [i] = autres.find(([, r2]) => r2.ing.some(([x]) => x === partage));
+      raisons.push(`Finit le paquet ${deOu(ING[partage].nom.toLowerCase())} ${i === jour ? 'du même jour' : 'de ' + JOURS[i].toLowerCase()}`);
+    }
+    const c = coutPortion(rec);
+    if (c <= 1.1) raisons.push(`Seulement ${virgule(c)} la part`);
+    if (rec.temps <= 20) raisons.push(`Prêt en ${rec.temps} min`);
+    if (p.foyer.enfants.length && rec.tags.includes('enfants')) raisons.push('Plaît souvent aux enfants');
+    return raisons.slice(0, 3);
   }
 
   /* ---------- liste de courses et budget ---------- */
@@ -537,6 +651,7 @@
   const api = {
     JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, RECETTES, MODELES,
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
+    THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, optimiserDrives, magasinsDemo, contientViande, coutRepas

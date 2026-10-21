@@ -210,3 +210,61 @@ test('chacun des 12 000+ menus a une vraie photo de son type de plat, créditée
     assert.ok(ph && ph.src.startsWith('https://upload.wikimedia.org/') && ph.auteur && ph.licenceUrl, r.id);
   }
 });
+
+test('rituels : chaque dîner à thème respecte son thème (si une recette compatible existe)', () => {
+  const p = Object.assign(E.profilParDefaut(), { foyer: { adultes: 2, enfants: ['6-10'] } });
+  p.rituels = { 0: 'pates', 1: 'soupe', 2: 'enfants', 3: 'vege', 4: 'pizza', 5: 'poisson', 6: 'mijote' };
+  for (let seed = 1; seed <= 20; seed++) {
+    const plan = E.genererSemaine(p, { seed });
+    plan.jours.forEach((jp) => {
+      assert.ok(jp.diner.theme, 'thème absent');
+      assert.ok(E.THEMES[jp.diner.theme].ok(E.REC[jp.diner.recette], { classiques: [] }), jp.jour + ' ' + jp.diner.theme + ' : ' + E.REC[jp.diner.recette].nom);
+    });
+    assert.equal(plan.jours[2].diner.aChoisir, true);
+  }
+});
+
+test('nos classiques : environ deux par semaine, jamais deux fois le même', () => {
+  const p = E.profilParDefaut();
+  const classiques = ['bolognaise', 'curry_poulet', 'crepes_salees', 'gratin_pates', 'dahl'];
+  for (let seed = 1; seed <= 15; seed++) {
+    const plan = E.genererSemaine(p, { seed, classiques });
+    const ids = plan.jours.flatMap((jp) => E.SLOTS.map((s) => jp[s] && jp[s].recette)).filter(Boolean);
+    const vus = ids.filter((id) => classiques.includes(id));
+    assert.ok(vus.length >= 2, 'classiques : ' + vus.length);
+    assert.equal(new Set(vus).size, vus.length);
+  }
+});
+
+test('3 idées : plats différents, compatibles avec les allergies, même thème, sans compter de remplacement', () => {
+  const p = Object.assign(E.profilParDefaut(), { allergies: ['gluten', 'lait'], foyer: { adultes: 2, enfants: ['3-5'] } });
+  p.rituels = { 4: 'pizza', 0: 'monde' };
+  const plan = E.genererSemaine(p, { seed: 3 });
+  for (let j = 0; j < 7; j++) for (const s of E.SLOTS) {
+    const ids = E.propositions(plan, j, s, p, {});
+    assert.ok(ids.length >= 1);
+    assert.equal(new Set(ids.concat(plan.jours[j][s].recette)).size, ids.length + 1);
+    for (const id of ids) {
+      assert.ok(E.recetteCompatible(E.REC[id], p).ok, id);
+      const th = plan.jours[j][s].theme;
+      if (th && E.THEMES[th]) assert.ok(E.THEMES[th].ok(E.REC[id], {}) || !E.recettesCompatibles(p).some((r) => r.repas.includes(s) && E.THEMES[th].ok(r, {}) && r.id !== plan.jours[j][s].recette), th);
+    }
+    const choisi = E.choisirRepas(plan, j, s, ids[0]);
+    assert.equal(choisi.jours[j][s].recette, ids[0]);
+    assert.equal(choisi.remplacements, plan.remplacements);
+  }
+});
+
+test('pourquoi ce plat : 1 à 3 raisons courtes, en français', () => {
+  const p = E.profilParDefaut();
+  p.gouts = E.apprendre(E.goutsVides(), 'curry_poulet', 'adore');
+  const plan = E.genererSemaine(p, { seed: 5, notes: { bolognaise: 5 } });
+  let total = 0;
+  plan.jours.forEach((jp, j) => E.SLOTS.forEach((s) => {
+    const r = E.pourquoi(jp[s].recette, plan, j, s, p, { notes: { bolognaise: 5 } });
+    assert.ok(r.length <= 3);
+    r.forEach((x) => { assert.ok(x.length < 70, x); assert.ok(!/undefined|NaN|de [aeiouyéœ]/i.test(x), x); });
+    total += r.length;
+  }));
+  assert.ok(total >= 14, 'trop peu de raisons : ' + total);
+});

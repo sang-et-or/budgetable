@@ -25,8 +25,12 @@
     drives: { cp: '', rayon: 10, mode: 'compromis', conso: 6.5, carburant: 1.8, enseigne: '' },
     confirmerSuppression: false,
     test: null,            // { ids, i, depuis: 'profil' | 'app' }
-    ia: { tours: [], attente: false, message: '' }
+    ia: { tours: [], attente: false, message: '' },
+    classiques: [],        // « nos classiques » : plats préférés de la famille (cœur, ou 5 étoiles)
+    tourEnfant: 0,         // à quel enfant le tour de choisir le dîner « choix des enfants »
+    rituelsVus: false      // la suggestion de rituels a été vue
   };
+  let choix = null;        // fenêtre « 3 idées » : { jour, slot, idees, exclure, tour, enfants }
   let chef = null;        // assistant cuisine de la fiche ouverte : { cle, tours, attente, message }
   let iaDispo = null;      // null : on vérifie ; false : indisponible ; fonction : disponible
   // photo d'illustration posée sur le dessin : si la photo ne charge pas, le dessin reste visible
@@ -58,18 +62,23 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) { /* stockage indisponible : l'appli marche quand même */ }
   }
   function charger() {
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) } });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus });
     } catch (e) { /* données illisibles : on repart de zéro */ }
   }
 
   /* ---------- outils ---------- */
+  const optsMoteur = () => ({ notes: S.notes, classiques: S.classiques });
+  function prenomDuTour() {
+    const n = (S.profil.prenomsEnfants || []).map((x) => String(x || '').trim()).filter(Boolean);
+    return n.length ? n[S.tourEnfant % n.length] : null;
+  }
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const euros = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   const nb = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
@@ -416,10 +425,21 @@
     if (!m) return `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
     const r = E.REC[m.recette];
     const note = S.notes[r.id];
-    return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}</span>
-      <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${esc(r.nom)}</button>
+    const th = m.theme && E.THEMES[m.theme];
+    if (m.aChoisir) {
+      const prenom = prenomDuTour();
+      return `<div class="repas repas-enfants"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab} · ${prenom ? 'le choix de ' + esc(prenom) : 'le choix des enfants'}</span>
+        <strong>${prenom ? `C’est au tour de ${esc(prenom)} de choisir !` : 'Les enfants choisissent le dîner'}</strong>
+        <span class="small muted">Trois plats en photo, on touche celui qui fait envie. En attendant : ${esc(r.nom)}.</span>
+        <div><button class="btn btn-petit btn-plein" data-a="choix" data-j="${j}" data-s="${slot}" data-enfants="1">Faire choisir</button></div></div></div>`;
+    }
+    const raison = E.pourquoi(r.id, S.plan, j, slot, S.profil, optsMoteur()).find((x) => !th || !x.startsWith(th.libelle));
+    const classique = S.classiques.includes(r.id);
+    return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
+      <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
       <div class="meta"><span>${r.temps} min</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
-      <div><button class="btn btn-petit" data-a="changer" data-j="${j}" data-s="${slot}">Changer</button></div></div></div>`;
+      ${raison ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
+      <div><button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">3 idées pour ce repas</button></div></div></div>`;
   }
 
   function moyenneAssiette() {
@@ -440,15 +460,92 @@
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocBudget()}
       ${moyenneAssiette()}
-      <p class="small muted">${restants}. Touchez un plat pour la recette et pour le noter.</p>
+      ${suggestionRituels()}
+      <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
       <div class="jours">${S.plan.jours.map((jp, j) => `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour}</h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}</article>`).join('')}</div>`;
+        ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}</article>`).join('')}</div>
+      ${carteRituels()}
+      <p class="small muted">${restants}.</p>`;
+  }
+
+  /* ---------- rituels de la semaine, classiques, prénoms des enfants ---------- */
+  function suggestionRituels() {
+    const p = S.profil;
+    if (p.rituels || S.rituelsVus) return '';
+    const sug = E.rituelsSuggeres(p);
+    const texte = Object.entries(sug).sort((a, b) => a[0] - b[0]).map(([j, t]) => `${E.JOURS[j].toLowerCase()} : ${E.THEMES[t].libelle.toLowerCase()}`).join(' · ');
+    return `<div class="idee-rituels"><div class="stack" style="gap:6px"><strong>Et si on se créait des rituels ?</strong>
+      <span class="small">Des rendez-vous qu’on attend avec plaisir : ${esc(texte)}. Le reste de la semaine reste libre.</span>
+      <div class="row"><button class="btn btn-petit btn-plein" data-a="rituels-oui">Essayer ces rituels</button><button class="btn btn-petit" data-a="rituels-non">Non merci</button></div></div></div>`;
+  }
+  function optionsTheme(j, actuel) {
+    const p = S.profil;
+    const ids = ['pates', 'pizza', 'mijote', 'soupe', 'monde', 'vege', 'poisson', 'oeufs', 'rapide']
+      .concat(p.foyer.enfants.length ? ['enfants'] : []).concat(S.classiques.length ? ['classique'] : []);
+    return `<option value="">Libre</option>` + ids.map((t) => `<option value="${t}" ${actuel === t ? 'selected' : ''}>${esc(E.THEMES[t].libelle)}</option>`).join('');
+  }
+  function carteRituels() {
+    const p = S.profil, r = p.rituels || {};
+    const nEnfants = p.foyer.enfants.length;
+    const prenoms = p.prenomsEnfants || [];
+    return `<details class="carte rituels" ${S.rituelsOuverts ? 'open' : ''}><summary data-a="rituels-ouvrir"><strong>Nos rituels et nos classiques</strong> <span class="small muted">· soirées à thème, plats préférés${nEnfants ? ', choix des enfants' : ''}</span></summary>
+      <div class="stack" style="gap:14px;margin-top:12px">
+        <div class="stack" style="gap:8px"><h3>Les dîners à thème</h3>
+          <div class="grille-rituels">${E.JOURS.map((jn, j) => `<label class="champ"><span>${jn}</span><select data-a="rituel" data-j="${j}">${optionsTheme(j, r[j])}</select></label>`).join('')}</div>
+          ${S.rituelsModifies ? '<div><button class="btn btn-plein btn-petit" data-a="rituels-appliquer">Refaire la semaine avec ces rituels</button></div>' : ''}
+        </div>
+        ${nEnfants ? `<div class="stack" style="gap:8px"><h3>Le choix des enfants</h3>
+          <p class="small muted">Le soir « Le choix des enfants », c’est un enfant qui choisit le dîner parmi 3 plats en photo, chacun son tour d’une semaine à l’autre. Prénoms facultatifs, gardés sur cet appareil.</p>
+          <div class="row">${Array.from({ length: nEnfants }, (_, i) => `<label class="champ" style="max-width:160px"><span>Enfant ${i + 1}</span><input type="text" maxlength="20" data-a="prenom" data-i="${i}" value="${esc(prenoms[i] || '')}" placeholder="Prénom"></label>`).join('')}</div></div>` : ''}
+        <div class="stack" style="gap:8px"><h3>Nos classiques ${S.classiques.length ? `(${S.classiques.length})` : ''}</h3>
+          <p class="small muted">Les valeurs sûres de la famille : deux reviennent chaque semaine, entre les découvertes. Ajoutez-en avec le cœur dans une recette (ou en lui donnant 5 étoiles).</p>
+          ${S.classiques.length ? `<div class="row">${S.classiques.filter((id) => E.REC[id]).map((id) => `<span class="tag tag-classique">♥ ${esc(E.REC[id].nom)} <button class="btn-lien" data-a="classique" data-r="${id}" aria-label="Retirer ${esc(E.REC[id].nom)} des classiques">✕</button></span>`).join('')}</div>` : '<p class="small">Aucun classique pour l’instant.</p>'}
+        </div>
+      </div></details>`;
+  }
+
+  /* ---------- fenêtre « 3 idées pour ce repas » (et choix des enfants) ---------- */
+  function ouvrirChoix(j, slot, enfants) {
+    choix = { jour: j, slot, enfants: !!enfants, exclure: [], tour: 0, idees: [] };
+    choix.idees = E.propositions(S.plan, j, slot, S.profil, optsMoteur());
+  }
+  function vueChoix() {
+    if (!choix || !S.plan) return '';
+    const m = S.plan.jours[choix.jour][choix.slot];
+    if (!m) return '';
+    const ids = [m.recette, ...choix.idees];
+    const enf = choix.enfants, prenom = prenomDuTour();
+    const titre = enf ? (prenom ? `À toi de choisir, ${esc(prenom)} !` : 'Les enfants choisissent le dîner !')
+      : `${choix.slot === 'diner' ? 'Dîner' : 'Déjeuner'} du ${E.JOURS[choix.jour].toLowerCase()} : qu’est-ce qui vous ferait plaisir ?`;
+    const th = m.theme && E.THEMES[m.theme] && m.theme !== 'enfants' ? E.THEMES[m.theme].libelle : '';
+    const cartes = ids.map((id, i) => {
+      const r = E.REC[id];
+      const raisons = enf ? [] : E.pourquoi(id, S.plan, choix.jour, choix.slot, S.profil, optsMoteur());
+      const actuel = i === 0 && !enf && !m.aChoisir;
+      return `<article class="choix-carte ${actuel ? 'actuel' : ''} ${enf ? 'enfant' : ''}">
+        ${V(r, enf ? 220 : 160, 'rect')}
+        <div class="stack" style="gap:6px;padding:12px 14px 14px">
+          ${actuel ? '<span class="tag tag-ok">Prévu</span>' : ''}
+          <h3>${esc(r.nom)}</h3>
+          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span></div>
+          ${raisons.length ? `<ul class="raisons">${raisons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+          <div class="row"><button class="btn ${actuel ? '' : 'btn-plein'}" data-a="choisir" data-r="${id}">${enf ? 'Celui-là !' : actuel ? 'Garder ce plat' : 'Je choisis ce plat'}</button>
+          ${enf ? '' : `<button class="btn-lien small" data-a="fiche-r" data-r="${id}">La recette</button>`}</div>
+        </div></article>`;
+    }).join('');
+    const reste = S.premium ? '' : ` (${Math.max(0, LIMITE_GRATUITE - S.plan.remplacements)} restante${LIMITE_GRATUITE - S.plan.remplacements > 1 ? 's' : ''})`;
+    return `<div class="voile" data-a="fermer-choix-fond"><div class="fiche fenetre-choix" role="dialog" aria-modal="true" aria-labelledby="choix-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px">${th ? `<span class="eyebrow">${esc(th)}</span>` : ''}<h2 id="choix-titre">${titre}</h2></div>
+        <button class="btn btn-petit" data-a="fermer-choix" aria-label="Fermer">Fermer</button></div>
+      <div class="grille-choix ${enf ? 'enfants' : ''}">${cartes}</div>
+      ${enf ? '' : `<div class="row"><button class="btn" data-a="autres-idees">Encore d’autres idées${reste}</button><span class="small muted">Le budget et la liste de courses se mettent à jour tout seuls.</span></div>`}
+    </div></div>`;
   }
 
   const CLOCHE = `<svg class="cloche" viewBox="0 0 120 90" aria-hidden="true"><ellipse cx="60" cy="78" rx="54" ry="8" fill="#fbfaf3" opacity=".9"/><path d="M14 74a46 46 0 0 1 92 0z" fill="#d9dcd6" stroke="#fbfaf3" stroke-width="3"/><path d="M30 52a32 32 0 0 1 22-20" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".7"/><circle cx="60" cy="24" r="6" fill="#d9dcd6" stroke="#fbfaf3" stroke-width="3"/></svg>`;
 
   function ongletSoir() {
-    const r = E.ceSoir(S.plan, S.profil, aujourdhui(), { notes: S.notes });
+    const r = E.ceSoir(S.plan, S.profil, aujourdhui(), optsMoteur());
     if (!S.ceSoirOuvert) {
       return `<section class="ce-soir ardoise">${CLOCHE}<h1>Qu’est-ce qu’on mange ce soir ?</h1><button class="btn" data-a="ce-soir">Soulever la cloche</button></section>`;
     }
@@ -685,6 +782,7 @@
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       <p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">IA</span></div>${blocChef(r, m.portions)}</section>
+      <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '♥ Un classique de la famille' : '♡ Ajouter à nos classiques'}</button></div>
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
         <p class="small muted">${note === 1 ? 'Cette recette ne sera plus proposée.' : note ? 'Merci : les recettes bien notées reviendront plus souvent.' : 'Une étoile : on ne la propose plus. Cinq : plus souvent.'}</p></div>
     </div></div>`;
@@ -699,7 +797,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueFiche();
+    app.innerHTML = html + vueChoix() + vueFiche();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
     const fil = document.querySelector('.fiche .chat');
@@ -708,7 +806,8 @@
   }
 
   function nouvellePlanification() {
-    S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes });
+    if (S.plan) S.tourEnfant++;
+    S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     S.coches = {};
     S.ceSoirOuvert = false;
   }
@@ -741,7 +840,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if (a === 'fermer-fond' && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -784,13 +883,13 @@
         if (!S.premium && S.plan.remplacements >= LIMITE_GRATUITE) { toast('Limite de la formule Découverte atteinte : activez Premium (test) dans Profil'); return; }
         const j = +el.dataset.j, s = el.dataset.s;
         const avant = S.plan.jours[j][s].recette;
-        S.plan = E.remplacerRepas(S.plan, j, s, p, { notes: S.notes });
+        S.plan = E.remplacerRepas(S.plan, j, s, p, optsMoteur());
         toast(S.plan.jours[j][s].recette === avant ? 'Pas d’autre recette compatible pour ce repas' : `Remplacé par : ${E.REC[S.plan.jours[j][s].recette].nom}`);
         break;
       }
       case 'ajuster': {
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
-        const r = E.ajusterAuBudget(S.plan, p, { notes: S.notes });
+        const r = E.ajusterAuBudget(S.plan, p, optsMoteur());
         S.plan = { ...r.plan, alertes: S.plan.alertes.concat(r.atteint ? [] : [`Même avec les recettes compatibles les moins chères, l’estimation reste à ${euros(r.estimation)}. Pistes : augmenter un peu le budget, indiquer vos provisions, ou prévoir des déjeuners dehors.`]) };
         toast(r.changements.length ? `${pluriel(r.changements.length, 'repas remplacé')}, économie ${euros(r.changements.reduce((s, c) => s + c.gain, 0))}` : 'Aucun remplacement moins cher trouvé');
         break;
@@ -802,8 +901,45 @@
         const n = +el.dataset.n;
         S.notes[el.dataset.r] = n;
         p.gouts = E.apprendre(p.gouts, el.dataset.r, n >= 5 ? 'adore' : n === 4 ? 'pourquoi' : n <= 2 ? 'non' : '');
+        if (n === 5 && !S.classiques.includes(el.dataset.r)) { S.classiques.push(el.dataset.r); toast('5 étoiles : ajouté à « Nos classiques » ♥'); }
+        if (n <= 2) S.classiques = S.classiques.filter((x) => x !== el.dataset.r);
         break;
       }
+      case 'classique': {
+        const id = el.dataset.r;
+        if (S.classiques.includes(id)) { S.classiques = S.classiques.filter((x) => x !== id); toast('Retiré de nos classiques'); }
+        else { S.classiques.push(id); toast('Ajouté à nos classiques ♥ : il reviendra régulièrement'); }
+        break;
+      }
+      case 'choix': ouvrirChoix(+el.dataset.j, el.dataset.s, el.dataset.enfants === '1'); break;
+      case 'fermer-choix': case 'fermer-choix-fond': choix = null; break;
+      case 'choisir': {
+        const { jour, slot, enfants } = choix;
+        const avant = S.plan.jours[jour][slot].recette;
+        S.plan = E.choisirRepas(S.plan, jour, slot, el.dataset.r);
+        const nom = E.REC[el.dataset.r].nom;
+        if (enfants) {
+          const prenom = prenomDuTour();
+          if (prenom) S.plan.jours[jour][slot].choisiPar = prenom;
+          toast(prenom ? `Super choix, ${prenom} ! ${E.JOURS[jour]} soir : ${nom}` : `Super choix ! ${E.JOURS[jour]} soir : ${nom}`);
+        } else toast(el.dataset.r === avant ? 'On garde ce plat' : `C’est noté : ${nom}`);
+        choix = null;
+        break;
+      }
+      case 'autres-idees': {
+        if (!S.premium && S.plan.remplacements >= LIMITE_GRATUITE) { toast('Plus d’idées supplémentaires cette semaine en formule Découverte : activez Premium (test) dans Profil'); return; }
+        choix.exclure.push(...choix.idees);
+        choix.tour++;
+        const idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), exclure: choix.exclure, tour: choix.tour });
+        if (!idees.length) { toast('Pas d’autre plat compatible pour ce repas'); return; }
+        choix.idees = idees;
+        S.plan = { ...S.plan, remplacements: S.plan.remplacements + 1 };
+        break;
+      }
+      case 'rituels-oui': p.rituels = E.rituelsSuggeres(p); S.rituelsVus = true; nouvellePlanification(); toast('Rituels en place : la semaine a été refaite avec eux'); break;
+      case 'rituels-non': S.rituelsVus = true; break;
+      case 'rituels-ouvrir': S.rituelsOuverts = !el.parentElement.open; return;
+      case 'rituels-appliquer': S.rituelsModifies = false; nouvellePlanification(); toast('Nouvelle semaine avec vos rituels'); break;
       case 'test-go':
         S.test = { ids: E.selectionTest(p, 12, Math.floor(Math.random() * 1e9), window.Photos ? (r) => !!window.Photos.photoFidele(r) : null), i: 0, depuis: el.dataset.depuis };
         S.vue = 'test'; window.scrollTo(0, 0); break;
@@ -864,6 +1000,13 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'prenom') {
+      const n = [...(S.profil.prenomsEnfants || [])];
+      n[+el.dataset.i] = el.value.slice(0, 20);
+      S.profil.prenomsEnfants = n;
+      sauver();
+      return;
+    }
     if (el.dataset.a === 'budget') {
       S.profil.budget = +el.value;
       const o = document.getElementById('budget-val'); if (o) o.textContent = euros(S.profil.budget);
@@ -877,9 +1020,15 @@
   document.addEventListener('change', (ev) => {
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
+    if (el.dataset.a === 'rituel') {
+      const r = { ...(S.profil.rituels || {}) };
+      if (el.value) r[el.dataset.j] = el.value; else delete r[el.dataset.j];
+      S.profil.rituels = r; S.rituelsVus = true; S.rituelsModifies = true; S.rituelsOuverts = true;
+      rendre();
+    }
   });
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && fiche) { fiche = null; rendre(); }
+    if (ev.key === 'Escape' && fiche) { fiche = null; rendre(); } else if (ev.key === 'Escape' && choix) { choix = null; rendre(); }
     if (ev.key === 'Enter' && ev.target.id === 'chef-texte') { ev.preventDefault(); envoyerChef(ev.target.value); }
   });
 
