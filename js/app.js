@@ -28,7 +28,8 @@
     ia: { tours: [], attente: false, message: '' },
     classiques: [],        // « nos classiques » : plats préférés de la famille (cœur, ou 5 étoiles)
     tourEnfant: 0,         // à quel enfant le tour de choisir le dîner « choix des enfants »
-    rituelsVus: false      // la suggestion de rituels a été vue
+    rituelsVus: false,     // la suggestion de rituels a été vue
+    modeCourses: null      // courses guidées sur le drive : { ouvert, i, absents, prix }
   };
   let choix = null;        // fenêtre « 3 idées » : { jour, slot, idees, exclure, tour, enfants }
   let chef = null;        // assistant cuisine de la fiche ouverte : { cle, tours, attente, message }
@@ -62,14 +63,14 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) { /* stockage indisponible : l'appli marche quand même */ }
   }
   function charger() {
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null });
     } catch (e) { /* données illisibles : on repart de zéro */ }
   }
 
@@ -504,6 +505,64 @@
       </div></details>`;
   }
 
+  /* ---------- courses guidées sur le drive (sans extension) ---------- */
+  const aAcheter = (liste) => liste.articles.filter((a) => !a.enStock);
+  function resteCourses(liste) {
+    const m = S.modeCourses || { absents: {} };
+    return aAcheter(liste).filter((a) => !S.coches[a.id] && !(m.absents || {})[a.id]).length;
+  }
+  function vueCourses() {
+    const m = S.modeCourses;
+    if (!m || !m.ouvert || !S.plan || !S.drives.enseigne) return '';
+    const d = DRIVES[S.drives.enseigne];
+    const articles = aAcheter(E.listeCourses(S.plan, S.profil));
+    const n = articles.length;
+    const faits = articles.filter((a) => S.coches[a.id] || m.absents[a.id]).length;
+    const barre = `<div class="progress" role="progressbar" aria-valuenow="${faits}" aria-valuemin="0" aria-valuemax="${n}" aria-label="Avancement des courses"><i style="width:${n ? Math.round(faits / n * 100) : 100}%"></i></div>`;
+    const tete = (titre) => `<div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Mes courses chez ${esc(d.nom)} · ${faits} / ${n}</span><h2 id="courses-titre">${titre}</h2></div>
+      <button class="btn btn-petit" data-a="courses-fermer">Fermer</button></div>${barre}`;
+    if (m.i >= n) {
+      const panier = articles.filter((a) => S.coches[a.id]);
+      const absents = articles.filter((a) => m.absents[a.id]);
+      const saisis = panier.filter((a) => m.prix[a.id] > 0);
+      const totalSaisi = saisis.reduce((s2, a) => s2 + m.prix[a.id], 0);
+      const estime = saisis.reduce((s2, a) => s2 + a.cout, 0);
+      return `<div class="voile" data-a="courses-fond"><div class="fiche fenetre-courses" role="dialog" aria-modal="true" aria-labelledby="courses-titre">
+        ${tete(absents.length ? 'Presque fini !' : 'Tout est dans votre panier !')}
+        <p><strong>${pluriel(panier.length, 'article')}</strong> dans votre panier ${esc(d.nom)}.${saisis.length ? ` Prix notés : <strong class="num">${euros(totalSaisi)}</strong> pour ${pluriel(saisis.length, 'article')} (estimation Budgétable : ${euros(estime)}).` : ''}</p>
+        ${absents.length ? `<div class="stack" style="gap:6px"><strong>Pas trouvés chez ${esc(d.nom)} :</strong><ul class="liste-absents">${absents.map((a) => `<li><span>${esc(a.nom)}</span><button class="btn-lien small" data-a="courses-aller" data-id="${a.id}">Réessayer</button></li>`).join('')}</ul>
+          <p class="small muted">Astuce : un produit proche fait souvent l’affaire (autre marque, autre conditionnement).</p></div>` : ''}
+        <a class="btn btn-plein btn-grand" href="${d.accueil}" target="_blank" rel="noopener">Valider ma commande sur ${esc(d.nom)} ↗</a>
+        <p class="small muted">Vérifiez votre panier sur le site du drive (quantités, prix, créneau de retrait) avant de payer.</p>
+        <div class="row"><button class="btn" data-a="courses-fermer">Retour à ma liste</button><button class="btn-lien small" data-a="courses-zero">Tout recommencer</button></div>
+      </div></div>`;
+    }
+    const a = articles[m.i];
+    const etat = S.coches[a.id] ? 'panier' : m.absents[a.id] ? 'absent' : '';
+    return `<div class="voile" data-a="courses-fond"><div class="fiche fenetre-courses" role="dialog" aria-modal="true" aria-labelledby="courses-titre">
+      ${tete(esc(a.nom))}
+      <div class="article-courses">
+        <span class="eyebrow">${esc(a.rayon)}</span>
+        <p class="a-prendre">À prendre : <strong>${a.conditionnements} × ${esc(a.condLabel)}</strong></p>
+        <p class="small muted">${a.unite !== 'pièce' ? `Pour vos recettes : ${quantite(a.quantite, a.unite)} · ` : ''}estimation ${euros(a.cout)}</p>
+        ${etat ? `<span class="tag ${etat === 'panier' ? 'tag-ok' : 'tag-simu'}">${etat === 'panier' ? 'Dans votre panier' : 'Pas trouvé'}</span>` : ''}
+      </div>
+      <a class="btn btn-grand btn-chercher" href="${d.url(termeRecherche(a.nom))}" target="_blank" rel="noopener">1. Chercher « ${esc(termeRecherche(a.nom))} » chez ${esc(d.nom)} ↗</a>
+      <p class="small muted">Le site du drive s’ouvre dans un nouvel onglet. Ajoutez le produit à votre panier, puis revenez ici.</p>
+      <button class="btn btn-plein btn-grand" data-a="courses-panier" data-id="${a.id}">2. ✓ C’est dans mon panier</button>
+      <label class="champ prix-paye"><span>Prix affiché (facultatif, pour suivre votre budget réel)</span><input type="text" inputmode="decimal" autocomplete="off" pattern="[0-9]+([,.][0-9]{1,2})?" placeholder="ex. 1,89" data-a="courses-prix" data-id="${a.id}" value="${m.prix[a.id] || ''}"></label>
+      <div class="row" style="justify-content:space-between"><button class="btn" data-a="courses-absent" data-id="${a.id}">Pas trouvé</button><button class="btn" data-a="courses-stock" data-id="${a.id}">J’en ai déjà</button></div>
+      <div class="row" style="justify-content:space-between"><button class="btn-lien small" data-a="courses-prec" ${m.i === 0 ? 'disabled' : ''}>← Précédent</button><button class="btn-lien small" data-a="courses-suiv">Passer →</button></div>
+    </div></div>`;
+  }
+  function coursesSuivant() {
+    const articles = aAcheter(E.listeCourses(S.plan, S.profil));
+    const m = S.modeCourses;
+    let i = m.i + 1;
+    while (i < articles.length && (S.coches[articles[i].id] || m.absents[articles[i].id])) i++;
+    m.i = i;
+  }
+
   /* ---------- fenêtre « 3 idées pour ce repas » (et choix des enfants) ---------- */
   function ouvrirChoix(j, slot, enfants) {
     choix = { jour: j, slot, enfants: !!enfants, exclure: [], tour: 0, idees: [] };
@@ -630,17 +689,20 @@
     return `<div class="spread"><div><p class="eyebrow">Liste de courses</p><h1>Pour la semaine</h1></div>
       <div class="row ecran-seul">
         <button class="btn" data-a="copier-liste">Copier la liste</button>
-        <button class="btn" data-a="export-extension">Envoyer vers l’extension</button>
         <button class="btn" data-a="imprimable">${S.imprimable ? 'Quitter la version imprimable' : 'Version imprimable'}</button>
         ${imprimerDispo ? '<button class="btn btn-plein" data-a="imprimer">Imprimer ou PDF</button>' : ''}
-      </div>${etatEnvoiExtension()}</div>
+      </div></div>
       ${S.imprimable && !imprimerDispo ? '<p class="bandeau bandeau-info small ecran-seul">Pour obtenir un PDF, ouvrez Budgétable installé sur votre appareil et utilisez « Imprimer ou PDF ». Ici, la version imprimable sert d’aperçu.</p>' : ''}
-      <section class="carte stack ecran-seul" style="gap:12px"><div class="spread"><h2>Remplir mon panier drive</h2>${S.drives.enseigne ? `<a class="btn btn-petit" href="${DRIVES[S.drives.enseigne].accueil}" target="_blank" rel="noopener">Ouvrir ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
-        <p class="small">Choisissez votre drive : chaque article aura un bouton qui ouvre sa recherche sur le site du drive. Vous comparez et ajoutez au panier vous-même, puis vous validez votre commande chez eux.</p>
-        <p class="small">Plus rapide sur ordinateur : avec l’<a href="extension.html" target="_blank" rel="noopener">extension Budgétable</a>, votre liste vous suit sur le site du drive et les prix les plus bas sont repérés pour vous.</p>
+      <section class="carte stack ecran-seul panier-drive" style="gap:12px"><h2>Faire mes courses sur mon drive</h2>
+        <p class="small">Choisissez votre drive, puis laissez-vous guider : un article à la fois, un bouton qui ouvre sa recherche sur le site du drive, et « C’est dans mon panier ». Sur téléphone comme sur ordinateur, rien à installer.</p>
         <div class="choix" role="radiogroup" aria-label="Mon drive">${enseignesOrdonnees().map(([k, d, lieu]) => `<button class="chip" role="radio" data-a="enseigne" data-k="${k}" aria-pressed="${S.drives.enseigne === k}" aria-checked="${S.drives.enseigne === k}">${esc(d.nom)}${lieu ? ` <span class="small muted">· ${esc(lieu)}</span>` : ''}</button>`).join('')}</div>
         ${S.drives.enseigne && DRIVES[S.drives.enseigne].note ? `<p class="small muted">${esc(DRIVES[S.drives.enseigne].note)}</p>` : ''}
         ${S.drives.enseigne && !DRIVES[S.drives.enseigne].verifie ? '<p class="small muted">Lien de recherche pas encore vérifié pour ce site : s’il n’affiche pas le bon produit, dites-le-nous.</p>' : ''}
+        ${S.drives.enseigne ? `<div class="row"><button class="btn btn-plein btn-grand" data-a="courses-go">${resteCourses(liste) < aAcheter(liste).length && resteCourses(liste) > 0 ? `Reprendre mes courses (${resteCourses(liste)} restants)` : 'Commencer mes courses'}</button>
+          <a class="btn" href="${DRIVES[S.drives.enseigne].accueil}" target="_blank" rel="noopener">Ouvrir ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a></div>` : '<p class="small"><strong>Choisissez votre drive ci-dessus pour commencer.</strong></p>'}
+        <details class="small" ${S.envoiExt ? 'open' : ''}><summary>Sur ordinateur : l’extension Budgétable (facultatif)</summary>
+          <p>Pour les habitués sur ordinateur, l’<a href="extension.html" target="_blank" rel="noopener">extension</a> affiche votre liste directement sur le site du drive. Elle n’est pas nécessaire.</p>
+          <div class="row"><button class="btn btn-petit" data-a="export-extension">Envoyer vers l’extension</button></div>${etatEnvoiExtension()}</details>
       </section>
       <div class="ticket"><div class="ticket-tete"><strong>Budgétable</strong><span class="small muted">Liste de la semaine · ${new Date().toLocaleDateString('fr-FR')}</span><span>${tagDemo}</span></div>
       <div class="colonnes">${Object.entries(par).map(([rayon, as]) => `<section class="rayon"><h3><span>${esc(rayon)}</span><span class="num small muted">${euros(as.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0))}</span></h3>
@@ -809,7 +871,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueFiche();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueFiche();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
     const fil = document.querySelector('.fiche .chat');
@@ -821,6 +883,7 @@
     if (S.plan) S.tourEnfant++;
     S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     S.coches = {};
+    S.modeCourses = null;
     S.ceSoirOuvert = false;
   }
 
@@ -852,7 +915,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -995,6 +1058,27 @@
         break;
       }
       case 'enseigne': S.drives.enseigne = S.drives.enseigne === el.dataset.k ? '' : el.dataset.k; break;
+      case 'courses-go': {
+        const articles = aAcheter(E.listeCourses(S.plan, p));
+        const m = S.modeCourses && S.modeCourses.absents ? S.modeCourses : { absents: {}, prix: {} };
+        let i = articles.findIndex((x) => !S.coches[x.id] && !m.absents[x.id]);
+        if (i < 0) i = articles.length;
+        S.modeCourses = { ...m, ouvert: true, i };
+        break;
+      }
+      case 'courses-panier': S.coches[el.dataset.id] = true; delete S.modeCourses.absents[el.dataset.id]; coursesSuivant(); break;
+      case 'courses-absent': S.modeCourses.absents[el.dataset.id] = true; S.coches[el.dataset.id] = false; coursesSuivant(); break;
+      case 'courses-stock': if (!p.provisions.includes(el.dataset.id)) p.provisions = [...p.provisions, el.dataset.id]; toast('Noté : vous en avez déjà'); break;
+      case 'courses-suiv': coursesSuivant(); break;
+      case 'courses-prec': S.modeCourses.i = Math.max(0, S.modeCourses.i - 1); break;
+      case 'courses-aller': {
+        const articles = aAcheter(E.listeCourses(S.plan, p));
+        delete S.modeCourses.absents[el.dataset.id];
+        S.modeCourses.i = Math.max(0, articles.findIndex((x) => x.id === el.dataset.id));
+        break;
+      }
+      case 'courses-fermer': case 'courses-fond': S.modeCourses.ouvert = false; break;
+      case 'courses-zero': aAcheter(E.listeCourses(S.plan, p)).forEach((x) => { S.coches[x.id] = false; }); S.modeCourses = { absents: {}, prix: {}, ouvert: true, i: 0 }; break;
       case 'premium': S.premium = el.checked; toast(el.checked ? 'Premium activé en mode test, sans paiement' : 'Retour à la formule Découverte'); break;
       case 'supprimer': S.confirmerSuppression = true; break;
       case 'suppr-non': S.confirmerSuppression = false; break;
@@ -1012,6 +1096,12 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'courses-prix') {
+      const v = parseFloat(String(el.value).replace(',', '.'));
+      if (v > 0 && v < 1000) S.modeCourses.prix[el.dataset.id] = Math.round(v * 100) / 100; else delete S.modeCourses.prix[el.dataset.id];
+      sauver();
+      return;
+    }
     if (el.dataset.a === 'prenom') {
       const n = [...(S.profil.prenomsEnfants || [])];
       n[+el.dataset.i] = el.value.slice(0, 20);
@@ -1040,7 +1130,7 @@
     }
   });
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && fiche) { fiche = null; rendre(); } else if (ev.key === 'Escape' && choix) { choix = null; rendre(); }
+    if (ev.key === 'Escape' && fiche) { fiche = null; rendre(); } else if (ev.key === 'Escape' && choix) { choix = null; rendre(); } else if (ev.key === 'Escape' && S.modeCourses && S.modeCourses.ouvert) { S.modeCourses.ouvert = false; rendre(); }
     if (ev.key === 'Enter' && ev.target.id === 'chef-texte') { ev.preventDefault(); envoyerChef(ev.target.value); }
   });
 
