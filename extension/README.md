@@ -16,8 +16,9 @@ Fonctionne aussi avec Edge et Brave (mêmes étapes, `edge://extensions`).
 
 ## Utiliser
 
-1. Dans Budgétable, onglet **Courses** : cliquez sur **Envoyer vers l'extension**.
-2. Cliquez sur l'icône Budgétable dans Chrome, collez, puis **Enregistrer la liste**.
+1. Dans Budgétable (budgetable.onrender.com), onglet **Courses** : cliquez sur **Envoyer vers l'extension**.
+2. La liste arrive directement dans l'extension (un message le confirme). Si Budgétable est ouvert ailleurs
+   (fichier, autre adresse), la liste est copiée : cliquez sur l'icône Budgétable, collez, puis **Enregistrer la liste**.
 3. Allez sur votre drive et **connectez-vous vous-même** à votre compte, en choisissant votre magasin.
 4. Le panneau Budgétable apparaît en bas à droite :
    - **Chercher** ouvre la recherche de l'article sur le site ;

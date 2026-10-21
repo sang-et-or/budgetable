@@ -2,9 +2,11 @@
   "manifest_version": 3,
   "name": "Budgétable – courses en drive",
   "short_name": "Budgétable",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Retrouvez votre liste Budgétable sur votre drive, comparez les prix affichés et remplissez votre panier en quelques clics.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.carrefour.fr/*",
     "https://www.auchan.fr/*",
@@ -12,14 +14,23 @@
     "https://*.leclercdrive.fr/*",
     "https://www.intermarche.com/*",
     "https://www.coursesu.com/*",
-    "https://www.chronodrive.com/*"
+    "https://www.chronodrive.com/*",
+    "https://budgetable.onrender.com/*"
   ],
   "action": {
     "default_title": "Budgétable",
     "default_popup": "popup.html",
-    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -31,8 +42,23 @@
         "https://www.coursesu.com/*",
         "https://www.chronodrive.com/*"
       ],
-      "js": ["drives.js", "lecture.js", "stockage.js", "panneau.js"],
+      "js": [
+        "drives.js",
+        "lecture.js",
+        "stockage.js",
+        "panneau.js"
+      ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://budgetable.onrender.com/*"
+      ],
+      "js": [
+        "stockage.js",
+        "pont.js"
+      ],
+      "run_at": "document_start"
     }
   ]
 }

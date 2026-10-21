@@ -486,6 +486,28 @@
     return 'BUDGETABLE1:' + JSON.stringify({ date: new Date().toISOString().slice(0, 10), articles });
   }
 
+  // L'extension Budgétable, si elle est installée, se signale sur la page (data-budgetable-extension)
+  // et reçoit la liste directement. Sinon : copie dans le presse-papiers, à coller dans l'extension.
+  function envoyerExtension(texte) {
+    const copie = async (msg) => {
+      try { await navigator.clipboard.writeText(texte); toast(msg); }
+      catch (e) { toast('L’extension n’est pas détectée et la copie est impossible ici : ouvrez Budgétable dans Chrome avec l’extension installée'); }
+    };
+    if (!document.documentElement.dataset.budgetableExtension) {
+      copie('Extension non détectée : liste copiée, collez-la dans l’extension Budgétable');
+      return;
+    }
+    const fin = setTimeout(() => { window.removeEventListener('message', reponse); copie('L’extension n’a pas répondu : liste copiée, collez-la dans l’extension'); }, 3000);
+    function reponse(ev) {
+      if (ev.source !== window || !ev.data || !/^budgetable:liste-(recue|erreur)$/.test(ev.data.type)) return;
+      clearTimeout(fin); window.removeEventListener('message', reponse);
+      if (ev.data.type === 'budgetable:liste-recue') toast(`Liste envoyée à l’extension (${ev.data.n} articles) : ouvrez votre drive, elle vous y attend`);
+      else toast('L’extension a refusé la liste : ' + ev.data.message);
+    }
+    window.addEventListener('message', reponse);
+    window.postMessage({ type: 'budgetable:liste', texte }, location.origin);
+  }
+
   function listeTexte(liste) {
     const par = {};
     liste.articles.filter((a) => !a.enStock).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push(a); });
@@ -812,7 +834,7 @@
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'imprimer': window.print(); return;
       case 'copier-liste': copier(listeTexte(E.listeCourses(S.plan, p)), null); return;
-      case 'export-extension': copier(exportExtension(E.listeCourses(S.plan, p)), null); toast('Liste copiée : collez-la dans l’extension Budgétable'); return;
+      case 'export-extension': envoyerExtension(exportExtension(E.listeCourses(S.plan, p))); return;
       case 'copier-export': copier(document.getElementById('export').value, document.getElementById('export')); return;
       case 'drive-mode': S.drives.mode = el.dataset.k; break;
       case 'chercher-drives': chercherDrives(); return;
