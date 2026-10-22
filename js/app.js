@@ -30,7 +30,9 @@
     tourEnfant: 0,         // à quel enfant le tour de choisir le dîner « choix des enfants »
     rituelsVus: false,     // la suggestion de rituels a été vue
     modeCourses: null,     // courses guidées sur le drive : { ouvert, i, absents, prix }
-    bibliotheque: []       // « Mes recettes » : recettes perso (nom, lien, ingrédients cochés)
+    bibliotheque: [],      // « Mes recettes » : recettes perso (nom, lien, ingrédients cochés)
+    ranges: {},            // achats de la semaine déjà rangés dans le placard { ingrédient: true }
+    deduits: {}            // repas de la semaine traités pour le placard { 'jour-slot': 'cuisine' | 'ignore' }
   };
   let edition = null;      // saisie d'une recette : { id?, nom, lien, repas, temps, etape, ing: [{id,q,coche}], extras: [{nom,tags,coche,alerte}], retires, source, placer }
   let auMenu = null;       // « mettre au menu » une recette de la bibliothèque : { id }
@@ -66,14 +68,14 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) { /* stockage indisponible : l'appli marche quand même */ }
   }
   function charger() {
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
   }
@@ -109,6 +111,7 @@
     courses: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
     drives: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
     profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>',
     recettes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/></svg>'
   };
   const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="18" r="12" fill="var(--poireau)"/><circle cx="14" cy="18" r="7.5" fill="none" stroke="var(--papier)" stroke-width="2"/><circle cx="24.5" cy="8" r="6.5" fill="var(--moutarde)" stroke="var(--papier)" stroke-width="1.5"/><path d="M26.6 5.6a3 3 0 1 0 0 4.8M21.6 7.3h3.6M21.6 8.9h3.6" fill="none" stroke="var(--papier)" stroke-width="1.2" stroke-linecap="round"/></svg>';
@@ -376,10 +379,11 @@
   }
 
   /* ---------- application ---------- */
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['courses', 'Courses'], ['drives', 'Drives'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['placard', 'Placard'], ['courses', 'Courses'], ['profil', 'Profil']];
   function vueApp() {
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, courses: ongletCourses, drives: ongletDrives, profil: ongletProfil }[S.onglet]();
+    if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app">${nav}<main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -538,6 +542,7 @@
         ${absents.length ? `<div class="stack" style="gap:6px"><strong>Pas trouvés chez ${esc(d.nom)} :</strong><ul class="liste-absents">${absents.map((a) => `<li><span>${esc(a.nom)}</span><button class="btn-lien small" data-a="courses-aller" data-id="${a.id}">Réessayer</button></li>`).join('')}</ul>
           <p class="small muted">Astuce : un produit proche fait souvent l’affaire (autre marque, autre conditionnement).</p></div>` : ''}
         <a class="btn btn-plein btn-grand" href="${d.accueil}" target="_blank" rel="noopener">Valider ma commande sur ${esc(d.nom)} ↗</a>
+        <button class="btn btn-grand" data-a="ranger-achats">Courses récupérées ? Les ranger dans mon placard</button>
         <p class="small muted">Vérifiez votre panier sur le site du drive (quantités, prix, créneau de retrait) avant de payer.</p>
         <div class="row"><button class="btn" data-a="courses-fermer">Retour à ma liste</button><button class="btn-lien small" data-a="courses-zero">Tout recommencer</button></div>
       </div></div>`;
@@ -693,6 +698,78 @@
     return true;
   }
 
+  /* ---------- onglet « Placard » : ce qui reste à la maison ---------- */
+  const PLACARD_RAPIDE = ['pates', 'riz', 'semoule', 'farine', 'pomme_de_terre', 'oeufs', 'lait', 'beurre', 'creme', 'emmental', 'oignon', 'ail', 'carotte', 'courgette', 'tomates_concassees', 'lentilles_corail', 'pois_chiches', 'thon', 'jambon', 'poulet_filet'];
+  function pasStock(id) { const i = E.ING[id]; return i.unite === 'pièce' ? (i.cond === 1 ? 0.25 : 1) : (i.cond >= 500 ? 100 : 50); }
+  function achatsARanger() {
+    if (!S.plan) return [];
+    return E.listeCourses(S.plan, S.profil).articles.filter((a) => S.coches[a.id] && !S.ranges[a.id] && !a.enStock && !a.sansPrix && a.conditionnements > 0);
+  }
+  function repasATraiter() {
+    if (!S.plan) return [];
+    const t = aujourdhui(), h = new Date().getHours();
+    // repas d'avant la création de la semaine : ignorés (la personne n'utilisait pas encore Budgétable)
+    let debut = 0;
+    if (S.planDu) {
+      const lundi = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x.toDateString(); };
+      const cree = new Date(S.planDu + 'T12:00:00');
+      if (lundi(cree) === lundi(new Date())) debut = (cree.getDay() + 6) % 7;
+    }
+    const res = [];
+    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => {
+      const m = jp[sl];
+      if (!m || S.deduits[j + '-' + sl]) return;
+      if (j < debut) return;
+      if (j < t || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21))) res.push({ j, sl, m });
+    }));
+    return res;
+  }
+  function blocAvecPlacard(idees, titre) {
+    if (!idees || !idees.length) return '';
+    return `<section class="stack"><h2>${esc(titre)}</h2>
+      <div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
+        <button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
+        <span class="pourquoi small">Utilise : ${esc(x.utilise.map((id) => E.ING[id].nom.toLowerCase()).join(', '))}</span>
+        <span class="small muted">${x.manquants.length ? `Il manque : ${esc(x.manquants.map((id) => E.ING[id].nom.toLowerCase()).join(', '))}` : 'Tout est déjà à la maison'}</span>
+        ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></section>`;
+  }
+  function ongletPlacard() {
+    const st = S.profil.stock || {};
+    const ids = Object.keys(st).filter((id) => E.ING[id]);
+    const aRanger = achatsARanger();
+    const repas = repasATraiter();
+    const par = {};
+    ids.forEach((id) => { (par[E.ING[id].rayon] = par[E.ING[id].rayon] || []).push(id); });
+    const ligne = (id) => {
+      const i = E.ING[id], q = st[id];
+      const part = Math.min(1, q / i.cond);
+      return `<li class="ligne-stock"><div class="stack" style="gap:2px;flex:1;min-width:0"><span><strong>${esc(i.nom)}</strong> <span class="num">${quantite(q, i.unite)}</span></span>
+          <span class="jauge" aria-hidden="true"><i style="width:${Math.round(part * 100)}%"></i></span><span class="small muted">${q >= i.cond ? pluriel(Math.floor(q / i.cond), 'paquet') + (q % i.cond > i.cond * 0.05 ? ' et un entamé' : '') : 'paquet entamé'} · ${esc(i.condLabel)}</span></div>
+        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${id}" aria-label="Moins de ${esc(i.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${id}" aria-label="Plus de ${esc(i.nom)}">+</button><button class="btn-lien small" data-a="stock-fini" data-id="${id}" aria-label="${esc(i.nom)} : fini">Fini</button></div></li>`;
+    };
+    const avec = ids.length ? E.recettesAvecStock(S.profil, { slot: 'diner', jour: aujourdhui(), n: 4, notes: S.notes }) : [];
+    return `<div><p class="eyebrow">À la maison</p><h1>Mon placard</h1></div>
+      <p class="muted">Ce qu’il vous reste, mis à jour avec vos courses et les repas cuisinés. Budgétable s’en sert pour vous proposer des plats et pour ne pas vous faire racheter ce que vous avez.</p>
+      ${aRanger.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aRanger.length, 'article acheté', 'articles achetés')} à ranger</strong>
+        <span class="small">${esc(aRanger.slice(0, 8).map((a) => a.nom).join(', '))}${aRanger.length > 8 ? '…' : ''}</span>
+        <div><button class="btn btn-plein" data-a="ranger-achats">Ranger mes courses dans le placard</button></div></section>` : ''}
+      ${repas.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>Avez-vous cuisiné ces repas ?</strong>
+        <span class="small muted">Ils seront déduits du placard. Décochez ceux que vous n’avez pas faits.</span>
+        <ul class="liste-repas-faits">${repas.map(({ j, sl, m }) => `<li><label class="case"><input type="checkbox" data-a="repas-fait" data-k="${j}-${sl}" ${S.repasDecoches && S.repasDecoches[j + '-' + sl] ? '' : 'checked'}><span>${E.JOURS[j]} ${sl === 'diner' ? 'soir' : 'midi'} : ${esc(E.REC[m.recette].nom)}</span></label></li>`).join('')}</ul>
+        <div class="row"><button class="btn btn-plein" data-a="deduire-repas">Mettre à jour le placard</button></div></section>` : ''}
+      ${avec.length ? blocAvecPlacard(avec, 'Que cuisiner avec ce que j’ai ?') : ''}
+      <section class="stack" style="gap:10px"><div class="spread"><h2>Dans mon placard</h2>${ids.length ? `<span class="small muted">${pluriel(ids.length, 'produit')}</span>` : ''}</div>
+        ${ids.length ? Object.entries(par).sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([rayon, l]) => `<div class="stack" style="gap:4px"><span class="eyebrow">${esc(rayon)}</span><ul class="liste-stock">${l.sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')).map(ligne).join('')}</ul></div>`).join('')
+          : '<p class="small">Votre placard est vide pour Budgétable. Ajoutez ce que vous avez déjà ci-dessous : vos menus l’utiliseront en premier.</p>'}
+      </section>
+      <section class="carte stack" style="gap:10px"><h2>Ajouter ce que j’ai déjà</h2>
+        <p class="small muted">Touchez un produit : un paquet entier est ajouté. Ajustez ensuite avec − et +.</p>
+        <div class="row puces-ajout">${PLACARD_RAPIDE.filter((id) => !st[id]).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('')}</div>
+        <label class="champ"><span>Un autre produit ?</span><input type="search" id="stock-cherche" data-a="stock-cherche" placeholder="Ex. lait de coco, saumon, quinoa…" autocomplete="off"></label>
+        <div id="stock-propositions" class="row" style="gap:6px"></div>
+      </section>`;
+  }
+
   /* ---------- onglet « Mes recettes » ---------- */
   const domaine = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   function ongletRecettes() {
@@ -782,6 +859,7 @@
         ${prevu ? `<div style="border-radius:50%;background:#fbfaf3;padding:8px">${V(prevu, 170)}</div><p class="reponse">${esc(prevu.nom)}</p><p>${prevu.temps} min · ${nb(r.prevu.portions)} portions · déjà dans votre liste</p>
           <button class="btn" data-a="fiche" data-j="${aujourdhui()}" data-s="diner">Voir la recette</button>` : '<p class="reponse">Rien de prévu ce soir</p>'}
       </section>
+      ${blocAvecPlacard(r.avecPlacard, 'Avec ce que vous avez à la maison')}
       <section class="stack"><h2>Pas envie ? Trois idées en 20 minutes</h2>
         <div class="jours">${r.idees.map((i) => { const rec = E.REC[i.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps"><button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
           <div class="meta"><span>${rec.temps} min</span><span>${i.manquants ? pluriel(i.manquants, 'produit') + ' à acheter' : 'Tout est déjà dans votre liste'}</span></div></div></div></article>`; }).join('')}</div></section>`;
@@ -878,12 +956,14 @@
         ${as.map((a) => `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock ? 'stock' : ''}">
           <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
           <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
-          <span class="prix num">${a.enStock ? 'En réserve' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
-          <div class="detail">${a.sansPrix ? '<span>Quantité : selon votre recette</span>' : `<span>Besoin : ${quantite(a.quantite, a.unite)}</span><span>Acheter : ${a.conditionnements} × ${esc(a.condLabel)}</span>`}
+          <span class="prix num">${a.couvertParPlacard ? 'Au placard' : a.enStock ? 'En réserve' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
+          <div class="detail">${a.auPlacard > 0 ? `<span class="placard-info">Au placard : ${quantite(a.auPlacard, a.unite)}${a.couvertParPlacard ? ' : rien à acheter' : ''}</span>` : ''}${a.couvertParPlacard ? '' : a.sansPrix ? '<span>Quantité : selon votre recette</span>' : `<span>Besoin : ${quantite(a.quantite, a.unite)}</span><span>Acheter : ${a.conditionnements} × ${esc(a.condLabel)}</span>`}
           <button class="btn-lien btn small ecran-seul" data-a="stock" data-id="${a.id}">${a.enStock ? 'Je n’en ai plus' : 'J’en ai déjà'}</button>
-          ${S.drives.enseigne && !a.enStock ? `<a class="btn btn-petit ecran-seul" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">Chercher chez ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div></div>`).join('')}</section>`).join('')}</div>
+ ${''}${S.drives.enseigne && !a.enStock ? `<a class="btn btn-petit ecran-seul" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">Chercher chez ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div></div>`).join('')}</section>`).join('')}</div>
       ${liste.economieStock > 0 ? `<p class="small" style="padding-top:12px">Grâce à vos réserves : <strong class="num">${euros(liste.economieStock)}</strong> économisés</p>` : ''}
-      <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>`;
+      <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>
+      <details class="carte ecran-seul" id="mes-drives" ${S.drivesOuverts ? 'open' : ''}><summary data-a="drives-ouvrir"><strong>Mes drives près de chez moi</strong> <span class="small muted">· trouver les drives autour de chez vous, comparer</span></summary>
+        <div class="stack" style="gap:16px;margin-top:12px">${ongletDrives()}</div></details>`;
   }
 
   function blocMesDrives() {
@@ -1026,6 +1106,7 @@
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">IA</span></div>${blocChef(r, m.portions)}</section>
+      ${!fiche.recette ? (S.deduits[fiche.jour + '-' + fiche.slot] === 'cuisine' ? '<p class="small pourquoi">Cuisiné : déduit de votre placard</p>' : `<div><button class="btn btn-petit" data-a="cuisine" data-j="${fiche.jour}" data-s="${fiche.slot}">✓ J’ai cuisiné ce plat (mettre à jour mon placard)</button></div>`) : ''}
       <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '♥ Un classique de la famille' : '♡ Ajouter à nos classiques'}</button></div>
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
         <p class="small muted">${note === 1 ? 'Cette recette ne sera plus proposée.' : note ? 'Merci : les recettes bien notées reviendront plus souvent.' : 'Une étoile : on ne la propose plus. Cinq : plus souvent.'}</p></div>
@@ -1057,6 +1138,9 @@
     if (S.plan) S.tourEnfant++;
     S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     S.coches = {};
+    S.ranges = {};
+    S.planDu = new Date().toISOString().slice(0, 10);
+    S.deduits = {};
     S.modeCourses = null;
     S.ceSoirOuvert = false;
   }
@@ -1279,6 +1363,53 @@
         S.modeCourses = { ...m, ouvert: true, i };
         break;
       }
+      case 'drives-ouvrir': S.drivesOuverts = !el.parentElement.open; return;
+      case 'stock-ajouter': {
+        const id = el.dataset.id;
+        p.stock = E.ajouterAuStock(p.stock, [[id, E.ING[id].cond]]);
+        toast(`${E.ING[id].nom} : ${quantite(E.ING[id].cond, E.ING[id].unite)} au placard`);
+        const z = document.getElementById('stock-propositions'); if (z) z.innerHTML = '';
+        break;
+      }
+      case 'stock-plus': p.stock = E.ajouterAuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
+      case 'stock-moins': p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
+      case 'stock-fini': p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, Infinity]]); toast(`${E.ING[el.dataset.id].nom} : retiré du placard`); break;
+      case 'ranger-achats': {
+        const achats = achatsARanger();
+        if (!achats.length) { toast('Rien à ranger : cochez d’abord vos articles achetés'); if (S.modeCourses) S.modeCourses.ouvert = false; break; }
+        p.stock = E.ajouterAuStock(p.stock, achats.map(E.achatArticle).filter(Boolean));
+        achats.forEach((a) => { S.ranges[a.id] = true; });
+        if (S.modeCourses) S.modeCourses.ouvert = false;
+        S.onglet = 'placard';
+        toast(`${pluriel(achats.length, 'article rangé', 'articles rangés')} dans votre placard`);
+        break;
+      }
+      case 'cuisine': {
+        const k = el.dataset.j + '-' + el.dataset.s;
+        const m = S.plan.jours[+el.dataset.j][el.dataset.s];
+        p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+        S.deduits[k] = 'cuisine';
+        toast('Bon appétit ! Votre placard est à jour');
+        break;
+      }
+      case 'deduire-repas': {
+        let n = 0;
+        repasATraiter().forEach(({ j, sl, m }) => {
+          const k = j + '-' + sl;
+          if (S.repasDecoches && S.repasDecoches[k]) { S.deduits[k] = 'ignore'; return; }
+          p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+          S.deduits[k] = 'cuisine'; n++;
+        });
+        S.repasDecoches = {};
+        toast(n ? `${pluriel(n, 'repas déduit')} du placard` : 'Placard inchangé');
+        break;
+      }
+      case 'placard-ce-soir': {
+        const t = aujourdhui();
+        S.plan = E.placerRecette(S.plan, t, 'diner', el.dataset.r);
+        toast(`Ce soir : ${E.REC[el.dataset.r].nom}`);
+        break;
+      }
       case 'courses-panier': S.coches[el.dataset.id] = true; delete S.modeCourses.absents[el.dataset.id]; coursesSuivant(); break;
       case 'courses-absent': S.modeCourses.absents[el.dataset.id] = true; S.coches[el.dataset.id] = false; coursesSuivant(); break;
       case 'courses-stock': if (!p.provisions.includes(el.dataset.id)) p.provisions = [...p.provisions, el.dataset.id]; toast('Noté : vous en avez déjà'); break;
@@ -1309,6 +1440,12 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'stock-cherche') {
+      const t = el.value.trim();
+      const z = document.getElementById('stock-propositions');
+      if (z) z.innerHTML = t.length < 2 ? '' : (window.Saisie.chercherIngredients(t, 8).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('') || '<span class="small muted">Produit inconnu de Budgétable : il ne peut pas être suivi.</span>');
+      return;
+    }
     if (el.dataset.a === 'recherche-plat' && choix) {
       choix.recherche = el.value;
       const zone = document.getElementById('resultats-plat');
@@ -1356,6 +1493,7 @@
   document.addEventListener('change', (ev) => {
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
+    if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-proposer' && edition) { edition.proposer = el.checked; return; }

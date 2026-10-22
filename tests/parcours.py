@@ -4,7 +4,7 @@ import re
 import sys, re
 from playwright.sync_api import sync_playwright
 
-URL = "http://localhost:8765/index.html"
+URL = "http://localhost:8766/index.html"
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 
@@ -84,7 +84,7 @@ with sync_playwright() as p:
     cliquer(page, "Soulever la cloche")
     page.screenshot(path=f"{OUT}/7-ce-soir.png", full_page=True)
     # courses
-    page.get_by_role("button", name="Courses").click()
+    page.locator("nav button", has_text="Courses").click()
     page.screenshot(path=f"{OUT}/8-courses.png", full_page=True)
     assert "Imprimer ou PDF" in page.inner_text("body"), "bouton imprimer absent hors cadre"
     page.get_by_role("radio", name="Carrefour").click()
@@ -95,7 +95,7 @@ with sync_playwright() as p:
     print("Exemple de lien :", href)
     page.screenshot(path=f"{OUT}/8b-courses-drive.png", full_page=True)
     # drives
-    page.get_by_role("button", name="Drives").click()
+    page.locator("#mes-drives summary").click()
     assert "Mes drives près de chez moi" in page.inner_text("body")
     page.screenshot(path=f"{OUT}/9-drives.png", full_page=True)
     # rechargement : les allergies ne doivent PAS être gardées sans consentement

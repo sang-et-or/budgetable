@@ -380,6 +380,16 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .carte-recette .meta a { color: var(--poireau); font-weight: 600; text-underline-offset: 3px; }
 .lien-recette { text-decoration: none; align-self: flex-start; color: #fff; }
 @media (max-width: 420px) { .nav button { font-size: .66rem; } }
+
+/* ---------- placard ---------- */
+.a-faire { border-left: 5px solid var(--moutarde); }
+.liste-stock { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ligne-stock { display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--trait); border-radius: 12px; padding: 10px 12px; }
+.jauge { display: block; height: 6px; background: var(--trait); border-radius: 99px; overflow: hidden; max-width: 220px; }
+.jauge i { display: block; height: 100%; background: var(--poireau); }
+.liste-repas-faits { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.placard-info { color: var(--poireau); font-weight: 600; }
+#mes-drives summary { cursor: pointer; }
 </style>
 
 <div id="app"></div>

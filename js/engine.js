@@ -134,6 +134,7 @@
       budget: 60,
       placardBase: true,
       provisions: [],
+      stock: {},            // placard : { ingrédient: quantité restante (g, ml ou pièces) }
       gouts: { ing: {}, cuisine: {}, modele: {} }
     };
   }
@@ -233,6 +234,14 @@
     s -= Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 1.2;
     if (ctx.hier && ctx.hier.includes(rec.id)) s -= 3;
     s += scoreGout(rec, p.gouts);
+    // placard : on utilise d'abord ce qu'il y a à la maison (surtout le frais), sans compter ce que la semaine a déjà pris
+    const st = p.stock || {};
+    let duPlacard = 0;
+    for (const [id, q] of rec.ing) {
+      const dispo = (st[id] || 0) - (ctx.quantites[id] || 0);
+      if (dispo >= q * 0.5 && ING[id].groupe !== 'A') duPlacard += PERISSABLES.has(ING[id].rayon) ? 1.5 : 1;
+    }
+    s += Math.min(duPlacard, 4) * 1.2;
     if (rec.perso) s += 3; // recettes de la bibliothèque : l'utilisateur les a choisies
     // « nos classiques » : 2 par semaine environ (valeurs sûres), sans les répéter
     if (ctx.classiques.includes(rec.id) && !ctx.utilisations[rec.id] && ctx.nbClassiques < ctx.cibleClassiques) s += 6;
@@ -438,8 +447,11 @@
     else if ((g.cuisine[rec.cuisine] || 0) >= 1 || p.cuisines.includes(rec.cuisine)) raisons.push(`Vous aimez la cuisine ${(LIBELLES.cuisines[rec.cuisine] || rec.cuisine).toLowerCase()}`);
     const autres = [];
     plan.jours.forEach((jp, i) => SLOTS.forEach((s2) => { if (jp[s2] && !(i === jour && s2 === slot)) autres.push([i, REC[jp[s2].recette]]); }));
+    const st = p.stock || {};
+    const duPlacard = rec.ing.map(([id]) => id).filter((id) => (st[id] || 0) > 0 && ING[id].groupe !== 'A' && !['oignon', 'ail'].includes(id));
+    if (duPlacard.length) raisons.push(`Utilise votre placard : ${duPlacard.slice(0, 2).map((id) => ING[id].nom.toLowerCase()).join(', ')}`);
     const BANALS = ['oignon', 'ail', 'citron', 'persil', 'salade', 'beurre'];
-    const partage = rec.ing.map(([id]) => id).find((id) => PERISSABLES.has(ING[id].rayon) && ING[id].groupe !== 'A' && !BANALS.includes(id) && autres.some(([, r2]) => r2.ing.some(([x]) => x === id)));
+    const partage = rec.ing.map(([id]) => id).find((id) => PERISSABLES.has(ING[id].rayon) && ING[id].groupe !== 'A' && !BANALS.includes(id) && !duPlacard.includes(id) && autres.some(([, r2]) => r2.ing.some(([x]) => x === id)));
     if (partage) {
       const [i] = autres.find(([, r2]) => r2.ing.some(([x]) => x === partage));
       raisons.push(`Finit le paquet ${deOu(ING[partage].nom.toLowerCase())} ${i === jour ? 'du même jour' : 'de ' + JOURS[i].toLowerCase()}`);
@@ -467,23 +479,29 @@
       for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * m.portions;
     }));
     const stock = stockIds(p);
+    const placard = p.stock || {};
     const articles = Object.entries(besoins).map(([id, q]) => {
       const ing = ING[id];
+      const auPlacard = ing.perso ? 0 : Math.max(0, placard[id] || 0);
+      if (auPlacard >= q - 1e-9 && !ing.perso) {
+        return { id, nom: ing.nom, rayon: ing.rayon, unite: ing.unite, quantite: q, conditionnements: Math.ceil(q / ing.cond - 1e-9), condLabel: ing.condLabel, cout: round2(Math.ceil(q / ing.cond - 1e-9) * ing.prixDemo), enStock: true, auPlacard, reste: auPlacard - q, couvertParPlacard: true };
+      }
       if (ing.perso) { // ingrédient hors catalogue : quantité selon la recette, prix inconnu
         return { id, nom: ing.nom, rayon: ing.rayon, unite: ing.unite, quantite: 0, conditionnements: 1, condLabel: ing.condLabel, cout: 0, enStock: stock.has(id), reste: 0, sansPrix: true };
       }
-      const conditionnements = Math.ceil(q / ing.cond - 1e-9);
+      const aAcheter = q - auPlacard;
+      const conditionnements = Math.ceil(aAcheter / ing.cond - 1e-9);
       const cout = round2(conditionnements * ing.prixDemo);
       return {
         id, nom: ing.nom, rayon: ing.rayon, unite: ing.unite, quantite: q,
         conditionnements, condLabel: ing.condLabel, cout,
-        enStock: stock.has(id), reste: conditionnements * ing.cond - q
+        enStock: stock.has(id), auPlacard, reste: conditionnements * ing.cond - aAcheter
       };
     }).sort((a, b) => a.rayon.localeCompare(b.rayon, 'fr') || a.nom.localeCompare(b.nom, 'fr'));
     const total = round2(articles.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0));
     const economieStock = round2(articles.filter((a) => a.enStock).reduce((s, a) => s + a.cout, 0));
     // coût de ce qui est réellement mangé cette semaine (le reste des paquets sert ensuite)
-    const consomme = round2(articles.filter((a) => !a.enStock).reduce((s, a) => s + a.quantite * ING[a.id].prixDemo / ING[a.id].cond, 0));
+    const consomme = round2(articles.filter((a) => !a.enStock).reduce((s, a) => s + (a.quantite - (a.auPlacard || 0)) * ING[a.id].prixDemo / ING[a.id].cond, 0));
     return { articles, total, consomme, economieStock, source: DATA.PRIX_SOURCE };
   }
 
@@ -551,6 +569,7 @@
     const prevu = plan && plan.jours[jour] ? plan.jours[jour].diner : null;
     const dejaAchete = new Set(plan ? listeCourses(plan, p).articles.map((a) => a.id) : []);
     const stock = stockIds(p);
+    for (const [id, q] of Object.entries(p.stock || {})) if (q > 0) stock.add(id);
     const rapides = recettesCompatibles(p)
       .filter((r) => r.repas.includes('diner') && r.temps <= 20 && (!prevu || r.id !== prevu.recette) && opts.notes?.[r.id] !== 1)
       .map((r) => ({ r, manquants: r.ing.filter(([id]) => !dejaAchete.has(id) && !stock.has(id)).length }))
@@ -558,7 +577,64 @@
       .slice(0, 3)
       .map(({ r, manquants }) => ({ recette: r.id, manquants }));
     // à manquants égaux, on préfère ce que la personne aime
-    return { prevu, idees: rapides };
+    return { prevu, idees: rapides, avecPlacard: recettesAvecStock(p, { slot: 'diner', jour, n: 3, notes: opts.notes, exclure: prevu ? [prevu.recette] : [] }) };
+  }
+
+  /* ---------- placard : ce qui reste à la maison ---------- */
+  const QUASI_RIEN = 1e-6;
+  function nettoyerStock(st) {
+    const r = {};
+    for (const [id, q] of Object.entries(st || {})) if (ING[id] && !ING[id].perso && q > QUASI_RIEN && q > ING[id].cond * 0.005) r[id] = Math.round(q * 100) / 100;
+    return r;
+  }
+  /** Ajoute des quantités au placard : [[ingrédient, quantité]] (achats, ou « ce que j'ai déjà »). */
+  function ajouterAuStock(st, ajouts) {
+    const r = { ...(st || {}) };
+    for (const [id, q] of ajouts) if (ING[id] && !ING[id].perso && q > 0) r[id] = (r[id] || 0) + q;
+    return nettoyerStock(r);
+  }
+  /** Retire des quantités (jamais en dessous de zéro). */
+  function retirerDuStock(st, retraits) {
+    const r = { ...(st || {}) };
+    for (const [id, q] of retraits) if (r[id] != null) r[id] = Math.max(0, r[id] - q);
+    return nettoyerStock(r);
+  }
+  /** Ce qu'un repas consomme : recette × portions (ingrédients du catalogue). */
+  function consommationRepas(m) {
+    if (!m || !REC[m.recette]) return [];
+    return REC[m.recette].ing.filter(([id]) => !ING[id].perso).map(([id, q]) => [id, q * m.portions]);
+  }
+  /** Ce qu'un article acheté ajoute au placard : nombre de paquets × taille du paquet. */
+  function achatArticle(a) { return ING[a.id] && !ING[a.id].perso ? [a.id, a.conditionnements * ING[a.id].cond] : null; }
+
+  /**
+   * Recettes faisables avec le placard : celles qui utilisent le plus ce qu'il y a, avec le moins d'achats.
+   * opts : { slot, jour, n, notes, exclure, portions } → [{ recette, utilise: [ids], manquants: [ids] }]
+   */
+  function recettesAvecStock(p, opts = {}) {
+    const st = p.stock || {};
+    const base = stockIds(p);
+    const portionsRepas = opts.portions || portions(p, opts.jour != null ? opts.jour : 0, opts.slot || 'diner') || 1;
+    if (!Object.keys(st).length) return [];
+    const res = [];
+    for (const r of recettesCompatibles(p)) {
+      if (opts.slot && !r.repas.includes(opts.slot)) continue;
+      if ((opts.exclure || []).includes(r.id) || (opts.notes || {})[r.id] === 1) continue;
+      const principaux = r.ing.filter(([id]) => ING[id].groupe !== 'A' && !ING[id].perso);
+      if (!principaux.length) continue;
+      const utilise = [], manquants = [];
+      for (const [id, q] of principaux) {
+        if ((st[id] || 0) >= q * portionsRepas * 0.8) utilise.push(id);
+        else if (!base.has(id)) manquants.push(id);
+      }
+      if (!utilise.length) continue;
+      const frais = utilise.filter((id) => PERISSABLES.has(ING[id].rayon)).length;
+      res.push({ r, utilise, manquants, cle: manquants.length * 10 - utilise.length * 2 - frais - scoreGout(r, p.gouts) * 0.5 });
+    }
+    res.sort((a, b) => a.cle - b.cle);
+    const vus = new Set();
+    return res.filter((x) => { const k = x.r.sig || x.r.id; if (vus.has(k)) return false; vus.add(k); return true; })
+      .slice(0, opts.n || 6).map((x) => ({ recette: x.r.id, utilise: x.utilise, manquants: x.manquants }));
   }
 
   /* ---------- comparateur de drives (moteur prêt, données de démonstration) ---------- */
@@ -714,6 +790,7 @@
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, rechercherPlats, placerRecette, idExtra, motsDe, norm,
+    ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
     profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, optimiserDrives, magasinsDemo, contientViande, coutRepas

@@ -3,7 +3,7 @@
 import sys, re
 from playwright.sync_api import sync_playwright
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
-URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8765/index.html"
+URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()

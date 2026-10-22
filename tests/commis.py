@@ -13,7 +13,7 @@ with sync_playwright() as p:
     page = nav.new_page(viewport={"width": 390, "height": 844})
     page.add_init_script(SIMU)
     page.on("pageerror", lambda e: erreurs.append(str(e)))
-    page.goto("http://localhost:8765/index.html")
+    page.goto("http://localhost:8766/index.html")
     page.evaluate("localStorage.clear()"); page.reload()
     page.get_by_role("button", name="Préparer ma semaine").first.click()
     cliquer = lambda t: page.get_by_role("button", name=t, exact=True).first.click()

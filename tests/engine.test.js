@@ -312,3 +312,39 @@ test('saisie : ingrédients proposés d’après le nom, en respectant le profil
   assert.deepEqual(S.devinerIngredients('Gâteau au chocolat').suggestions, []);
   assert.ok(S.chercherIngredients('champ').includes('champignon'));
 });
+
+test('placard : ajout, retrait, nettoyage', () => {
+  let st = E.ajouterAuStock({}, [['pates', 500], ['pates', 500], ['oeufs', 6]]);
+  assert.equal(st.pates, 1000);
+  st = E.retirerDuStock(st, [['oeufs', 10], ['pates', 300]]);
+  assert.equal(st.pates, 700);
+  assert.ok(!('oeufs' in st), 'un produit épuisé disparaît');
+});
+
+test('placard : la liste de courses ne rachète pas ce qui est à la maison', () => {
+  const p = famille();
+  const plan = E.genererSemaine(p, { seed: 7 });
+  const sans = E.listeCourses(plan, p);
+  const art = sans.articles.find((a) => !a.sansPrix && !a.enStock && E.ING[a.id].groupe !== 'A');
+  const avec = E.listeCourses(plan, { ...p, stock: { [art.id]: 100000 } });
+  const a2 = avec.articles.find((a) => a.id === art.id);
+  assert.ok(a2.couvertParPlacard && a2.auPlacard > 0);
+  assert.ok(avec.total < sans.total);
+});
+
+test('placard : idées de recettes avec ce qu’on a', () => {
+  const p = profil({ stock: { courgette: 1000, pates: 1000, oeufs: 12, emmental: 400 } });
+  const idees = E.recettesAvecStock(p, { slot: 'diner', jour: 2, n: 3 });
+  assert.equal(idees.length, 3);
+  for (const x of idees) assert.ok(x.utilise.length >= 2, E.REC[x.recette].nom);
+  assert.ok(E.ceSoir(null, p, 2).avecPlacard.length >= 1);
+});
+
+test('placard : cuisiner un repas le déduit', () => {
+  const plan = E.genererSemaine(famille(), { seed: 3 });
+  const conso = E.consommationRepas(plan.jours[0].diner);
+  assert.ok(conso.length);
+  let st = E.ajouterAuStock({}, conso.map(([id, q]) => [id, q * 2]));
+  st = E.retirerDuStock(st, conso);
+  for (const [id, q] of conso) if (st[id] != null) assert.ok(Math.abs(st[id] - Math.round(q * 100) / 100) < 0.02, id);
+});
