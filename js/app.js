@@ -917,6 +917,117 @@
       ${manquent.length ? `<div class="row puces-ajout" style="gap:6px"><span class="small">Ranger ici :</span>${manquent.map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom.replace(/\s*\(.*\)$/, ''))}</button>`).join('')}</div>` : ''}
     </div>`;
   }
+  /* ---------- ajouter au placard en photo : code-barres (Open Food Facts) ou photo du placard (IA) ---------- */
+  // catégories Open Food Facts (de la plus précise à la plus générale) → catalogue
+  const CATEGORIES_OFF = {
+    'en:pastas': 'pates', 'en:dry-pastas': 'pates', 'en:rices': 'riz', 'en:semolinas': 'semoule', 'en:couscous': 'semoule', 'en:quinoa': 'quinoa',
+    'en:flours': 'farine', 'en:wheat-flours': 'farine', 'en:red-lentils': 'lentilles_corail', 'en:lentils': 'lentilles_vertes', 'en:green-lentils': 'lentilles_vertes',
+    'en:chickpeas': 'pois_chiches', 'en:red-kidney-beans': 'haricots_rouges', 'en:kidney-beans': 'haricots_rouges', 'en:white-beans': 'haricots_blancs', 'en:split-peas': 'pois_casses',
+    'en:sweet-corns': 'mais', 'en:canned-corn': 'mais', 'en:tomato-sauces': 'tomates_concassees', 'en:canned-tomatoes': 'tomates_concassees', 'en:crushed-tomatoes': 'tomates_concassees',
+    'en:tomato-pulps': 'tomates_concassees', 'en:tomato-purees': 'tomates_concassees', 'en:tomato-concentrates': 'tomates_concassees', 'en:coconut-milks': 'lait_coco',
+    'en:tunas': 'thon', 'en:canned-tunas': 'thon', 'en:olive-oils': 'huile_olive', 'en:extra-virgin-olive-oils': 'huile_olive', 'en:vegetable-oils': 'huile_olive', 'en:sunflower-oils': 'huile_olive',
+    'en:curry-powders': 'curry', 'en:cumin': 'cumin', 'en:paprika': 'paprika', 'en:bouillon-cubes': 'bouillon', 'en:stock-cubes': 'bouillon', 'en:soy-sauces': 'sauce_soja', 'en:mustards': 'moutarde',
+    'en:tortillas': 'tortillas', 'en:wraps': 'tortillas', 'en:eggs': 'oeufs', 'en:chicken-eggs': 'oeufs', 'en:milks': 'lait', 'en:semi-skimmed-milks': 'lait', 'en:whole-milks': 'lait', 'en:skimmed-milks': 'lait',
+    'en:butters': 'beurre', 'en:creams': 'creme', 'en:fresh-creams': 'creme', 'en:cooking-creams': 'creme', 'en:grated-cheeses': 'emmental', 'en:emmental': 'emmental', 'en:gruyere': 'emmental', 'en:comte': 'emmental',
+    'en:mozzarella': 'mozzarella', 'en:feta': 'feta', 'en:yogurts': 'yaourt', 'en:plain-yogurts': 'yaourt', 'en:tofu': 'tofu', 'en:hams': 'jambon', 'en:white-hams': 'jambon', 'en:cooked-hams': 'jambon',
+    'en:lardons': 'lardons', 'en:bacons': 'lardons', 'en:sausages': 'saucisse', 'en:salmons': 'saumon', 'en:salmon-fillets': 'saumon', 'en:chicken-breasts': 'poulet_filet', 'en:chicken-fillets': 'poulet_filet',
+    'en:chicken-legs': 'cuisses_poulet', 'en:chicken-thighs': 'cuisses_poulet', 'en:ground-beef': 'boeuf_hache', 'en:minced-beef': 'boeuf_hache', 'en:beef-burgers': 'boeuf_hache',
+    'en:hakes': 'colin', 'en:pollocks': 'colin', 'en:cods': 'colin', 'en:white-fish': 'colin', 'en:breaded-fish': 'colin', 'en:frozen-spinachs': 'epinards', 'en:spinachs': 'epinards',
+    'en:green-beans': 'haricots_verts', 'en:peas': 'petits_pois', 'en:green-peas': 'petits_pois', 'en:baguettes': 'pain', 'en:sandwich-breads': 'pain_mie', 'en:sliced-breads': 'pain_mie', 'en:potatoes': 'pomme_de_terre', 'en:carrots': 'carotte'
+  };
+  function produitVersAjout(p) {
+    const nom = String(p.product_name_fr || p.product_name || p.generic_name_fr || '').trim();
+    let id = null;
+    for (const t of (p.categories_tags || []).slice().reverse()) if (CATEGORIES_OFF[t]) { id = CATEGORIES_OFF[t]; break; }
+    const ligne = window.Saisie.analyserLigne(`${p.quantity || ''} ${nom}`);
+    if (!id && ligne && ligne.id) id = ligne.id;
+    if (!id || !E.ING[id]) return { nom, id: null };
+    const i = E.ING[id];
+    let q = null;
+    const pq = parseFloat(p.product_quantity), u = String(p.product_quantity_unit || 'g').toLowerCase();
+    if (i.unite !== 'pièce' && pq > 0) q = pq * ({ kg: 1000, l: 1000, cl: 10, dl: 100 }[u] || 1);
+    if (q == null && ligne && ligne.id === id && ligne.total > 0) q = ligne.total;
+    if (q == null && i.unite === 'pièce') { const m = /(\d+)/.exec(String(p.quantity || '')); if (m && +m[1] < 60) q = +m[1]; }
+    if (!(q > 0) || q > i.cond * 20) q = i.cond;
+    return { nom, id, q };
+  }
+  async function chercherProduit(code) {
+    try {
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_fr,generic_name_fr,brands,quantity,product_quantity,product_quantity_unit,categories_tags,image_front_small_url`, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+      const j = await r.json();
+      if (j.status !== 1 || !j.product) return { code, inconnu: true };
+      return { code, ...produitVersAjout(j.product), marque: String(j.product.brands || '').split(',')[0].trim(), image: j.product.image_front_small_url || null };
+    } catch (e) { return { code, erreur: true }; }
+  }
+  function ajouterParPhoto(ajouts) {
+    if (!ajouts.length) return;
+    S.profil.stock = E.ajouterAuStock(S.profil.stock, ajouts);
+    S.dernierRangement = { quand: new Date().toISOString(), ajouts, source: 'photo' };
+  }
+  async function photoProduit(fichier) {
+    if (!fichier) return;
+    S.photoEtat = { etat: 'encours', message: 'Lecture du code-barres…' }; rendre();
+    let codes = [];
+    try { codes = await window.CodeBarre.lirePhoto(fichier); } catch (e) { codes = []; }
+    if (!codes.length) {
+      S.photoEtat = { etat: 'erreur', message: 'Aucun code-barres lisible sur cette photo. Prenez le code-barres de près, bien éclairé et net, ou utilisez « Photo du placard ».' }; rendre(); return;
+    }
+    S.photoEtat = { etat: 'encours', message: `${pluriel(codes.length, 'code-barres lu', 'codes-barres lus')}, recherche du produit…` }; rendre();
+    const res = await Promise.all(codes.slice(0, 8).map(chercherProduit));
+    const ajouts = res.filter((x) => x.id).map((x) => [x.id, x.q]);
+    ajouterParPhoto(ajouts);
+    S.photoEtat = { etat: 'resultat', produits: res, autres: [] };
+    if (ajouts.length) toast(`${pluriel(ajouts.length, 'produit ajouté', 'produits ajoutés')} au placard`);
+    rendre();
+  }
+  async function photoPlacard(fichier) {
+    if (!fichier) return;
+    S.photoEtat = { etat: 'encours', message: 'Envoi de la photo et reconnaissance des produits… (jusqu’à une minute)' }; rendre();
+    let rep = null, j = {};
+    try {
+      const bmp = await createImageBitmap(fichier);
+      const k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      rep = await fetch(`${LECTEUR}/vision`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.8) }), signal: AbortSignal.timeout ? AbortSignal.timeout(90000) : undefined });
+      j = await rep.json().catch(() => ({}));
+    } catch (e) { rep = null; }
+    if (rep && rep.ok) {
+      const produits = (j.produits || []).filter((x) => E.ING[x.id] && x.confiance >= 0.35);
+      const ajouts = produits.map((x) => [x.id, x.quantite]);
+      ajouterParPhoto(ajouts);
+      S.photoEtat = { etat: 'resultat', produits: produits.map((x) => ({ id: x.id, q: x.quantite, nom: E.ING[x.id].nom, ia: true })), autres: j.autres || [] };
+      toast(ajouts.length ? `${pluriel(ajouts.length, 'produit reconnu', 'produits reconnus')} et ajoutés au placard` : 'Aucun produit reconnu sur cette photo');
+      rendre(); return;
+    }
+    // reconnaissance indisponible : on lit au moins les codes-barres visibles
+    const pasActive = rep && j.erreur === 'non_configure';
+    let codes = [];
+    try { codes = await window.CodeBarre.lirePhoto(fichier); } catch (e) { codes = []; }
+    const res = codes.length ? await Promise.all(codes.slice(0, 8).map(chercherProduit)) : [];
+    ajouterParPhoto(res.filter((x) => x.id).map((x) => [x.id, x.q]));
+    const pourquoi = pasActive ? 'La reconnaissance des produits sans code-barres n’est pas encore activée sur Budgétable.' : (j.erreur || 'La reconnaissance des produits ne répond pas pour le moment.');
+    S.photoEtat = res.length ? { etat: 'resultat', produits: res, autres: [], note: `${pourquoi} Les codes-barres visibles ont été lus.` } : { etat: 'erreur', message: `${pourquoi} Aucun code-barres lisible non plus : prenez plutôt chaque produit de près avec « Photo d’un produit ».` };
+    rendre();
+  }
+  function blocPhotoStock() {
+    const e = S.photoEtat;
+    const res = !e ? '' : e.etat === 'encours' ? `<p class="lecture small" role="status"><span class="rond-attente" aria-hidden="true"></span> ${esc(e.message)}</p>`
+      : e.etat === 'erreur' ? `<p class="lecture lecture-echec small" role="status">${esc(e.message)}</p>`
+      : `<div class="stack resultat-photo" role="status" style="gap:6px">${e.note ? `<p class="small muted" style="margin:0">${esc(e.note)}</p>` : ''}
+          <ul class="liste-photo">${e.produits.map((x) => `<li>${x.image ? `<img src="${esc(x.image)}" alt="" referrerpolicy="no-referrer">` : `<span class="emoji" aria-hidden="true">${x.id ? (EMOJI[x.id] || '🥣') : '❔'}</span>`}<span class="stack" style="gap:0;min-width:0"><strong class="small">${esc(x.nom || (x.inconnu ? `Code ${x.code}` : 'Produit'))}${x.marque ? ` <span class="muted">· ${esc(x.marque)}</span>` : ''}</strong>
+            <span class="small ${x.id ? 'placard-info' : 'muted'}">${x.id ? `${esc(E.ING[x.id].nom)} : + ${quantite(x.q, E.ING[x.id].unite)} au placard` : x.inconnu ? 'Produit inconnu d’Open Food Facts' : x.erreur ? 'Recherche impossible (connexion ?)' : 'Pas suivi par Budgétable'}</span></span></li>`).join('')}</ul>
+          ${e.autres && e.autres.length ? `<p class="small muted" style="margin:0">Vus mais pas suivis : ${esc(e.autres.join(', '))}.</p>` : ''}
+          ${!e.produits.length ? '<p class="small muted" style="margin:0">Rien n’a été ajouté.</p>' : ''}</div>`;
+    return `<section class="carte stack photo-stock" style="gap:10px"><div class="spread"><strong>Ajouter en photo</strong>${e && e.etat !== 'encours' ? '<button class="btn-lien small" data-a="photo-effacer">Effacer</button>' : ''}</div>
+      <div class="row" style="gap:8px">
+        <label class="btn btn-plein btn-petit choisir-photo">📷 Photo du placard ou du frigo<input type="file" accept="image/*" capture="environment" data-a="photo-placard" class="visuellement-cache"></label>
+        <label class="btn btn-petit choisir-photo">🏷️ Photo d’un produit (code-barres)<input type="file" accept="image/*" capture="environment" data-a="photo-produit" class="visuellement-cache"></label>
+      </div>
+      <span class="small muted">Les produits reconnus sont ajoutés tout seuls ; vous pouvez annuler juste après.</span>
+      ${res}</section>`;
+  }
+
   /* cuisine 3D : three.js chargé au premier passage dans le Placard */
   let three = null;   // null : pas demandé ; 'chargement' ; true ; false (échec)
   const veut3D = () => S.vue3d !== false && window.Cuisine3D && window.Cuisine3D.disponible() && three !== false;
@@ -1006,12 +1117,13 @@
     const dr = S.dernierRangement;
     const nouveaux = new Set(dr ? dr.ajouts.map(([id]) => id) : []);
     const quand = dr ? new Date(dr.quand) : null;
-    const bilan = dr ? `<section class="carte stack bilan-rangement" style="gap:8px"><strong>✓ Courses rangées ${quand.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + quand.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+    const bilan = dr ? `<section class="carte stack bilan-rangement" style="gap:8px"><strong>✓ ${dr.source === 'photo' ? 'Ajouté par photo' : 'Courses rangées'} ${quand.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + quand.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
         <span class="small">${pluriel(dr.ajouts.length, 'produit ajouté', 'produits ajoutés')} : ${esc(dr.ajouts.slice(0, 10).map(([id, q]) => `${E.ING[id] ? E.ING[id].nom.toLowerCase() : id} (${quantite(q, E.ING[id] ? E.ING[id].unite : '')})`).join(', '))}${dr.ajouts.length > 10 ? '…' : ''}</span>
-        <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="rangement-ok">C’est bon</button><button class="btn-lien small" data-a="rangement-annuler">Annuler ce rangement</button></div></section>` : '';
+        <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="rangement-ok">C’est bon</button><button class="btn-lien small" data-a="rangement-annuler">${dr.source === 'photo' ? 'Annuler cet ajout' : 'Annuler ce rangement'}</button></div></section>` : '';
     const avec = ids.length ? E.recettesAvecStock(S.profil, { slot: 'diner', jour: aujourdhui(), n: 4, notes: S.notes }) : [];
     return `<div><p class="eyebrow">À la maison</p><h1>Mon placard</h1></div>
       <p class="muted">Ce qu’il vous reste, mis à jour avec vos courses et les repas cuisinés. Budgétable s’en sert pour vous proposer des plats et pour ne pas vous faire racheter ce que vous avez.</p>
+      ${blocPhotoStock()}
       ${bilan}
       ${aRanger.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aRanger.length, 'article acheté', 'articles achetés')} à ranger</strong>
         <span class="small">${esc(aRanger.slice(0, 8).map((a) => a.nom).join(', '))}${aRanger.length > 8 ? '…' : ''}</span>
@@ -1638,6 +1750,8 @@
         S.modeCourses = { ...m, ouvert: true, i };
         break;
       }
+      case 'photo-effacer': S.photoEtat = null; break;
+      case 'photo-produit': case 'photo-placard': return;
       case 'cuisine-vue': S.vue3d = el.dataset.v === '3d'; break;
       case 'cuisine-ouvrir': S.cuisine = S.cuisine === el.dataset.z ? null : el.dataset.z; S.stockSel = null; break;
       case 'stock-sel': S.stockSel = S.stockSel === el.dataset.id ? null : el.dataset.id; break;
@@ -1798,6 +1912,8 @@
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
+    if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
+    if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; rendre(); return; }

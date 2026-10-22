@@ -15,6 +15,13 @@ const net = require('net');
 const { extraireRecette } = require('./extraire.js');
 
 const PORT = process.env.PORT || 10000;
+// reconnaissance des produits sur une photo (placard, frigo) : seulement si une clé d'API est configurée sur Render
+const CLE_API = process.env.ANTHROPIC_API_KEY || '';
+const MODELE_VISION = process.env.MODELE_VISION || 'claude-haiku-5-5';
+const MAX_PHOTOS_JOUR = +(process.env.MAX_PHOTOS_JOUR || 300);
+const MAX_PHOTOS_HEURE_IP = +(process.env.MAX_PHOTOS_HEURE_IP || 12);
+let CATALOGUE = [];
+try { CATALOGUE = require('../js/engine.js').DATA.ingredients.map((i) => ({ id: i.id, nom: i.nom, unite: i.unite, cond: i.cond })); } catch (e) { /* pas de catalogue : la vision sera désactivée */ }
 const ORIGINES = (process.env.ORIGINES || 'https://budgetable.onrender.com').split(',').map((s) => s.trim());
 const MAX_OCTETS = 3 * 1024 * 1024;
 const AGENT = 'Mozilla/5.0 (compatible; BudgetableRecettes/1.0; +https://budgetable.onrender.com)';
@@ -87,6 +94,57 @@ async function lirePage(brut) {
 }
 
 // petite mémoire (1 h) et limite de débit par adresse
+const photosIP = new Map();
+let photosJour = { jour: '', n: 0 };
+function quotaPhotos(ip) {
+  const j = new Date().toISOString().slice(0, 10);
+  if (photosJour.jour !== j) photosJour = { jour: j, n: 0 };
+  if (photosJour.n >= MAX_PHOTOS_JOUR) return 'Trop de photos aujourd’hui sur Budgétable, réessayez demain';
+  const t = Date.now();
+  const l = (photosIP.get(ip) || []).filter((x) => t - x < 3600000);
+  if (l.length >= MAX_PHOTOS_HEURE_IP) return 'Trop de photos cette heure-ci, réessayez un peu plus tard';
+  l.push(t); photosIP.set(ip, l); photosJour.n++;
+  if (photosIP.size > 5000) photosIP.clear();
+  return null;
+}
+function lireCorps(req, max) {
+  return new Promise((ok, ko) => {
+    const morceaux = []; let total = 0;
+    req.on('data', (c) => { total += c.length; if (total > max) { ko(Object.assign(new Error('Photo trop lourde'), { code: 413 })); req.destroy(); } else morceaux.push(c); });
+    req.on('end', () => ok(Buffer.concat(morceaux).toString('utf8')));
+    req.on('error', ko);
+  });
+}
+async function reconnaitre(base64) {
+  const liste = CATALOGUE.map((i) => `${i.id} = ${i.nom} (${i.unite === 'pièce' ? 'pièces' : i.unite}, paquet ${i.cond})`).join('\n');
+  const consigne = `Tu aides une famille à faire l'inventaire de sa cuisine. Voici une photo (placard, frigo, congélateur, plan de travail ou un seul produit).
+Liste les aliments que tu VOIS vraiment, en les rattachant au catalogue ci-dessous quand c'est le même aliment (sinon mets-les dans "autres").
+Estime la quantité restante dans l'unité du catalogue (g, ml ou pièces) : un paquet plein = la taille du paquet, entamé = moins.
+Ne devine pas ce qui est caché. Réponds UNIQUEMENT en JSON, sans texte autour :
+{"produits":[{"id":"<id du catalogue>","quantite":<nombre>,"confiance":<0 à 1>}],"autres":["<aliment hors catalogue>"]}
+Catalogue :
+${liste}`;
+  const rep = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST', signal: AbortSignal.timeout(45000),
+    headers: { 'content-type': 'application/json', 'x-api-key': CLE_API, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: MODELE_VISION, max_tokens: 1200, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } }, { type: 'text', text: consigne }] }] })
+  });
+  if (!rep.ok) throw Object.assign(new Error('Le service de reconnaissance ne répond pas'), { code: 502 });
+  const j = await rep.json();
+  const texte = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+  const m = /\{[\s\S]*\}/.exec(texte);
+  if (!m) return { produits: [], autres: [] };
+  let o; try { o = JSON.parse(m[0]); } catch (e) { return { produits: [], autres: [] }; }
+  const ids = new Map(CATALOGUE.map((i) => [i.id, i]));
+  const vus = new Set();
+  const produits = (Array.isArray(o.produits) ? o.produits : []).filter((x) => x && ids.has(x.id) && !vus.has(x.id) && vus.add(x.id)).map((x) => {
+    const i = ids.get(x.id);
+    let q = Number(x.quantite); if (!(q > 0)) q = i.cond; q = Math.min(q, i.cond * 12);
+    return { id: x.id, quantite: Math.round(q * 100) / 100, confiance: Math.max(0, Math.min(1, Number(x.confiance) || 0.5)) };
+  }).slice(0, 40);
+  const autres = (Array.isArray(o.autres) ? o.autres : []).map((x) => String(x).slice(0, 40)).filter(Boolean).slice(0, 15);
+  return { produits, autres };
+}
 const memoire = new Map();
 const debit = new Map();
 function tropDeDemandes(ip) {
@@ -107,7 +165,24 @@ function repondre(res, code, corps, origine) {
 const serveur = http.createServer(async (req, res) => {
   const origine = req.headers.origin;
   const u = new URL(req.url, 'http://x');
-  if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGINES.includes(origine) ? origine : ORIGINES[0], 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' }); return res.end(); }
+  if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGINES.includes(origine) ? origine : ORIGINES[0], 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' }); return res.end(); }
+  if (u.pathname === '/vision') {
+    if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
+    if (!CLE_API || !CATALOGUE.length) return repondre(res, 503, { erreur: 'non_configure' }, origine);
+    if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    try {
+      const corps = await lireCorps(req, 2.5 * 1024 * 1024);
+      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(JSON.parse(corps).image || '');
+      if (!m) return repondre(res, 400, { erreur: 'Photo illisible' }, origine);
+      const refus = quotaPhotos(ip);
+      if (refus) return repondre(res, 429, { erreur: refus }, origine);
+      return repondre(res, 200, await reconnaitre(m[1]), origine);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
+      return repondre(res, code, { erreur: e.code ? e.message : 'Reconnaissance impossible pour le moment' }, origine);
+    }
+  }
   if (u.pathname === '/sante' || u.pathname === '/') return repondre(res, 200, { ok: true }, origine);
   if (u.pathname === '/image' && req.method === 'GET') {
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();

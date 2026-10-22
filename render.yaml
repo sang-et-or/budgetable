@@ -38,3 +38,6 @@ services:
     envVars:
       - key: ORIGINES
         value: https://budgetable.onrender.com
+      # reconnaissance des produits sur une photo du placard : clé d'API Anthropic (facultative, à saisir dans Render)
+      - key: ANTHROPIC_API_KEY
+        sync: false
