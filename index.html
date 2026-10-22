@@ -127,7 +127,7 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 
 /* ---------- application ---------- */
 .entete { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--trait); display: grid; grid-template-columns: repeat(6, 1fr);
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--trait); display: grid; grid-template-columns: repeat(7, 1fr);
   padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
 .nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: .72rem; font-weight: 600; color: var(--encre-douce); border-radius: 10px; min-height: 52px; }
 .nav button svg { width: 22px; height: 22px; }
@@ -511,6 +511,23 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .liste-photo { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .liste-photo li { display: flex; gap: 10px; align-items: center; }
 .liste-photo img, .liste-photo .emoji { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; background: var(--surface); flex-shrink: 0; font-size: 28px; display: grid; place-items: center; }
+
+/* ---------- grignotages gourmands ---------- */
+.visuel-gourmand { display: grid; place-items: center; line-height: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff6e6, #f6dcc0); box-shadow: inset 0 0 0 3px rgb(255 255 255 / .6); }
+.visuel-gourmand.dessert { background: radial-gradient(circle at 35% 30%, #fdeef2, #f3cbd6); }
+.visuel-gourmand.rect { border-radius: 16px; }
+.grille-gourmande { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.carte-gourmande { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--trait); box-shadow: var(--ombre); }
+.carte-gourmande.incompatible { opacity: .75; }
+.carte-gourmande .titre-repas { border: 0; background: none; padding: 0; text-align: left; font: inherit; font-weight: 700; font-size: 1.02rem; color: var(--encre); cursor: pointer; }
+.vignette-g { border: 0; padding: 0; background: none; cursor: pointer; flex-shrink: 0; }
+.filtres-g { gap: 6px; }
+.filtres-g .chip[aria-pressed="true"], .fenetre-gourmand .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.liste-gourmande { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-gourmande li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.ligne-gourmande { display: block; width: 100%; text-align: left; border: 0; border-top: 1px dashed var(--trait); background: none; padding: 8px 2px 2px; font: inherit; font-size: .9rem; color: var(--encre); cursor: pointer; }
+.fenetre-gourmand { display: grid; gap: 16px; }
+.nav button span { font-size: .68rem; }
 </style>
 
 <div id="app"></div>
@@ -521,6 +538,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/engine.js"></script>
 <script src="js/cuisine3d.js"></script>
 <script src="js/codebarre.js"></script>
+<script src="js/gourmand.js"></script>
 <script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>

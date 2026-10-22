@@ -87,6 +87,32 @@
   let versionPerso = 0;
   const slug = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
   function idExtra(nom) { return 'x-' + slug(nom); }
+  /* ---------- grignotages gourmands : desserts et goûters (hors menus des repas) ---------- */
+  let GOURMAND = [];
+  /** ingredients : nouveaux produits du catalogue (sucre, chocolat, fruits…) ; recettes : desserts et goûters */
+  function definirGourmand(ingredients, recettes) {
+    for (const i of ingredients || []) if (i && i.id && !ING[i.id]) { ING[i.id] = { ...i }; DATA.ingredients.push(ING[i.id]); }
+    for (const r of GOURMAND) delete REC[r.id];
+    GOURMAND = (recettes || []).filter((r) => r && r.id && r.nom).map((r) => {
+      const extras = (r.extras || []).map((x) => (typeof x === 'string' ? { nom: x, tags: [] } : x)).map((x) => ({ nom: String(x.nom || '').trim().slice(0, 40), tags: Array.isArray(x.tags) ? x.tags.map(String) : [] })).filter((x) => x.nom).slice(0, 30);
+      for (const x of extras) {
+        const id = idExtra(x.nom);
+        if (!ING[id] || ING[id].perso) ING[id] = { id, nom: x.nom.charAt(0).toUpperCase() + x.nom.slice(1), rayon: 'Autres', unite: 'pièce', cond: 1, condLabel: 'selon la recette', prixDemo: 0, groupe: 'A', tags: [...new Set([...(ING[id] ? ING[id].tags : []), ...x.tags])], perso: true };
+      }
+      const rec = {
+        id: r.id, nom: String(r.nom).slice(0, 90), repas: [], temps: r.temps > 0 ? r.temps : 20, niveau: r.niveau || 1, equip: r.equip || [], cuisine: 'francaise', tags: r.tags || [],
+        ing: (r.ing || []).filter(([id, q]) => ING[id] && q > 0).concat(extras.map((x) => [idExtra(x.nom), 1])),
+        etapes: r.etapes && r.etapes.length ? r.etapes.slice(0, 12) : (r.lien ? ['Suivez la recette sur le site d’origine (lien ci-dessus).'] : ['Votre recette : préparez-la comme d’habitude.']),
+        modele: 'gourmand', gourmand: true, type: r.type === 'dessert' ? 'dessert' : 'gouter', emoji: r.emoji || '🍰', parts: r.parts || 6,
+        perso: !!r.perso, lien: r.lien || null, extras, proposer: false, photo: r.photo || null, photoSource: r.photoSource || ''
+      };
+      rec.sig = rec.id;
+      return rec;
+    });
+    for (const r of GOURMAND) { REC[r.id] = r; cacheCout.delete(r.id); }
+    return GOURMAND;
+  }
+  const gourmandises = () => GOURMAND.slice();
   function definirPerso(liste) {
     for (const r of PERSO) delete REC[r.id];
     PERSO = (liste || []).filter((r) => r && r.id && r.nom).map((r) => {
@@ -474,11 +500,15 @@
 
   function listeCourses(plan, p) {
     const besoins = {};
-    plan.jours.forEach((jp) => SLOTS.forEach((slot) => {
-      const m = jp[slot];
-      if (!m) return;
-      for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * m.portions;
-    }));
+    plan.jours.forEach((jp) => {
+      SLOTS.forEach((slot) => {
+        const m = jp[slot];
+        if (!m) return;
+        for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * m.portions;
+      });
+      // desserts et goûters ajoutés à la semaine
+      for (const g of jp.gourmand || []) if (REC[g.recette]) for (const [id, q] of REC[g.recette].ing) besoins[id] = (besoins[id] || 0) + q * g.portions;
+    });
     const stock = stockIds(p);
     const placard = p.stock || {};
     const articles = Object.entries(besoins).map(([id, q]) => {
@@ -790,7 +820,7 @@
     JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, RECETTES, MODELES,
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
-    definirPerso, rechercherPlats, placerRecette, idExtra, motsDe, norm,
+    definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
     profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,

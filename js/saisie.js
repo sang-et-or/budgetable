@@ -278,7 +278,7 @@
   ];
   const IGNORES = /^(preparation|garniture|decoration|accompagnement|ingredients|pour la pate|pour la sauce|pour la garniture|parfum au choix.*|sel|poivre|sel et poivre|sel poivre|poivre du moulin|fleur de sel|gros sel|eau|eau froide|eau chaude|eau tiede|glacons?|sel fin)$/;
   // poids d'une pièce quand la recette compte (« 2 oignons ») mais que le catalogue est au poids
-  const PIECE = { oignon: 100, ail: 5, carotte: 100, courgette: 250, tomate: 120, poivron: 150, pomme_de_terre: 150, poireau: 200, champignon: 20, brocoli: 400, aubergine: 300, courge: 1000, patate_douce: 300, chou: 1000, poulet_filet: 150, cuisses_poulet: 250, boeuf_hache: 125, jambon: 40, saucisse: 100, saumon: 125, colin: 120, beurre: 10, mozzarella: 125, feta: 200, yaourt: 125, tofu: 200, pain_mie: 25, lardons: 200, emmental: 30 };
+  const PIECE = { pomme: 150, banane: 120, oignon: 100, ail: 5, carotte: 100, courgette: 250, tomate: 120, poivron: 150, pomme_de_terre: 150, poireau: 200, champignon: 20, brocoli: 400, aubergine: 300, courge: 1000, patate_douce: 300, chou: 1000, poulet_filet: 150, cuisses_poulet: 250, boeuf_hache: 125, jambon: 40, saucisse: 100, saumon: 125, colin: 120, beurre: 10, mozzarella: 125, feta: 200, yaourt: 125, tofu: 200, pain_mie: 25, lardons: 200, emmental: 30 };
   const NOMBRES = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, dix: 10, douze: 12, demi: 0.5, 'une demi': 0.5, 'un demi': 0.5, quelques: 3 };
   // unités → [motif, facteur vers g/ml, genre]
   const UNITES = [
@@ -320,6 +320,10 @@
     }
     return best;
   }
+  // aliments sucrés devenus produits du catalogue (grignotages gourmands) : on les suit avec leur prix
+  const SUCRE = { sucre: 'sucre', chocolat: 'chocolat', miel: 'miel', pommes: 'pomme', bananes: 'banane', fraises: 'fraises', levure: 'levure', 'pâte à tarte': 'pate_brisee', cacao: 'cacao', confiture: 'confiture' };
+  const QTE_SUCRE = { sucre: 20, chocolat: 20, miel: 10, pomme: 150, banane: 100, fraises: 100, levure: 0.1, pate_brisee: 0.17, cacao: 5, confiture: 20 };
+  const versCatalogue = (nom) => { const id = SUCRE[String(nom || '').toLowerCase()]; return id && E.ING[id] && !E.ING[id].perso ? id : null; };
   /** Une ligne → { id, total } (catalogue, quantité pour toute la recette), { extra }, ou { ignore } */
   function analyserLigne(ligne) {
     let brut = String(ligne || '').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
@@ -344,8 +348,9 @@
     const nomLisible = reste.replace(/^\s*(de |d’|d'|des |du )/i, '').split(/[,;]| ou /)[0].trim().slice(0, 40) || brut;
     if (!al) return { extra: { nom: nomLisible, tags: tagsExtra(nomLisible) || [] } };
     if (al.cible === null) return { ignore: brut, epice: true };
-    if (typeof al.cible === 'object') return { extra: { nom: al.cible.nom, tags: al.cible.tags } };
-    const id = al.cible, ing = E.ING[id];
+    let id = al.cible;
+    if (typeof id === 'object') { id = versCatalogue(al.cible.nom); if (!id) return { extra: { nom: al.cible.nom, tags: al.cible.tags } }; }
+    const ing = E.ING[id];
     let total = null;
     const kind = unite ? unite[2] : null;
     const qn = n == null ? 1 : n;
@@ -358,7 +363,7 @@
     } else {
       const parPiece = { oeufs: 55, pain: 250, salade: 300, citron: 40, concombre: 300, tortillas: 40, bouillon: 500, persil: 50 }[id] || 100;
       if (kind === 'masse' || kind === 'vol') total = id === 'persil' ? 1 : Math.max(0.25, (qn * unite[1]) / parPiece);
-      else if (kind === 'paquet') total = qn * ing.cond;
+      else if (kind === 'paquet') total = ['levure', 'sucre_vanille'].includes(id) ? qn : qn * ing.cond;
       else total = n == null ? null : qn;
     }
     return { id, total, nom: nomLisible };
@@ -400,7 +405,7 @@
     } catch (e) { return ''; }
   }
 
-  const api = { devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
+  const api = { versCatalogue, QTE_SUCRE, devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Saisie = api;
 })(typeof window !== 'undefined' ? window : globalThis);

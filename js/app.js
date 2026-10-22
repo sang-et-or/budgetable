@@ -32,7 +32,8 @@
     modeCourses: null,     // courses guidées sur le drive : { ouvert, i, absents, prix }
     bibliotheque: [],      // « Mes recettes » : recettes perso (nom, lien, ingrédients cochés)
     ranges: {},            // achats de la semaine déjà rangés dans le placard { ingrédient: true }
-    deduits: {}            // repas de la semaine traités pour le placard { 'jour-slot': 'cuisine' | 'ignore' }
+    deduits: {},           // repas de la semaine traités pour le placard { 'jour-slot': 'cuisine' | 'ignore' }
+    gourmandPerso: []      // desserts et goûters ajoutés par la personne
   };
   let edition = null;      // saisie d'une recette : { id?, nom, lien, repas, temps, etape, ing: [{id,q,coche}], extras: [{nom,tags,coche,alerte}], retires, source, placer }
   let auMenu = null;       // « mettre au menu » une recette de la bibliothèque : { id }
@@ -41,6 +42,10 @@
   let iaDispo = null;      // null : on vérifie ; false : indisponible ; fonction : disponible
   // photo d'illustration posée sur le dessin : si la photo ne charge pas, le dessin reste visible
   function V(rec, taille, forme) {
+    if (rec.gourmand && !rec.photo) {
+      const dim = forme === 'rect' ? 'width:100%;height:' + taille + 'px' : `width:${taille}px;height:${taille}px`;
+      return `<span class="visuel-gourmand ${rec.type} ${forme || 'rond'}" style="${dim};font-size:${Math.round(taille * (forme === 'rect' ? 0.42 : 0.55))}px" aria-hidden="true">${rec.emoji}</span>`;
+    }
     const svg = window.Visuels.illustration(rec, E, taille);
     const ph = rec.photo ? { src: rec.photo } : rec.perso ? null : window.Photos && window.Photos.photoPour(rec);
     if (!ph) return svg;
@@ -70,7 +75,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -80,9 +85,10 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [] });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
+    finally { definirGourmand(); }
   }
 
   /* ---------- outils ---------- */
@@ -115,6 +121,7 @@
     soir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 13h16a8 8 0 0 1-16 0zM12 4v3M7 6l1.5 2M17 6l-1.5 2"/></svg>',
     courses: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
     drives: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+    gourmand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12l-1.6 8.2a1 1 0 0 1-1 .8H8.6a1 1 0 0 1-1-.8z"/><path d="M5 12a3 3 0 0 1 2.2-2.9A4.8 4.8 0 0 1 12 5a4.8 4.8 0 0 1 4.8 4.1A3 3 0 0 1 19 12"/><path d="M12 5V3"/></svg>',
     profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>',
     recettes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/></svg>'
@@ -384,11 +391,11 @@
   }
 
   /* ---------- application ---------- */
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['placard', 'Placard'], ['courses', 'Courses'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['profil', 'Profil']];
   function vueApp() {
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app">${nav}<main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -478,7 +485,7 @@
       ${suggestionRituels()}
       <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
       <div class="jours">${S.plan.jours.map((jp, j) => `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour}</h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}</article>`).join('')}</div>
+        ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`).join('')}</div>
       ${carteRituels()}
       <p class="small muted">${restants}.</p>`;
   }
@@ -591,12 +598,25 @@
 
   /* ---------- saisie d'une recette (bibliothèque) : nom, lien, ingrédients proposés à cocher ---------- */
   function ouvrirEdition(depart = {}) {
-    const ex = depart.id ? S.bibliotheque.find((r) => r.id === depart.id) : null;
+    const ex = depart.id ? (depart.gourmand ? S.gourmandPerso : S.bibliotheque).find((r) => r.id === depart.id) : null;
     edition = ex ? {
       id: ex.id, nom: ex.nom, lien: ex.lien || '', photo: ex.photo || null, photoSource: ex.photoSource || '', personnes: ex.personnes || personnesFoyer(), repas: ex.repas && ex.repas.length === 1 ? ex.repas[0] : 'tous', temps: ex.temps || '', etape: 'ingredients', proposer: ex.proposer !== false,
       ing: ex.ing.map(([id, q]) => ({ id, q, coche: true })), extras: (ex.extras || []).map((x) => ({ ...(typeof x === 'string' ? { nom: x, tags: [] } : x), coche: true })), retires: [], source: '', placer: null
     } : { nom: depart.nom || '', lien: '', photo: null, photoSource: '', personnes: personnesFoyer(), repas: depart.slot || 'tous', temps: '', etape: 'nom', proposer: true, ing: [], extras: [], retires: [], source: '', placer: depart.placer || null };
+    edition.gourmand = !!depart.gourmand;
+    edition.type = ex && ex.type ? ex.type : 'gouter';
+    if (ex && depart.gourmand) edition.personnes = ex.parts || ex.personnes || edition.personnes;
     if (!ex && edition.nom.trim().length >= 2) devinerEdition();
+  }
+  // sucre, chocolat, fruits… devinés comme « autres ingrédients » : ce sont maintenant des produits du catalogue
+  function extrasVersCatalogue(ed) {
+    const restants = [];
+    for (const x of ed.extras) {
+      const id = window.Saisie.versCatalogue(x.nom);
+      if (id && !E.ingredientInterdit(E.ING[id], S.profil)) { if (!ed.ing.some((y) => y.id === id)) ed.ing.push({ id, q: window.Saisie.QTE_SUCRE[id] || 20, coche: x.coche }); }
+      else restants.push(x);
+    }
+    ed.extras = restants;
   }
   const personnesFoyer = () => Math.max(1, Math.min(12, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length));
   function devinerEdition() {
@@ -608,6 +628,7 @@
     edition.extras = g.extras.concat(edition.extras.filter((x) => x.manuel && !g.extras.some((y) => y.nom === x.nom)));
     if (g.dessert) for (const n of ['sucre', 'chocolat']) if (!edition.extras.some((y) => y.nom === n)) edition.extras.push({ nom: n, tags: window.Saisie.tagsExtra(n) || [], coche: false });
     edition.retires = g.retires; edition.source = g.source; edition.etape = 'ingredients'; edition.ignores = [];
+    extrasVersCatalogue(edition);
   }
   // idées à ajouter d'un clic : ingrédients courants, jamais un ingrédient interdit par le profil
   function ajouterIdees(dessert) {
@@ -766,7 +787,7 @@
         ${e.retires.length ? `<p class="small">Non proposés : ${esc(e.retires.map(libAllergie).join(', '))}.</p>` : ''}
       </div>`;
     return `<div class="voile" data-a="edition-fond"><div class="fiche fenetre-edition" role="dialog" aria-modal="true" aria-labelledby="edition-titre">
-      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${e.id ? 'Modifier une recette' : 'Mes recettes'}${ou ? ' · pour le ' + ou : ''}</span><h2 id="edition-titre">${e.id ? esc(e.nom) : 'Ajouter une recette'}</h2></div>
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${e.id ? 'Modifier une recette' : 'Mes recettes'}${ou ? ' · pour le ' + ou : ''}</span><h2 id="edition-titre">${e.id ? esc(e.nom) : e.gourmand ? 'Ajouter un dessert ou un goûter' : 'Ajouter une recette'}</h2></div>
         <button class="btn btn-petit" data-a="edition-fermer">Fermer</button></div>
       <label class="champ"><span>Nom du plat</span><input type="text" id="ed-nom" data-a="ed-champ" data-k="nom" maxlength="90" value="${esc(e.nom)}" placeholder="Ex. Lasagnes de mamie, Wok de crevettes…" autocomplete="off"></label>
       ${blocPhoto(e)}
@@ -774,13 +795,15 @@
       <label class="champ"><span>Lien de la recette (facultatif)</span><input type="url" id="ed-lien" data-a="ed-champ" data-k="lien" inputmode="url" value="${esc(e.lien)}" placeholder="https://www.marmiton.org/recettes/…" autocomplete="off"></label>
       ${lienOk ? `<div id="etat-lecture">${etatLecture(e)}</div>` : '<p class="small alerte-ing">Le lien doit commencer par https:// (copiez-le depuis la barre d’adresse).</p>'}
       <div class="row" style="gap:12px;align-items:flex-end">
-        <label class="champ" style="max-width:190px"><span>Pour</span><select data-a="ed-champ" data-k="repas"><option value="tous" ${e.repas === 'tous' ? 'selected' : ''}>Midi et soir</option><option value="dejeuner" ${e.repas === 'dejeuner' ? 'selected' : ''}>Le midi</option><option value="diner" ${e.repas === 'diner' ? 'selected' : ''}>Le soir</option></select></label>
+        ${e.gourmand ? `<label class="champ" style="max-width:190px"><span>C’est</span><select data-a="ed-champ" data-k="type"><option value="gouter" ${e.type === 'gouter' ? 'selected' : ''}>Un goûter</option><option value="dessert" ${e.type === 'dessert' ? 'selected' : ''}>Un dessert</option></select></label>`
+          : `<label class="champ" style="max-width:190px"><span>Pour</span><select data-a="ed-champ" data-k="repas"><option value="tous" ${e.repas === 'tous' ? 'selected' : ''}>Midi et soir</option><option value="dejeuner" ${e.repas === 'dejeuner' ? 'selected' : ''}>Le midi</option><option value="diner" ${e.repas === 'diner' ? 'selected' : ''}>Le soir</option></select></label>`}
         <label class="champ" style="max-width:150px"><span>Temps (min, facultatif)</span><input type="text" inputmode="numeric" data-a="ed-champ" data-k="temps" value="${esc(String(e.temps || ''))}" placeholder="30"></label>
       </div>
       ${e.lecture && e.lecture.etat === 'encours' ? '' : e.etape === 'nom' ? `<button class="btn btn-plein btn-grand" data-a="ed-deviner">Trouver les ingrédients</button>` : `<div><button class="btn btn-petit" data-a="ed-deviner">Reproposer d’après le nom</button></div>`}
       ${ingredients}
-      ${e.etape === 'ingredients' ? `<label class="case"><input type="checkbox" data-a="ed-proposer" ${e.proposer ? 'checked' : ''}><span>Me la proposer dans mes menus de la semaine</span></label>
-        <button class="btn btn-plein btn-grand" data-a="ed-enregistrer">${ou ? `Enregistrer et mettre au ${esc(ou)}` : 'Enregistrer dans Mes recettes'}</button>` : ''}
+      ${e.etape === 'ingredients' ? `${e.gourmand ? '' : `<label class="case"><input type="checkbox" data-a="ed-proposer" ${e.proposer ? 'checked' : ''}><span>Me la proposer dans mes menus de la semaine</span></label>`}
+        <button class="btn btn-plein btn-grand" data-a="ed-enregistrer">${e.gourmand ? 'Enregistrer dans mes gourmandises' : ou ? `Enregistrer et mettre au ${esc(ou)}` : 'Enregistrer dans Mes recettes'}</button>
+        ${e.gourmand && e.id ? `<button class="btn-lien small" data-a="gourmand-suppr" data-r="${e.id}" style="justify-self:start">Supprimer cette recette</button>` : ''}` : ''}
     </div></div>`;
   }
   function enregistrerEdition() {
@@ -793,6 +816,16 @@
     const extras = e.extras.filter((x) => x.coche).map((x) => ({ nom: x.nom, tags: x.tags || [] }));
     if (!ing.length && !extras.length) { toast('Cochez au moins un ingrédient'); return false; }
     const temps = parseInt(e.temps, 10);
+    if (e.gourmand) {
+      const g = { id: e.id || 'gp-' + Date.now().toString(36), nom, lien: lien || '', type: e.type === 'dessert' ? 'dessert' : 'gouter', emoji: e.type === 'dessert' ? '🍮' : '🧁', parts: e.personnes, photo: e.photo || null, photoSource: e.photo ? e.photoSource : '', temps: temps > 0 && temps < 600 ? temps : null, ing, extras };
+      const k = S.gourmandPerso.findIndex((x) => x.id === g.id);
+      if (k >= 0) S.gourmandPerso[k] = g; else S.gourmandPerso.unshift(g);
+      definirGourmand();
+      toast(e.id ? 'Recette modifiée' : `« ${nom} » ajouté à vos gourmandises`);
+      S.filtreGourmand = 'tout';
+      edition = null;
+      return true;
+    }
     const rec = { id: e.id || 'p-' + Date.now().toString(36), nom, lien: lien || '', personnes: e.personnes, photo: e.photo || null, photoSource: e.photo ? e.photoSource : '', repas: e.repas === 'tous' ? ['dejeuner', 'diner'] : [e.repas], temps: temps > 0 && temps < 600 ? temps : null, ing, extras, proposer: e.proposer, cree: e.id ? undefined : new Date().toISOString().slice(0, 10) };
     const i = S.bibliotheque.findIndex((r) => r.id === rec.id);
     if (i >= 0) S.bibliotheque[i] = { ...S.bibliotheque[i], ...rec, cree: S.bibliotheque[i].cree }; else S.bibliotheque.unshift(rec);
@@ -879,19 +912,19 @@
   const EMOJI = { oignon: '🧅', ail: '🧄', carotte: '🥕', courgette: '🥒', tomate: '🍅', poivron: '🫑', pomme_de_terre: '🥔', poireau: '🥬', champignon: '🍄', brocoli: '🥦', salade: '🥬', concombre: '🥒', aubergine: '🍆', courge: '🍠', citron: '🍋', persil: '🌿', patate_douce: '🍠', chou: '🥬',
     poulet_filet: '🍗', cuisses_poulet: '🍗', boeuf_hache: '🥩', jambon: '🍖', lardons: '🥓', saucisse: '🌭', saumon: '🐟', oeufs: '🥚', lait: '🥛', beurre: '🧈', creme: '🥛', emmental: '🧀', mozzarella: '🧀', feta: '🧀', yaourt: '🍶', tofu: '🍱',
     pates: '🍝', riz: '🍚', semoule: '🌾', quinoa: '🌾', farine: '🌾', lentilles_corail: '🫘', lentilles_vertes: '🫘', pois_chiches: '🫘', haricots_rouges: '🫘', haricots_blancs: '🫘', pois_casses: '🫛', mais: '🌽', tomates_concassees: '🥫', lait_coco: '🥥', thon: '🥫',
-    huile_olive: '🫒', curry: '🍛', cumin: '🧂', paprika: '🌶️', bouillon: '🍲', sauce_soja: '🍶', moutarde: '🫙', tortillas: '🫓', colin: '🐟', epinards: '🥬', haricots_verts: '🫛', petits_pois: '🫛', pain: '🥖', pain_mie: '🍞' };
-  const SEC = new Set(['pomme_de_terre', 'oignon', 'ail', 'courge', 'patate_douce', 'citron', 'pain', 'pain_mie']);
+    huile_olive: '🫒', curry: '🍛', cumin: '🧂', paprika: '🌶️', bouillon: '🍲', sauce_soja: '🍶', moutarde: '🫙', tortillas: '🫓', colin: '🐟', epinards: '🥬', haricots_verts: '🫛', petits_pois: '🫛', pain: '🥖', pain_mie: '🍞', sucre: '🍬', chocolat: '🍫', cacao: '🍫', levure: '🧁', sucre_vanille: '🌼', confiture: '🍓', miel: '🍯', flocons_avoine: '🥣', compote: '🍏', pate_brisee: '🥧', pomme: '🍎', banane: '🍌', fraises: '🍓' };
+  const SEC = new Set(['pomme_de_terre', 'oignon', 'ail', 'courge', 'patate_douce', 'citron', 'pain', 'pain_mie', 'pomme', 'banane']);
   const EPICES = new Set(['huile_olive', 'curry', 'cumin', 'paprika', 'bouillon', 'sauce_soja', 'moutarde']);
   const CONSERVES = new Set(['tomates_concassees', 'lait_coco', 'thon', 'mais', 'pois_chiches', 'haricots_rouges', 'haricots_blancs']);
   function zoneDe(id) {
     const r = E.ING[id].rayon;
     if (SEC.has(id)) return 'corbeille';
     if (r === 'Surgelés') return 'congel';
-    if (r === 'Épicerie') return 'placard';
+    if (r === 'Épicerie' || r === 'Épicerie sucrée') return 'placard';
     return 'frigo';
   }
   const ZONES = {
-    placard: { nom: 'Le placard', etageres: [['Pâtes, riz et farines', (id) => !EPICES.has(id) && !CONSERVES.has(id)], ['Conserves', (id) => CONSERVES.has(id)], ['Huiles, épices et sauces', (id) => EPICES.has(id)]], rapide: ['pates', 'riz', 'farine', 'semoule', 'tomates_concassees', 'thon', 'huile_olive', 'lentilles_corail'] },
+    placard: { nom: 'Le placard', etageres: [['Pâtes, riz, farine et sucre', (id) => !EPICES.has(id) && !CONSERVES.has(id)], ['Conserves', (id) => CONSERVES.has(id)], ['Huiles, épices et sauces', (id) => EPICES.has(id)]], rapide: ['pates', 'riz', 'farine', 'semoule', 'tomates_concassees', 'thon', 'huile_olive', 'lentilles_corail'] },
     frigo: { nom: 'Le frigo', etageres: [['Crèmerie', (id) => E.ING[id].rayon === 'Crèmerie et frais'], ['Viandes et poissons', (id) => E.ING[id].rayon === 'Viandes et poissons'], ['Bac à légumes', (id) => E.ING[id].rayon === 'Fruits et légumes']], rapide: ['oeufs', 'lait', 'beurre', 'creme', 'emmental', 'jambon', 'courgette', 'carotte'] },
     congel: { nom: 'Le congélateur', etageres: [['Surgelés', () => true]], rapide: ['epinards', 'haricots_verts', 'petits_pois', 'colin'] },
     corbeille: { nom: 'La corbeille', etageres: [['Légumes et pain', () => true]], rapide: ['pomme_de_terre', 'oignon', 'ail', 'citron', 'pain'] }
@@ -1470,8 +1503,9 @@
 
   function vueFiche() {
     if (!fiche) return '';
-    const m = fiche.recette ? { recette: fiche.recette, portions: E.portions(S.profil, aujourdhui(), 'diner') } : S.plan.jours[fiche.jour][fiche.slot];
+    const m = fiche.recette ? { recette: fiche.recette, portions: fiche.parts || (E.REC[fiche.recette].gourmand ? E.REC[fiche.recette].parts : E.portions(S.profil, aujourdhui(), 'diner')) } : S.plan.jours[fiche.jour][fiche.slot];
     const r = E.REC[m.recette];
+    if (r.gourmand) return vueFicheGourmande(r, m.portions);
     const eq = E.equilibre(r);
     const note = S.notes[r.id] || 0;
     return `<div class="voile" data-a="fermer-fond"><div class="fiche" data-cle="${cleFiche()}" role="dialog" aria-modal="true" aria-labelledby="fiche-titre">
@@ -1493,6 +1527,79 @@
     </div></div>`;
   }
 
+  function vueFicheGourmande(r, parts) {
+    const c = E.recetteCompatible(r, S.profil);
+    return `<div class="voile" data-a="fermer-fond"><div class="fiche" data-cle="${cleFiche()}" role="dialog" aria-modal="true" aria-labelledby="fiche-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:6px"><span class="eyebrow">Grignotages gourmands · ${r.type === 'dessert' ? 'Dessert' : 'Goûter'}</span><h2 id="fiche-titre">${esc(r.nom)}</h2></div>
+        <button class="btn btn-petit" data-a="fermer" aria-label="Fermer">Fermer</button></div>
+      <figure class="fiche-illu">${V(r, 200, 'rect')}${r.photo ? `<figcaption class="small muted">${creditPhoto(r)}</figcaption>` : ''}</figure>
+      <div class="meta"><span>${r.temps} min</span><span>${pluriel(parts, 'part')}</span><span class="num">${euros(E.coutPortion(r))} la part${r.extras && r.extras.length ? '*' : ''}</span></div>
+      ${!c.ok ? `<div class="bandeau bandeau-demo small">Attention : ${esc(libAllergie(c.raison))}.</div>` : ''}
+      ${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : ''}
+      <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * parts, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
+      <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
+      <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="gourmand-ajouter" data-r="${r.id}">Ajouter à ma semaine</button>${r.perso ? `<button class="btn" data-a="ed-modifier-g" data-r="${r.id}">Modifier</button>` : ''}</div>
+      <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">IA</span></div>${blocChef(r, parts)}</section>
+    </div></div>`;
+  }
+
+  /* ---------- grignotages gourmands ---------- */
+  function definirGourmand() {
+    if (!window.Gourmand) return;
+    E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat((S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
+  }
+  const nbFoyer = () => Math.max(1, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length);
+  function carteGourmande(r) {
+    const c = E.recetteCompatible(r, S.profil);
+    const dejaN = S.plan ? S.plan.jours.reduce((n, jp) => n + (jp.gourmand || []).filter((g) => g.recette === r.id).length, 0) : 0;
+    return `<article class="carte-gourmande ${c.ok ? '' : 'incompatible'}">
+      <button class="vignette-g" data-a="fiche-g" data-r="${r.id}" aria-label="Voir la recette : ${esc(r.nom)}">${V(r, 72)}</button>
+      <div class="stack" style="gap:3px;min-width:0;flex:1">
+        <button class="titre-repas" data-a="fiche-g" data-r="${r.id}">${esc(r.nom)}</button>
+        <span class="small muted">${r.type === 'dessert' ? 'Dessert' : 'Goûter'} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
+        ${c.ok ? '' : `<span class="small alerte-ing">${esc(libAllergie(c.raison))}</span>`}
+        <div class="row" style="gap:6px;margin-top:4px"><button class="btn btn-petit ${c.ok ? 'btn-plein' : ''}" data-a="gourmand-ajouter" data-r="${r.id}">${dejaN ? `✓ Ajouté (${dejaN}) · encore` : '+ Ajouter à ma semaine'}</button></div>
+      </div></article>`;
+  }
+  function vueAjoutGourmand() {
+    const a = S.gourmandAjout;
+    if (!a || !E.REC[a.id]) return '';
+    const r = E.REC[a.id];
+    return `<div class="voile" data-a="gourmand-fond"><div class="fiche fenetre-gourmand" role="dialog" aria-modal="true" aria-labelledby="g-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Ajouter à ma semaine</span><h2 id="g-titre">${r.emoji} ${esc(r.nom)}</h2></div>
+        <button class="btn btn-petit" data-a="gourmand-fermer">Fermer</button></div>
+      <div class="stack" style="gap:8px"><strong>Quels jours ?</strong>
+        <div class="row" style="gap:6px">${E.JOURS.map((jn, j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${jn.slice(0, 3)}.</button>`).join('')}</div></div>
+      <div class="stack" style="gap:8px"><strong>Pour</strong>
+        <div class="row" style="gap:6px" role="radiogroup">${[['gouter', 'Le goûter'], ['dessert', 'Le dessert']].map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>
+      <div class="row" style="gap:8px;align-items:center"><strong>Combien de parts ?</strong>
+        <button class="btn btn-petit" data-a="gourmand-parts" data-d="-1" aria-label="Une part de moins" ${a.parts <= 1 ? 'disabled' : ''}>−</button><strong class="num" id="g-parts">${a.parts}</strong><button class="btn btn-petit" data-a="gourmand-parts" data-d="1" aria-label="Une part de plus">+</button>
+        <span class="small muted">${a.parts === r.parts ? 'la recette entière' : `recette prévue pour ${r.parts}`}</span></div>
+      <p class="small">${a.jours.length ? `${pluriel(a.jours.length, 'fois')} · environ <strong class="num">${euros(E.coutPortion(r) * a.parts * a.jours.length)}</strong> ajoutés à vos courses` : 'Choisissez au moins un jour.'}</p>
+      <button class="btn btn-plein btn-grand" data-a="gourmand-valider" ${a.jours.length ? '' : 'disabled'}>Ajouter à ma semaine et à mes courses</button>
+    </div></div>`;
+  }
+  function ongletGourmand() {
+    const toutes = E.gourmandises();
+    const f = S.filtreGourmand || 'tout';
+    const garde = (r) => f === 'tout' || (f === 'express' ? r.temps <= 15 : f === 'enfants' ? (r.tags || []).includes('enfants') : f === 'miennes' ? r.perso : r.type === f);
+    const liste = toutes.filter(garde).sort((a, b) => (b.perso - a.perso) || (E.recetteCompatible(b, S.profil).ok - E.recetteCompatible(a, S.profil).ok) || a.nom.localeCompare(b.nom, 'fr'));
+    const semaine = S.plan ? S.plan.jours.flatMap((jp, j) => (jp.gourmand || []).map((g, k) => ({ ...g, j, k }))).filter((g) => E.REC[g.recette]) : [];
+    const cout = semaine.reduce((t, g) => t + E.coutPortion(E.REC[g.recette]) * g.portions, 0);
+    const filtres = [['tout', 'Tout'], ['gouter', 'Goûters'], ['dessert', 'Desserts'], ['express', 'Express'], ['enfants', 'Pour les enfants']].concat(S.gourmandPerso.length ? [['miennes', 'Les miennes']] : []);
+    return `<div class="ardoise ardoise-titre"><span class="craie-petit">Fait maison, petit prix</span><h1 class="craie">Grignotages gourmands</h1><span class="craie-ligne">desserts et goûters de la semaine</span></div>
+      <p class="muted">Ajoutez des desserts et des goûters à votre semaine : leurs ingrédients rejoignent la liste de courses, comme les repas.</p>
+      <section class="carte stack" style="gap:8px"><div class="spread"><h2>Cette semaine</h2>${semaine.length ? `<span class="small muted">environ <strong class="num">${euros(cout)}</strong></span>` : ''}</div>
+        ${semaine.length ? `<ul class="liste-gourmande">${semaine.map((g) => `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${E.JOURS[g.j]} · ${g.moment === 'gouter' ? 'goûter' : 'dessert'} · ${pluriel(g.portions, 'part')}</span><button class="btn-lien small" data-a="gourmand-retirer" data-j="${g.j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} du ${E.JOURS[g.j].toLowerCase()}">Retirer</button></li>`).join('')}</ul>`
+          : '<p class="small muted" style="margin:0">Rien de prévu pour l’instant. Un gâteau au yaourt pour le goûter de mercredi ?</p>'}
+      </section>
+      <div class="row filtres-g" role="group" aria-label="Filtrer">${filtres.map(([k, v]) => `<button class="chip" data-a="gourmand-filtre" data-k="${k}" aria-pressed="${f === k}">${v}</button>`).join('')}</div>
+      <div class="grille-gourmande">${liste.map(carteGourmande).join('') || '<p class="small muted">Aucune gourmandise dans ce filtre.</p>'}</div>
+      <section class="carte stack" style="gap:8px"><h2>Votre recette à vous</h2>
+        <p class="small muted" style="margin:0">Le gâteau de mamie, les cookies d’un blog… Collez un lien ou écrivez le nom : les ingrédients se mettent tout seuls.</p>
+        <div><button class="btn btn-plein" data-a="ed-nouveau-g">+ Ajouter un dessert ou un goûter</button></div></section>`;
+  }
+
   /* ---------- rendu ---------- */
   function rendre() {
     document.documentElement.classList.toggle('imprimable', S.imprimable && S.vue === 'app' && S.onglet === 'courses');
@@ -1504,7 +1611,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1517,7 +1624,9 @@
 
   function nouvellePlanification() {
     if (S.plan) S.tourEnfant++;
+    const gardees = S.plan ? S.plan.jours.map((jp) => jp.gourmand || []) : null;
     S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
+    if (gardees) S.plan.jours.forEach((jp, j) => { if (gardees[j] && gardees[j].length) jp.gourmand = gardees[j].filter((g) => E.REC[g.recette]); });
     S.coches = {};
     S.ranges = {};
     S.planDu = new Date().toISOString().slice(0, 10);
@@ -1554,7 +1663,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -1752,6 +1861,37 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'fiche-g': fiche = { recette: el.dataset.r, parts: el.dataset.n ? +el.dataset.n : null }; break;
+      case 'gourmand-filtre': S.filtreGourmand = el.dataset.k; break;
+      case 'gourmand-ajouter': {
+        if (!S.plan) { toast('Créez d’abord votre semaine'); return; }
+        const r = E.REC[el.dataset.r];
+        const c = E.recetteCompatible(r, p);
+        if (!c.ok) toast(`Attention : ${libAllergie(c.raison)}`);
+        S.gourmandAjout = { id: r.id, jours: [], moment: r.type, parts: r.parts === 1 ? nbFoyer() : r.parts };
+        fiche = null;
+        break;
+      }
+      case 'gourmand-jour': { const a = S.gourmandAjout, j = +el.dataset.j; a.jours = a.jours.includes(j) ? a.jours.filter((x) => x !== j) : a.jours.concat(j).sort(); break; }
+      case 'gourmand-moment': S.gourmandAjout.moment = el.dataset.k; break;
+      case 'gourmand-parts': S.gourmandAjout.parts = Math.max(1, Math.min(40, S.gourmandAjout.parts + +el.dataset.d)); break;
+      case 'gourmand-fermer': case 'gourmand-fond': S.gourmandAjout = null; break;
+      case 'gourmand-valider': {
+        const a = S.gourmandAjout;
+        if (!a || !a.jours.length) return;
+        for (const j of a.jours) { const jp = S.plan.jours[j]; jp.gourmand = (jp.gourmand || []).concat([{ recette: a.id, portions: a.parts, moment: a.moment }]); }
+        toast(`${E.REC[a.id].nom} : ajouté ${pluriel(a.jours.length, 'fois')}, et à vos courses`);
+        S.gourmandAjout = null;
+        break;
+      }
+      case 'gourmand-retirer': { const jp = S.plan.jours[+el.dataset.j]; jp.gourmand = (jp.gourmand || []).filter((x, k) => k !== +el.dataset.k); toast('Retiré de la semaine'); break; }
+      case 'ed-nouveau-g': ouvrirEdition({ gourmand: true }); break;
+      case 'ed-modifier-g': ouvrirEdition({ id: el.dataset.r, gourmand: true }); fiche = null; break;
+      case 'gourmand-suppr': {
+        S.gourmandPerso = S.gourmandPerso.filter((x) => x.id !== el.dataset.r);
+        if (S.plan) S.plan.jours.forEach((jp) => { if (jp.gourmand) jp.gourmand = jp.gourmand.filter((g) => g.recette !== el.dataset.r); });
+        definirGourmand(); edition = null; toast('Recette supprimée'); break;
+      }
       case 'cuisine-vue': S.vue3d = el.dataset.v === '3d'; break;
       case 'cuisine-ouvrir': S.cuisine = S.cuisine === el.dataset.z ? null : el.dataset.z; S.stockSel = null; break;
       case 'stock-sel': S.stockSel = S.stockSel === el.dataset.id ? null : el.dataset.id; break;
