@@ -598,16 +598,67 @@
     const garde = edition.ing.filter((x) => x.manuel);
     edition.ing = g.coches.map(([id, q]) => ({ id, q, coche: true })).concat(g.suggestions.map(([id, q]) => ({ id, q, coche: false })));
     for (const x of garde) if (!edition.ing.some((y) => y.id === x.id)) edition.ing.push(x);
-    // idées à ajouter d'un clic : ingrédients courants, jamais un ingrédient interdit par le profil
-    const idees = g.dessert ? ['oeufs', 'lait', 'beurre', 'farine', 'creme', 'yaourt', 'citron']
+    ajouterIdees(g.dessert);
+    edition.extras = g.extras.concat(edition.extras.filter((x) => x.manuel && !g.extras.some((y) => y.nom === x.nom)));
+    if (g.dessert) for (const n of ['sucre', 'chocolat']) if (!edition.extras.some((y) => y.nom === n)) edition.extras.push({ nom: n, tags: window.Saisie.tagsExtra(n) || [], coche: false });
+    edition.retires = g.retires; edition.source = g.source; edition.etape = 'ingredients'; edition.ignores = [];
+  }
+  // idées à ajouter d'un clic : ingrédients courants, jamais un ingrédient interdit par le profil
+  function ajouterIdees(dessert) {
+    const idees = dessert ? ['oeufs', 'lait', 'beurre', 'farine', 'creme', 'yaourt', 'citron']
       : ['oignon', 'ail', 'huile_olive', 'beurre', 'creme', 'emmental', 'persil', 'citron', 'tomates_concassees', 'champignon', 'carotte', 'courgette', 'riz', 'pates', 'pomme_de_terre', 'oeufs', 'lait', 'bouillon'];
     for (const id of idees) {
       if (edition.ing.filter((x) => !x.coche).length >= 12) break;
       if (!edition.ing.some((y) => y.id === id) && !E.ingredientInterdit(E.ING[id], S.profil)) edition.ing.push({ id, q: window.Saisie.QTE[id] || 100, coche: false });
     }
-    if (g.dessert) for (const n of ['sucre', 'chocolat']) if (!edition.extras.some((y) => y.nom === n)) edition.extras.push({ nom: n, tags: window.Saisie.tagsExtra(n) || [], coche: false });
-    edition.extras = g.extras.concat(edition.extras.filter((x) => x.manuel && !g.extras.some((y) => y.nom === x.nom)));
-    edition.retires = g.retires; edition.source = g.source; edition.etape = 'ingredients';
+  }
+
+  /* ---------- lecture du lien : la vraie liste d'ingrédients de la recette ---------- */
+  const LECTEUR = window.BUDGETABLE_LECTEUR || 'https://budgetable-recettes.onrender.com';
+  const lienValide = (l) => /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(String(l || '').trim());
+  let minuterieLien = null;
+  async function lireLien() {
+    const ed = edition;
+    if (!ed || !lienValide(ed.lien)) return;
+    const lien = ed.lien.trim();
+    let site = '';
+    try { site = new URL(lien).hostname.replace(/^www\./, ''); } catch (e) { return; }
+    ed.lecture = { etat: 'encours', lien, site };
+    rendre();
+    let d = null, message = '';
+    try {
+      const rep = await fetch(`${LECTEUR}/recette?url=${encodeURIComponent(lien)}`, { signal: AbortSignal.timeout ? AbortSignal.timeout(70000) : undefined });
+      const j = await rep.json().catch(() => ({}));
+      if (rep.ok && j.ingredients && j.ingredients.length) d = j; else message = j.erreur || 'Impossible de lire cette page';
+    } catch (e) { message = 'Lecture impossible pour le moment (connexion ?)'; }
+    if (edition !== ed || ed.lien.trim() !== lien) return;   // fenêtre fermée ou lien changé entre-temps
+    if (d) appliquerRecette(d);
+    else {
+      ed.lecture = { etat: 'echec', lien, site, message };
+      if (ed.nom.trim().length < 2) ed.nom = window.Saisie.nomDepuisLien(lien);
+      if (ed.nom.trim().length >= 2 && !ed.ing.some((x) => x.coche)) devinerEdition();
+    }
+    rendre();
+  }
+  function appliquerRecette(d) {
+    const ed = edition;
+    if (ed.nom.trim().length < 2 && d.nom) ed.nom = d.nom;
+    if (!ed.temps && d.temps > 0 && d.temps < 600) ed.temps = d.temps;
+    const a = window.Saisie.analyserIngredients(d.ingredients, d.portions, S.profil);
+    const garde = ed.ing.filter((x) => x.manuel && !a.coches.some(([id]) => id === x.id));
+    ed.ing = a.coches.map(([id, q]) => ({ id, q, coche: true })).concat(garde);
+    ed.extras = a.extras.concat(ed.extras.filter((x) => x.manuel && !a.extras.some((y) => y.nom === x.nom)));
+    ajouterIdees(/gateau|cake|tarte|crumble|clafoutis|flan|cookie|muffin|brownie|fondant|crepe/.test(E.norm(ed.nom)) || a.extras.some((x) => x.nom === 'sucre'));
+    ed.retires = a.retires; ed.ignores = a.ignores; ed.etape = 'ingredients';
+    ed.source = `la recette ${d.site || ''}`.trim();
+    ed.lecture = { etat: 'ok', lien: ed.lien.trim(), site: d.site, n: a.coches.length + a.extras.length, portions: d.portions };
+  }
+  function etatLecture(e) {
+    const l = e.lecture;
+    if (!l || l.lien !== e.lien.trim()) return lienValide(e.lien) ? `<div><button class="btn btn-petit btn-plein" data-a="ed-lire">Reprendre les ingrédients de cette recette</button></div>` : '';
+    if (l.etat === 'encours') return `<p class="lecture small" role="status"><span class="rond-attente" aria-hidden="true"></span> Lecture de la recette sur ${esc(l.site)}… <span class="muted">(la première lecture peut prendre jusqu’à une minute)</span></p>`;
+    if (l.etat === 'ok') return `<p class="lecture lecture-ok small" role="status">✓ ${pluriel(l.n, 'ingrédient repris', 'ingrédients repris')} de ${esc(l.site)}${l.portions ? `, recette pour ${l.portions}` : ''}. Vérifiez et décochez si besoin.${e.ignores && e.ignores.length ? ` <span class="muted">Non comptés : ${esc(e.ignores.slice(0, 6).join(', ').toLowerCase())}.</span>` : ''}</p>`;
+    return `<p class="lecture lecture-echec small" role="status">${esc(l.message)} sur ${esc(l.site)}. ${e.ing.some((x) => x.coche) ? 'Ingrédients proposés d’après le nom du plat : vérifiez-les.' : 'Écrivez le nom du plat pour qu’on vous propose les ingrédients.'} <button class="btn-lien small" data-a="ed-lire">Réessayer</button></p>`;
   }
   const libAllergie = (r) => String(r || '').replace(/allergie : (\w+)/, (m, a) => 'allergie : ' + ((L.allergies || {})[a] || a).toLowerCase());
   function qteTexte(id, q) {
@@ -662,12 +713,12 @@
       <label class="champ"><span>Nom du plat</span><input type="text" id="ed-nom" data-a="ed-champ" data-k="nom" maxlength="90" value="${esc(e.nom)}" placeholder="Ex. Lasagnes de mamie, Wok de crevettes…" autocomplete="off"></label>
       <div id="liens-recherche">${liensRecherche(e.nom)}</div>
       <label class="champ"><span>Lien de la recette (facultatif)</span><input type="url" id="ed-lien" data-a="ed-champ" data-k="lien" inputmode="url" value="${esc(e.lien)}" placeholder="https://www.marmiton.org/recettes/…" autocomplete="off"></label>
-      ${lienOk ? '' : '<p class="small alerte-ing">Le lien doit commencer par https:// (copiez-le depuis la barre d’adresse).</p>'}
+      ${lienOk ? `<div id="etat-lecture">${etatLecture(e)}</div>` : '<p class="small alerte-ing">Le lien doit commencer par https:// (copiez-le depuis la barre d’adresse).</p>'}
       <div class="row" style="gap:12px;align-items:flex-end">
         <label class="champ" style="max-width:190px"><span>Pour</span><select data-a="ed-champ" data-k="repas"><option value="tous" ${e.repas === 'tous' ? 'selected' : ''}>Midi et soir</option><option value="dejeuner" ${e.repas === 'dejeuner' ? 'selected' : ''}>Le midi</option><option value="diner" ${e.repas === 'diner' ? 'selected' : ''}>Le soir</option></select></label>
         <label class="champ" style="max-width:150px"><span>Temps (min, facultatif)</span><input type="text" inputmode="numeric" data-a="ed-champ" data-k="temps" value="${esc(String(e.temps || ''))}" placeholder="30"></label>
       </div>
-      ${e.etape === 'nom' ? `<button class="btn btn-plein btn-grand" data-a="ed-deviner">Trouver les ingrédients</button>` : `<div><button class="btn btn-petit" data-a="ed-deviner">Reproposer d’après le nom</button></div>`}
+      ${e.lecture && e.lecture.etat === 'encours' ? '' : e.etape === 'nom' ? `<button class="btn btn-plein btn-grand" data-a="ed-deviner">Trouver les ingrédients</button>` : `<div><button class="btn btn-petit" data-a="ed-deviner">Reproposer d’après le nom</button></div>`}
       ${ingredients}
       ${e.etape === 'ingredients' ? `<label class="case"><input type="checkbox" data-a="ed-proposer" ${e.proposer ? 'checked' : ''}><span>Me la proposer dans mes menus de la semaine</span></label>
         <button class="btn btn-plein btn-grand" data-a="ed-enregistrer">${ou ? `Enregistrer et mettre au ${esc(ou)}` : 'Enregistrer dans Mes recettes'}</button>` : ''}
@@ -1247,7 +1298,10 @@
       case 'saisir-plat': ouvrirEdition({ nom: choix.recherche || '', slot: choix.slot, placer: { jour: choix.jour, slot: choix.slot } }); break;
       case 'ed-nouveau': ouvrirEdition({}); break;
       case 'ed-modifier': ouvrirEdition({ id: el.dataset.r }); fiche = null; break;
+      case 'ed-lire': lireLien(); return;
       case 'ed-deviner':
+        if (edition.etape === 'nom' && lienValide(edition.lien) && !(edition.lecture && edition.lecture.lien === edition.lien.trim())) { lireLien(); return; }
+        if (edition.nom.trim().length < 2 && lienValide(edition.lien)) edition.nom = window.Saisie.nomDepuisLien(edition.lien);
         if (edition.nom.trim().length < 2) { toast('Écrivez d’abord le nom du plat'); return; }
         devinerEdition(); break;
       case 'ed-enregistrer': if (!enregistrerEdition()) return; break;
@@ -1455,6 +1509,11 @@
     if (el.dataset.a === 'ed-champ' && edition) {
       edition[el.dataset.k] = el.value;
       if (el.dataset.k === 'nom') { const z = document.getElementById('liens-recherche'); if (z) z.innerHTML = liensRecherche(el.value); }
+      if (el.dataset.k === 'lien') {
+        clearTimeout(minuterieLien);
+        // lien collé : on lit la recette tout de suite (petit délai si la personne tape)
+        if (lienValide(el.value) && !(edition.lecture && edition.lecture.lien === el.value.trim())) minuterieLien = setTimeout(lireLien, ev.inputType === 'insertFromPaste' ? 50 : 900);
+      }
       return;
     }
     if (el.dataset.a === 'ajout-ing' && edition) {

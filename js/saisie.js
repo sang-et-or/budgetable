@@ -240,7 +240,162 @@
     return [...new Set(viaNoms.concat(viaMots))].slice(0, n);
   }
 
-  const api = { devinerIngredients, chercherIngredients, tagsExtra, QTE };
+  /* ---------- lignes d'ingrédients d'une vraie recette (« 200 g de lardons », « 2 oignons »…) ---------- */
+  // mot(s) de l'ingrédient → catalogue (id) ou hors catalogue ({ nom, tags })
+  const LIGNE = [
+    [['blanc de poulet', 'blancs de poulet', 'filet de poulet', 'escalope de poulet', 'aiguillette de poulet', 'aiguillettes de poulet', 'poulet', 'volaille'], 'poulet_filet'],
+    [['cuisse de poulet', 'cuisses de poulet', 'haut de cuisse', 'hauts de cuisse', 'pilon', 'poulet entier'], 'cuisses_poulet'],
+    [['boeuf hache', 'viande hachee', 'steak hache', 'steaks haches', 'hache de boeuf', 'boeuf', 'paleron', 'macreuse', 'gite', 'bavette', 'rumsteak', 'viande a bourguignon'], 'boeuf_hache'],
+    [['jambon', 'des de jambon'], 'jambon'], [['lardon', 'poitrine fumee', 'poitrine de porc fumee', 'bacon', 'allumettes'], 'lardons'],
+    [['saucisse', 'chipolata', 'merguez', 'saucisse de toulouse'], 'saucisse'], [['saumon', 'pave de saumon'], 'saumon'], [['thon'], 'thon'],
+    [['colin', 'cabillaud', 'merlu', 'lieu', 'poisson blanc', 'filet de poisson', 'dos de cabillaud'], 'colin'],
+    [['oeuf', 'jaune d oeuf', 'jaunes d oeufs', 'blanc d oeuf', 'blancs d oeufs'], 'oeufs'], [['tofu'], 'tofu'],
+    [['lait de coco', 'creme de coco', 'lait coco'], 'lait_coco'], [['lait'], 'lait'], [['beurre', 'beurre doux', 'beurre demi sel'], 'beurre'],
+    [['creme fraiche', 'creme liquide', 'creme epaisse', 'creme entiere', 'creme semi epaisse', 'creme legere', 'creme'], 'creme'],
+    [['emmental', 'gruyere', 'comte', 'fromage rape', 'fromage a raclette', 'reblochon', 'cheddar', 'fromage'], 'emmental'],
+    [['mozzarella', 'mozza'], 'mozzarella'], [['feta'], 'feta'], [['yaourt', 'yogourt', 'yaourt grec', 'fromage blanc'], 'yaourt'],
+    [['pates', 'spaghetti', 'spaghettis', 'tagliatelle', 'tagliatelles', 'penne', 'macaroni', 'coquillettes', 'fusilli', 'feuilles de lasagne', 'lasagnes', 'nouilles', 'linguine', 'farfalle', 'torsades', 'rigatoni'], 'pates'],
+    [['riz', 'riz arborio', 'riz basmati', 'riz thai'], 'riz'], [['semoule', 'couscous'], 'semoule'], [['quinoa'], 'quinoa'],
+    [['farine', 'farine de ble', 'maizena', 'fecule'], 'farine'], [['lentilles corail', 'lentille corail'], 'lentilles_corail'], [['lentille', 'lentilles vertes'], 'lentilles_vertes'],
+    [['pois chiche'], 'pois_chiches'], [['haricots rouges', 'haricot rouge'], 'haricots_rouges'], [['haricots blancs', 'haricot blanc', 'lingots'], 'haricots_blancs'],
+    [['pois casses'], 'pois_casses'], [['haricots verts', 'haricot vert'], 'haricots_verts'], [['petits pois', 'petit pois'], 'petits_pois'], [['mais'], 'mais'],
+    [['tomates concassees', 'tomate concassee', 'tomates pelees', 'coulis de tomate', 'coulis de tomates', 'pulpe de tomate', 'pulpe de tomates', 'sauce tomate', 'concentre de tomate', 'concentre de tomates', 'passata', 'puree de tomate', 'puree de tomates'], 'tomates_concassees'],
+    [['tomate', 'tomates cerises', 'tomate cerise'], 'tomate'],
+    [['huile d olive', 'huile', 'huile de tournesol', 'huile vegetale', 'huile neutre', 'huile de colza'], 'huile_olive'],
+    [['curry', 'curry en poudre', 'pate de curry'], 'curry'], [['cumin'], 'cumin'], [['paprika'], 'paprika'],
+    [['bouillon', 'cube de bouillon', 'bouillon cube', 'fond de volaille', 'fond de veau'], 'bouillon'], [['sauce soja', 'sauce soja salee'], 'sauce_soja'], [['moutarde'], 'moutarde'],
+    [['tortilla', 'wrap'], 'tortillas'], [['oignon', 'oignon rouge', 'oignon jaune', 'echalote', 'oignon nouveau', 'cebette'], 'oignon'], [['ail', 'gousse d ail'], 'ail'],
+    [['carotte'], 'carotte'], [['courgette'], 'courgette'], [['poivron'], 'poivron'], [['patate douce'], 'patate_douce'],
+    [['pomme de terre', 'pommes de terre', 'patate', 'grenaille'], 'pomme_de_terre'], [['poireau'], 'poireau'], [['champignon', 'champignons de paris'], 'champignon'],
+    [['brocoli'], 'brocoli'], [['salade', 'laitue', 'mache', 'roquette', 'mesclun', 'jeunes pousses'], 'salade'], [['concombre'], 'concombre'], [['aubergine'], 'aubergine'],
+    [['courge', 'butternut', 'potiron', 'potimarron', 'citrouille'], 'courge'], [['citron', 'jus de citron', 'citron vert'], 'citron'], [['persil', 'persil plat'], 'persil'],
+    [['chou', 'chou blanc', 'chou vert'], 'chou'], [['epinard', 'pousses d epinard'], 'epinards'], [['pain de mie'], 'pain_mie'], [['baguette', 'pain', 'pain de campagne'], 'pain'],
+    [['pate brisee', 'pate feuilletee', 'pate sablee', 'pate a pizza', 'rouleau de pate'], { nom: 'pâte à tarte', tags: ['gluten'] }],
+    [['chapelure'], { nom: 'chapelure', tags: ['gluten'] }], [['vinaigre', 'vinaigre balsamique'], { nom: 'vinaigre', tags: [] }],
+    [['herbes de provence', 'thym', 'laurier', 'romarin', 'origan', 'ciboulette', 'estragon', 'aneth', 'bouquet garni', 'menthe'], null],
+    [['noix de muscade', 'muscade', 'cannelle', 'vanille', 'sucre vanille', 'piment', 'piment d espelette', 'curcuma', 'gingembre en poudre', 'ras el hanout', 'quatre epices', 'clou de girofle'], null]
+  ];
+  const IGNORES = /^(sel|poivre|sel et poivre|sel poivre|poivre du moulin|fleur de sel|gros sel|eau|eau froide|eau chaude|eau tiede|glacons?|sel fin)$/;
+  // poids d'une pièce quand la recette compte (« 2 oignons ») mais que le catalogue est au poids
+  const PIECE = { oignon: 100, ail: 5, carotte: 100, courgette: 250, tomate: 120, poivron: 150, pomme_de_terre: 150, poireau: 200, champignon: 20, brocoli: 400, aubergine: 300, courge: 1000, patate_douce: 300, chou: 1000, poulet_filet: 150, cuisses_poulet: 250, boeuf_hache: 125, jambon: 40, saucisse: 100, saumon: 125, colin: 120, beurre: 10, mozzarella: 125, feta: 200, yaourt: 125, tofu: 200, pain_mie: 25, lardons: 200, emmental: 30 };
+  const NOMBRES = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, dix: 10, douze: 12, demi: 0.5, 'une demi': 0.5, 'un demi': 0.5, quelques: 3 };
+  // unités → [motif, facteur vers g/ml, genre]
+  const UNITES = [
+    [/^(kg|kilos?|kilogrammes?)\b/, 1000, 'masse'], [/^(g|gr|grs|grammes?)\b/, 1, 'masse'], [/^mg\b/, 0.001, 'masse'],
+    [/^(l|litres?)\b/, 1000, 'vol'], [/^dl\b/, 100, 'vol'], [/^(cl|centilitres?)\b/, 10, 'vol'], [/^(ml|millilitres?)\b/, 1, 'vol'],
+    [/^(cuilleres?|cuill?\.?|c\.?)\s*(a|à)?\s*(soupe|s\.?)(?![a-z])|^(cas|cs|c\.a\.s|cuil\.? a soupe)(?![a-z])/, 15, 'vol'],
+    [/^(cuilleres?|cuill?\.?|c\.?)\s*(a|à)?\s*(cafe|café|c\.?)(?![a-z])|^(cac|cc|c\.a\.c)(?![a-z])/, 5, 'vol'],
+    [/^pincees?\b/, 0.5, 'vol'], [/^(verres?)\b/, 200, 'vol'], [/^(tasses?|bols?|mugs?)\b/, 250, 'vol'], [/^briques?\b/, 200, 'vol'],
+    [/^(noix|noisettes?)\s+(de|d)\b/, 12, 'masse'], [/^(poignees?)\b/, 30, 'masse'], [/^filets?\s+(?=(de |d['’ ]\s*)(huile|citron|vinaigre|creme|sauce))/, 5, 'vol'],
+    [/^(boites?|conserves?|paquets?|sachets?|barquettes?)\b/, 0, 'paquet'], [/^(pots?)\b/, 125, 'masse'], [/^(tranches?)\b/, 0, 'tranche'],
+    [/^(gousses?)\b/, 0, 'piece'], [/^(bottes?|bouquets?|branches?|brins?|feuilles?|cubes?|tablettes?|morceaux?|pieces?|tetes?|bulbes?|pavés?|paves?|filets?|blancs?|escalopes?)\b/, 0, 'piece']
+  ];
+  function lireNombre(t) {
+    const fr = { '½': '1/2', '¼': '1/4', '¾': '3/4', '⅓': '1/3', '⅔': '2/3' };
+    t = t.replace(/[½¼¾⅓⅔]/g, (c) => ' ' + fr[c]).replace(/^\s+/, '');
+    let m = /^(\d+)\s+(\d+)\/(\d+)/.exec(t);
+    if (m) return [+m[1] + m[2] / m[3], t.slice(m[0].length)];
+    m = /^(\d+)\/(\d+)/.exec(t);
+    if (m) return [m[1] / m[2], t.slice(m[0].length)];
+    m = /^(\d+(?:[.,]\d+)?)(?:\s*(?:a|à|-|ou)\s*\d+(?:[.,]\d+)?)?/.exec(t);
+    if (m) return [parseFloat(m[1].replace(',', '.')), t.slice(m[0].length)];
+    m = /^(une demi|un demi|un|une|deux|trois|quatre|cinq|six|sept|huit|dix|douze|demi|quelques)\b/.exec(t);
+    if (m) return [NOMBRES[m[1]], t.slice(m[0].length)];
+    return [null, t];
+  }
+  function trouverAliment(nomNorm) {
+    let best = null;
+    for (const [mots, cible] of LIGNE) for (const mot of mots) {
+      const m = new RegExp('(^| )' + norm(mot) + '(s|x)?( |$)').exec(nomNorm);
+      if (m && (!best || m.index < best.pos || (m.index === best.pos && mot.length > best.mot.length))) best = { pos: m.index, mot, cible };
+    }
+    if (best) return best;
+    for (const [mots, n, tags] of HORS) for (const mot of mots) {
+      const m = new RegExp('(^| )' + norm(mot) + '(s|x)?( |$)').exec(nomNorm);
+      if (m && (!best || m.index < best.pos)) best = { pos: m.index, mot, cible: { nom: n, tags } };
+    }
+    return best;
+  }
+  /** Une ligne → { id, total } (catalogue, quantité pour toute la recette), { extra }, ou { ignore } */
+  function analyserLigne(ligne) {
+    let brut = String(ligne || '').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!brut || /:\s*$/.test(brut)) return { ignore: brut };
+    let t = brut.toLowerCase().replace(/^(environ|env\.|±|~)\s*/, '');
+    let [n, reste] = lireNombre(t);
+    reste = reste.replace(/^\s*(?=[a-zà-ÿ])/, '').trim();
+    let unite = null;
+    for (const u of UNITES) {
+      const m = u[0].exec(norm(reste.slice(0, 40)) === '' ? '' : reste.normalize('NFD').replace(/[̀-ͯ]/g, ''));
+      if (m) { unite = u; if (!u[3]) reste = reste.normalize('NFD').replace(/[̀-ͯ]/g, '').slice(m[0].length); break; }
+    }
+    // quantité écrite après le nom : « lardons : 200 g »
+    if (n == null) {
+      const m = /(\d+(?:[.,]\d+)?)\s*(kg|g|gr|cl|ml|l)\b/.exec(t);
+      if (m) { n = parseFloat(m[1].replace(',', '.')); unite = UNITES.find((u) => u[0].test(m[2])); reste = t.replace(m[0], ' '); }
+    }
+    const nomNorm = norm(reste).replace(/^(de |d |des |du |de la |la |le |les )+/, '').replace(/[,:;].*$/, '').trim();
+    if (!nomNorm || IGNORES.test(nomNorm) || /^(sel|poivre)( |$)/.test(nomNorm) && nomNorm.split(' ').length <= 3) return { ignore: brut };
+    const al = trouverAliment(nomNorm);
+    const nomLisible = reste.replace(/^\s*(de |d’|d'|des |du )/i, '').replace(/[,;].*$/, '').trim().slice(0, 40) || brut;
+    if (!al) return { extra: { nom: nomLisible, tags: tagsExtra(nomLisible) || [] } };
+    if (al.cible === null) return { ignore: brut, epice: true };
+    if (typeof al.cible === 'object') return { extra: { nom: al.cible.nom, tags: al.cible.tags } };
+    const id = al.cible, ing = E.ING[id];
+    let total = null;
+    const kind = unite ? unite[2] : null;
+    const qn = n == null ? 1 : n;
+    if (ing.unite !== 'pièce') {
+      if (kind === 'masse' || kind === 'vol') total = qn * unite[1];
+      else if (kind === 'paquet') total = qn * ing.cond;
+      else if (kind === 'tranche') total = qn * (id === 'pain_mie' ? 25 : id === 'jambon' ? 40 : 30);
+      else if (kind === 'piece' || !kind) total = n == null && !kind ? null : qn * (id === 'ail' ? 5 : PIECE[id] || (ing.unite === 'ml' ? 100 : 100));
+      if (total == null && n == null) total = null;
+    } else {
+      const parPiece = { oeufs: 55, pain: 250, salade: 300, citron: 40, concombre: 300, tortillas: 40, bouillon: 500, persil: 50 }[id] || 100;
+      if (kind === 'masse' || kind === 'vol') total = id === 'persil' ? 1 : Math.max(0.25, (qn * unite[1]) / parPiece);
+      else if (kind === 'paquet') total = qn * ing.cond;
+      else total = n == null ? null : qn;
+    }
+    return { id, total, nom: nomLisible };
+  }
+  /** Lignes d'une recette → ingrédients à cocher, quantités pour UNE personne. */
+  function analyserIngredients(lignes, portions, p) {
+    const profil = p || E.profilParDefaut();
+    const parts = portions > 0 ? portions : 4;
+    const coches = new Map(), extras = new Map(), retires = [], ignores = [];
+    for (const l of lignes || []) {
+      const r = analyserLigne(l);
+      if (r.ignore != null) { if (r.ignore) ignores.push(r.ignore); continue; }
+      if (r.extra) {
+        const k = norm(r.extra.nom);
+        if (!k || extras.has(k)) continue;
+        const x = { nom: r.extra.nom.toLowerCase(), tags: r.extra.tags || [], coche: true };
+        const raison = E.ingredientInterdit({ tags: x.tags }, profil);
+        if (raison) { x.coche = false; x.alerte = raison; }
+        extras.set(k, x);
+        continue;
+      }
+      const q = r.total == null ? qte(r.id) : Math.round((r.total / parts) * 100) / 100;
+      coches.set(r.id, Math.round(((coches.get(r.id) || 0) + q) * 100) / 100);
+    }
+    for (const id of [...coches.keys()]) {
+      const raison = E.ingredientInterdit(E.ING[id], profil);
+      if (raison) { coches.delete(id); retires.push(`${E.ING[id].nom} (${raison})`); }
+    }
+    return { coches: [...coches.entries()], extras: [...extras.values()], retires, ignores };
+  }
+  /** Nom de plat lisible à partir d'un lien (« …/recette_quiche-lorraine_30283.aspx » → « Quiche lorraine »). */
+  function nomDepuisLien(lien) {
+    try {
+      const u = new URL(lien);
+      const seg = u.pathname.split('/').filter(Boolean).reverse().find((s) => /[a-z]{3,}/i.test(s.replace(/\.(aspx|html?|php)$/, '')) && !/^(recettes?|recipes?|cuisine)$/i.test(s));
+      if (!seg) return '';
+      let t = decodeURIComponent(seg).replace(/\.(aspx|html?|php)$/i, '').replace(/^recettes?[_-]/i, '').replace(/[_-]r?\d+$/i, '').replace(/^\d+[_-]/, '').replace(/[_-]+/g, ' ').trim();
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+    } catch (e) { return ''; }
+  }
+
+  const api = { devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Saisie = api;
 })(typeof window !== 'undefined' ? window : globalThis);

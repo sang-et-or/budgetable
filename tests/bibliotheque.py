@@ -9,6 +9,7 @@ with sync_playwright() as p:
     nav = p.chromium.launch()
     page = nav.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     page.on("pageerror", lambda e: erreurs.append(str(e)))
+    page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())   # lecteur indisponible : repli sur le nom
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     clic("Préparer ma semaine")

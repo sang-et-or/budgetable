@@ -348,3 +348,15 @@ test('placard : cuisiner un repas le déduit', () => {
   st = E.retirerDuStock(st, conso);
   for (const [id, q] of conso) if (st[id] != null) assert.ok(Math.abs(st[id] - Math.round(q * 100) / 100) < 0.02, id);
 });
+
+test('lien de recette : lignes d’ingrédients → quantités par personne', () => {
+  const S = require('../js/saisie.js');
+  const r = S.analyserIngredients(['200 g de lardons', '3 œufs', '20 cl de crème fraîche', '1 pâte brisée', 'Sel, poivre', '300 g de crevettes'], 4, profil({ allergies: ['crustaces'] }));
+  const q = Object.fromEntries(r.coches);
+  assert.equal(q.lardons, 50); assert.equal(q.oeufs, 0.75); assert.equal(q.creme, 50);
+  assert.ok(r.extras.find((x) => x.nom === 'pâte à tarte').coche);
+  const cr = r.extras.find((x) => x.nom === 'crevettes');
+  assert.ok(cr && !cr.coche && cr.alerte, 'un allergène n’est jamais coché d’office');
+  assert.deepEqual(r.ignores, ['Sel, poivre']);
+  assert.equal(S.nomDepuisLien('https://www.marmiton.org/recettes/recette_quiche-lorraine_30283.aspx'), 'Quiche lorraine');
+});

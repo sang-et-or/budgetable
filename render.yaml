@@ -25,3 +25,16 @@ services:
       - path: /photos/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+
+  # Lecteur de recettes : lit la fiche recette (schema.org) d'un lien collé dans « Ajouter une recette ».
+  - type: web
+    name: budgetable-recettes
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: node --version
+    startCommand: node api/server.js
+    healthCheckPath: /sante
+    envVars:
+      - key: ORIGINES
+        value: https://budgetable.onrender.com

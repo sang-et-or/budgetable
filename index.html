@@ -390,6 +390,14 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .liste-repas-faits { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .placard-info { color: var(--poireau); font-weight: 600; }
 #mes-drives summary { cursor: pointer; }
+
+/* ---------- lecture d'un lien de recette ---------- */
+.lecture { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--trait); }
+.lecture-ok { border-color: var(--poireau); color: var(--encre, inherit); }
+.lecture-echec { border-color: var(--moutarde); }
+.rond-attente { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--trait); border-top-color: var(--poireau); border-radius: 50%; animation: tourne .8s linear infinite; vertical-align: -1px; }
+@keyframes tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rond-attente { animation: none; } }
 </style>
 
 <div id="app"></div>
