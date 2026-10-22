@@ -643,7 +643,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 
 /* ---------- mes apports ---------- */
-@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"] { display: none; } }
+@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"] { display: none; } }
 .tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .tuile-apport strong { font: 800 1.5rem var(--f-titre); }
@@ -749,6 +749,31 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .repas-dehors .vignette, .repas-dehors .titre-repas, .repas-dehors .meta { opacity: .5; }
 .repas-dehors .titre-repas { text-decoration: line-through; text-decoration-thickness: 1px; }
 .dehors-ok { background: var(--moutarde-pale); border-radius: 10px; padding: 8px 10px; }
+
+/* ---------- promotions ---------- */
+.liste-promos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.promo { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--trait); border-radius: 12px; background: var(--surface); }
+.promo-img { width: 56px; height: 56px; border-radius: 10px; background: #fff; display: grid; place-items: center; overflow: hidden; font-size: 1.4rem; }
+.promo-img img { width: 100%; height: 100%; object-fit: contain; }
+.promo-nom { font-weight: 600; color: var(--encre); text-decoration: none; line-height: 1.25; }
+.promo-nom:hover { text-decoration: underline; }
+.promo-prix { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.promo-prix strong { font-size: 1.05rem; color: var(--tomate); }
+.tag-promo { display: inline-block; border: 0; font: inherit; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--tomate-pale); color: var(--tomate); cursor: pointer; white-space: nowrap; }
+.tag-promo.lidl-plus { background: #e6eefb; color: #1f4f9c; }
+.bandeau-promos { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; border-radius: var(--r); border: 1px dashed var(--tomate); background: var(--tomate-pale); color: var(--encre); font: inherit; cursor: pointer; }
+.bandeau-promos > span:nth-child(2) { flex: 1; display: grid; }
+@media (max-width: 520px) { .promo { grid-template-columns: 48px 1fr; } .promo-img { width: 48px; height: 48px; } .promo-prix { grid-column: 2; justify-items: start; display: flex; gap: 8px; align-items: baseline; } }
+
+/* ---------- envoyer ---------- */
+.fenetre-envoi { display: grid; gap: 14px; }
+.grille-envoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.choix-envoi { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px; border: 1px solid var(--trait); border-radius: 14px; background: var(--surface); color: var(--encre); font: inherit; text-decoration: none; cursor: pointer; }
+.choix-envoi > span:first-child { font-size: 1.4rem; }
+.choix-envoi:hover { border-color: var(--poireau); background: var(--poireau-pale); }
+.apercu-envoi { white-space: pre-wrap; font-size: .8rem; background: var(--papier); padding: 10px; border-radius: 10px; max-height: 260px; overflow: auto; }
+.article-partage { padding: 10px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--surface); }
+.article-partage.coche strong { text-decoration: line-through; opacity: .55; }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

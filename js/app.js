@@ -151,6 +151,7 @@
     drives: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
     gourmand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12l-1.6 8.2a1 1 0 0 1-1 .8H8.6a1 1 0 0 1-1-.8z"/><path d="M5 12a3 3 0 0 1 2.2-2.9A4.8 4.8 0 0 1 12 5a4.8 4.8 0 0 1 4.8 4.1A3 3 0 0 1 19 12"/><path d="M12 5V3"/></svg>',
     apports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    promos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>',
     journal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>',
     profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>',
@@ -422,11 +423,11 @@
   }
 
   /* ---------- application ---------- */
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -588,7 +589,7 @@
     const restants = 'Changez vos plats autant que vous voulez';
     return `${bandeauSensible()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
-      <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button></div>
+      <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocPresences()}
       ${blocGamelles()}
@@ -1667,6 +1668,143 @@
       <div><a class="btn btn-petit btn-plein" href="extension.html" target="_blank" rel="noopener">Installer l’extension</a></div></div></div>`;
   }
 
+  /* ---------- promotions du moment (lues par le serveur Budgétable sur les pages publiques des enseignes) ---------- */
+  const CLE_PROMOS = 'budgetable.promos';
+  let promos = (() => { try { const x = JSON.parse(localStorage.getItem(CLE_PROMOS) || 'null'); return x && Date.now() - x.t < 6 * 3600000 ? { ...x.r, etat: 'ok' } : null; } catch (e) { return null; } })();
+  const AUTRES_PROMOS = [['Carrefour', 'https://www.carrefour.fr/promotions'], ['Intermarché', 'https://www.intermarche.com/catalogues'], ['Aldi', 'https://www.aldi.fr/catalogues.html'], ['Lidl (catalogues)', 'https://www.lidl.fr/c/catalogues-en-ligne/s10017753']];
+  async function chargerPromos(forcer) {
+    if (promos && promos.etat === 'charge') return;
+    if (promos && promos.etat === 'ok' && !forcer) return;
+    promos = { ...(promos || {}), etat: 'charge' };
+    if (S.onglet === 'promos') rendre();
+    try {
+      const rep = await fetch(LECTEUR + '/promos', { signal: AbortSignal.timeout(90000) });
+      const r = await rep.json();
+      if (!rep.ok) throw new Error(r.erreur || 'erreur');
+      promos = { ...r, etat: 'ok' };
+      try { localStorage.setItem(CLE_PROMOS, JSON.stringify({ t: Date.now(), r })); } catch (e) { /* stockage plein */ }
+    } catch (e) { promos = { offres: (promos && promos.offres) || [], etat: 'erreur' }; }
+    rendre();
+  }
+  // quel produit du catalogue correspond à une offre (« L'ÉTAL DU BOUCHER 4 crépinettes de porc » → porc)
+  const ingPromo = new Map();
+  function ingredientDePromo(o) {
+    if (ingPromo.has(o.id)) return ingPromo.get(o.id);
+    let id = null;
+    try { const a = window.Saisie.analyserLigne(o.nom.replace(/^[A-ZÀ-Ý0-9'’&.® -]{3,}(?= [A-Za-zà-ÿ])/, '').trim() || o.nom); id = a && a.id && E.ING[a.id] && !E.ING[a.id].perso ? a.id : null; } catch (e) { id = null; }
+    ingPromo.set(o.id, id);
+    return id;
+  }
+  function promosPour(id) { return promos && promos.offres ? promos.offres.filter((o) => ingredientDePromo(o) === id) : []; }
+  const RAYONS_PROMO = [['viande', 'Viandes et poissons', /viande|volaille|poisson|boucher|charcut|porc|boeuf|bœuf|traiteur de la mer/i], ['fruits', 'Fruits et légumes', /fruit|légume|legume/i], ['cremerie', 'Crèmerie et fromages', /fromage|lait|yaourt|crèmerie|cremerie|beurre|oeuf|œuf/i], ['boulangerie', 'Pain et viennoiseries', /pain|boulang|viennois|pâtisserie|patisserie/i], ['surgeles', 'Surgelés', /surgel|glace/i], ['sucre', 'Sucré et petit-déjeuner', /sucr|biscuit|chocolat|confiserie|céréales|cereales|muesli|tartiner|café|cafe/i], ['boissons', 'Boissons', /boisson|vin|bière|biere|jus|eau|alcool|spiritueux/i], ['epicerie', 'Épicerie', /./]];
+  const rayonPromo = (o) => (RAYONS_PROMO.find(([, , rx]) => rx.test(o.rayon + ' ' + o.nom)) || RAYONS_PROMO[RAYONS_PROMO.length - 1])[0];
+  const finPromo = (o) => (o.quand ? o.quand.replace(/\s*\|.*$/, '') : o.fin ? 'jusqu’au ' + new Date(o.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
+  function lignePromo(o, avecIdee) {
+    const id = ingredientDePromo(o);
+    return `<li class="promo"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
+      <div class="stack" style="gap:2px;min-width:0"><a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
+        <span class="small muted">${esc(o.enseigne)}${o.cond ? ' · ' + esc(o.cond) : ''}${o.prixKg ? ' · ' + esc(o.prixKg) + ' €' : ''}${finPromo(o) ? ' · ' + esc(finPromo(o)) : ''}</span>
+        ${avecIdee && id ? `<span><button class="btn-lien small" data-a="promo-idee" data-id="${id}">Une idée de plat avec ${esc(E.ING[id].nom.toLowerCase())}</button></span>` : ''}</div>
+      <div class="promo-prix"><strong class="num">${euros(o.prix)}</strong>${o.prixAvant ? `<s class="small muted num">${euros(o.prixAvant)}</s>` : ''}${o.remise ? `<span class="tag-promo">${esc(o.remise)}</span>` : ''}${o.lidlPlus ? '<span class="tag-promo lidl-plus">Lidl Plus</span>' : ''}</div></li>`;
+  }
+  function ongletPromos() {
+    chargerPromos(false);
+    const charge = !promos || promos.etat === 'charge';
+    const offres = (promos && promos.offres) || [];
+    const liste = S.plan ? E.listeCourses(S.plan, S.profil).articles.filter((a) => !a.enStock && !a.couvertParPlacard) : [];
+    const pourMoi = liste.map((a) => [a, promosPour(a.id)]).filter(([, l]) => l.length);
+    const f = S.filtrePromo || 'tout';
+    const q = E.norm(S.cherchePromo || '');
+    const visibles = offres.filter((o) => (f === 'tout' || rayonPromo(o) === f) && (!q || E.norm(o.nom).includes(q))).sort((a, b) => (b.prixAvant ? (b.prixAvant - b.prix) / b.prixAvant : 0) - (a.prixAvant ? (a.prixAvant - a.prix) / a.prixAvant : 0));
+    const nbR = (k) => offres.filter((o) => rayonPromo(o) === k).length;
+    const maj = promos && promos.maj ? new Date(promos.maj) : null;
+    return `<div class="spread"><div><p class="eyebrow">Bons plans</p><h1>Promos du moment</h1></div><button class="btn btn-petit" data-a="promos-maj" ${charge ? 'disabled' : ''}>${charge ? 'Recherche…' : '↻ Actualiser'}</button></div>
+      <p class="muted">Les promotions alimentaires de la semaine, comparées à votre liste de courses. ${maj ? `Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      ${charge && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Recherche des promotions en cours…</strong><span class="small muted">Budgétable lit les pages d’offres des enseignes : cela peut prendre une minute la première fois.</span></section>' : ''}
+      ${promos && promos.etat === 'erreur' && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Promotions indisponibles pour le moment</strong><span class="small">Le site de l’enseigne n’a pas répondu. Réessayez plus tard, ou consultez les catalogues ci-dessous.</span></section>' : ''}
+      ${offres.length ? `<section class="carte stack promos-moi" style="gap:10px"><h2>Pour vos courses de la semaine</h2>
+        ${pourMoi.length ? `<p class="small muted" style="margin:0">${pluriel(pourMoi.length, 'article de votre liste est', 'articles de votre liste sont')} en promotion en ce moment.</p>
+          ${pourMoi.map(([a, l]) => `<div class="stack" style="gap:6px"><div class="spread"><strong>${esc(a.nom)}</strong><span class="small muted">besoin : ${quantite(a.quantite, a.unite)} · estimé ${euros(a.cout)}</span></div><ul class="liste-promos">${l.slice(0, 4).map((o) => lignePromo(o, false)).join('')}</ul></div>`).join('')}`
+          : '<p class="small" style="margin:0">Aucun article de votre liste n’est en promotion cette semaine. Regardez les promos ci-dessous : elles peuvent donner des idées de plats.</p>'}
+      </section>
+      <section class="stack" style="gap:10px"><h2>Toutes les promos alimentaires <span class="small muted">(${offres.length})</span></h2>
+        <div class="row" role="group" aria-label="Rayon" style="gap:6px"><button class="chip" data-a="promo-filtre" data-k="tout" aria-pressed="${f === 'tout'}">Tout <span class="small muted">${offres.length}</span></button>${RAYONS_PROMO.filter(([k]) => nbR(k)).map(([k, v]) => `<button class="chip" data-a="promo-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbR(k)}</span></button>`).join('')}</div>
+        <label class="champ"><span class="sr">Chercher une promo</span><input type="search" id="promo-cherche" value="${esc(S.cherchePromo || '')}" placeholder="Chercher : poulet, fromage, pâtes…" autocomplete="off"></label>
+        <ul class="liste-promos" id="promos-toutes">${visibles.slice(0, 80).map((o) => lignePromo(o, true)).join('') || '<li class="small muted">Aucune promo avec ce filtre.</li>'}</ul>
+      </section>` : ''}
+      <section class="carte stack" style="gap:8px"><h2>Chez les autres enseignes</h2>
+        <p class="small muted" style="margin:0">Ces sites ne permettent pas la lecture automatique de leurs promotions : retrouvez-les dans leurs catalogues.</p>
+        <div class="row" style="gap:6px">${AUTRES_PROMOS.map(([n, u]) => `<a class="btn btn-petit" href="${u}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>
+        <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p></section>`;
+  }
+
+  /* ---------- envoyer la liste ou le menu (mail, SMS, WhatsApp, partage, lien à ouvrir sur un autre téléphone) ---------- */
+  function menuTexte() {
+    if (!S.plan) return '';
+    return S.plan.jours.map((jp, j) => {
+      const r = (m) => (m && E.REC[m.recette] ? (m.dehors ? 'dehors' : E.REC[m.recette].nom) : null);
+      const g = jp.gamelles && jp.gamelles.n && E.REC[jp.gamelles.recette] ? `gamelle : ${E.REC[jp.gamelles.recette].nom}` : null;
+      return `${jp.jour} ${new Date(dateDuJour(j) + 'T12:00:00').getDate()}\n` + [r(jp.dejeuner) ? `  Midi : ${r(jp.dejeuner)}` : g ? `  Midi : ${g}` : null, r(jp.diner) ? `  Soir : ${r(jp.diner)}` : null].filter(Boolean).join('\n');
+    }).join('\n');
+  }
+  function texteEnvoi(quoi) {
+    const liste = E.listeCourses(S.plan, S.profil);
+    const d = new Date(dateDuJour(0) + 'T12:00:00');
+    const titre = `Budgétable · semaine du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+    const parts = [titre];
+    if (quoi !== 'liste') parts.push('MENU DE LA SEMAINE\n' + menuTexte());
+    if (quoi !== 'menu') parts.push('LISTE DE COURSES (' + euros(liste.total).replace(/ /g, ' ') + ' environ)\n\n' + listeTexte(liste));
+    return parts.join('\n\n');
+  }
+  // lien qui ouvre la liste à cocher sur un autre appareil, sans compte : la liste voyage dans l'adresse
+  function lienPartage() {
+    const liste = E.listeCourses(S.plan, S.profil);
+    const par = {};
+    liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push([a.nom, a.sansPrix ? '' : `${a.conditionnements} × ${a.condLabel}`]); });
+    const json = JSON.stringify({ t: 'Liste de courses', d: dateDuJour(0), r: Object.entries(par) });
+    const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + '#liste=' + b64;
+  }
+  function lireListePartagee() {
+    const m = /#liste=([A-Za-z0-9_-]+)/.exec(location.hash);
+    if (!m) return null;
+    try { const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/')); return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))); } catch (e) { return null; }
+  }
+  function vueListePartagee(l) {
+    const cle = 'budgetable.partage.' + (location.hash.length % 997) + '.' + l.d;
+    let coches = {}; try { coches = JSON.parse(localStorage.getItem(cle) || '{}'); } catch (e) { /* */ }
+    const n = l.r.reduce((t, [, as]) => t + as.length, 0), faits = Object.values(coches).filter(Boolean).length;
+    return `<div class="wrap"><main class="stack partage" style="max-width:640px;margin:0 auto;padding:16px">
+      <div class="entete"><div class="marque">${LOGO}Budgétable</div></div>
+      <div><p class="eyebrow">Liste partagée</p><h1>${esc(l.t)}</h1><p class="muted">Semaine du ${esc(new Date(l.d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))} · ${faits} / ${n} dans le panier</p></div>
+      ${l.r.map(([rayon, as]) => `<section class="stack" style="gap:6px"><h3>${esc(rayon)}</h3>${as.map(([nom, q], i) => { const k = rayon + '|' + i; return `<label class="case article-partage ${coches[k] ? 'coche' : ''}"><input type="checkbox" data-a="partage-cocher" data-k="${esc(k)}" data-cle="${esc(cle)}" ${coches[k] ? 'checked' : ''}><span><strong>${esc(nom)}</strong>${q ? ` <span class="small muted">· ${esc(q)}</span>` : ''}</span></label>`; }).join('')}</section>`).join('')}
+      <p class="small muted">Les cases cochées restent sur ce téléphone. <a href="${location.pathname}">Découvrir Budgétable</a></p></main></div>`;
+  }
+  function vueEnvoi() {
+    if (!S.envoiOuvert || !S.plan) return '';
+    const quoi = S.envoiQuoi || 'liste';
+    const texte = texteEnvoi(quoi);
+    const sujet = quoi === 'menu' ? 'Le menu de la semaine' : quoi === 'tout' ? 'Menu et liste de courses de la semaine' : 'Liste de courses de la semaine';
+    const corps = texte.length > 1800 ? texte.slice(0, 1780) + '\n…' : texte;
+    const lien = quoi === 'menu' ? '' : lienPartage();
+    const avecLien = (t) => (lien ? t + '\n\nÀ cocher sur votre téléphone : ' + lien : t);
+    const partageDispo = typeof navigator.share === 'function';
+    return `<div class="voile" data-a="envoi-fond"><div class="fiche fenetre-envoi" role="dialog" aria-modal="true" aria-labelledby="envoi-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Partager</span><h2 id="envoi-titre">Envoyer</h2></div><button class="btn btn-petit" data-a="envoi-fermer">Fermer</button></div>
+      <div class="row" role="radiogroup" aria-label="Quoi envoyer" style="gap:6px">${[['liste', 'La liste de courses'], ['menu', 'Le menu de la semaine'], ['tout', 'Les deux']].map(([k, v]) => `<button class="chip" role="radio" data-a="envoi-quoi" data-k="${k}" aria-checked="${quoi === k}" aria-pressed="${quoi === k}">${v}</button>`).join('')}</div>
+      <div class="grille-envoi">
+        ${partageDispo ? '<button class="choix-envoi" data-a="envoi-partager"><span aria-hidden="true">📲</span><strong>Partager…</strong><span class="small muted">Messages, WhatsApp, Notes…</span></button>' : ''}
+        <a class="choix-envoi" href="mailto:?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(avecLien(corps))}"><span aria-hidden="true">✉️</span><strong>Par e-mail</strong><span class="small muted">ouvre votre messagerie</span></a>
+        <a class="choix-envoi" href="sms:?&body=${encodeURIComponent(avecLien(quoi === 'liste' ? 'Liste de courses' : corps.slice(0, 600)))}"><span aria-hidden="true">💬</span><strong>Par SMS</strong><span class="small muted">${quoi === 'liste' ? 'avec le lien à cocher' : 'le menu en texte'}</span></a>
+        <a class="choix-envoi" href="https://wa.me/?text=${encodeURIComponent(avecLien(corps))}" target="_blank" rel="noopener"><span aria-hidden="true">🟢</span><strong>WhatsApp</strong><span class="small muted">à un proche ou un groupe</span></a>
+        <button class="choix-envoi" data-a="envoi-copier"><span aria-hidden="true">📋</span><strong>Copier le texte</strong><span class="small muted">à coller où vous voulez</span></button>
+        ${lien ? '<button class="choix-envoi" data-a="envoi-lien"><span aria-hidden="true">🔗</span><strong>Copier le lien</strong><span class="small muted">liste à cocher, sans compte</span></button>' : ''}
+      </div>
+      ${lien ? '<p class="small muted" style="margin:0">Le lien ouvre la liste sur n’importe quel téléphone, avec des cases à cocher en magasin. Rien n’est envoyé à Budgétable : la liste est dans le lien.</p>' : ''}
+      <details><summary class="small"><strong>Aperçu du texte</strong></summary><pre class="apercu-envoi">${esc(texte)}</pre></details>
+    </div></div>`;
+  }
+
   function listeTexte(liste) {
     const par = {};
     liste.articles.filter((a) => !a.enStock).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push(a); });
@@ -1680,11 +1818,13 @@
     const imprimerDispo = !DANS_UN_CADRE && typeof window.print === 'function';
     return `<div class="spread"><div><p class="eyebrow">Liste de courses</p><h1>Pour la semaine</h1></div>
       <div class="row ecran-seul">
+        <button class="btn btn-plein" data-a="envoi-ouvrir" data-k="liste">📤 Envoyer</button>
         <button class="btn" data-a="copier-liste">Copier la liste</button>
         <button class="btn" data-a="imprimable">${S.imprimable ? 'Quitter la version imprimable' : 'Version imprimable'}</button>
         ${imprimerDispo ? '<button class="btn btn-plein" data-a="imprimer">Imprimer ou PDF</button>' : ''}
       </div></div>
       ${S.imprimable && !imprimerDispo ? '<p class="bandeau bandeau-info small ecran-seul">Pour obtenir un PDF, ouvrez Budgétable installé sur votre appareil et utilisez « Imprimer ou PDF ». Ici, la version imprimable sert d’aperçu.</p>' : ''}
+      <button class="bandeau-promos ecran-seul" data-a="onglet" data-k="promos"><span aria-hidden="true">🏷</span><span><strong>Promos du moment</strong> <span class="small">${promos && promos.offres ? (() => { const n = liste.articles.filter((a) => !a.enStock && promosPour(a.id).length).length; return n ? pluriel(n, 'article de votre liste en promo', 'articles de votre liste en promo') : 'voir les bons plans de la semaine'; })() : 'comparer votre liste aux promotions de la semaine'}</span></span><span aria-hidden="true">→</span></button>
       <section class="carte stack ecran-seul panier-drive" style="gap:12px"><h2>Faire mes courses sur mon drive</h2>
         <p class="small">Choisissez votre drive, puis laissez-vous guider : un article à la fois, un bouton qui ouvre sa recherche sur le site du drive, et « C’est dans mon panier ». Sur téléphone comme sur ordinateur, rien à installer.</p>
         <div class="choix" role="radiogroup" aria-label="Mon drive">${enseignesOrdonnees().map(([k, d, lieu]) => `<button class="chip" role="radio" data-a="enseigne" data-k="${k}" aria-pressed="${S.drives.enseigne === k}" aria-checked="${S.drives.enseigne === k}">${esc(d.nom)}${lieu ? ` <span class="small muted">· ${esc(lieu)}</span>` : ''}</button>`).join('')}</div>
@@ -1700,7 +1840,7 @@
       <div class="colonnes">${Object.entries(par).map(([rayon, as]) => `<section class="rayon"><h3><span>${esc(rayon)}</span><span class="num small muted">${euros(as.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0))}</span></h3>
         ${as.map((a) => `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock ? 'stock' : ''}">
           <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
-          <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
+          <label class="nom" for="c-${a.id}">${esc(a.nom)}${!a.enStock && promosPour(a.id).length ? ` <button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 promo ${esc(promosPour(a.id)[0].enseigne)} ${euros(promosPour(a.id)[0].prix)}</button>` : ''}</label>
           <span class="prix num">${a.couvertParPlacard ? 'Au placard' : a.enStock ? 'En réserve' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
           <div class="detail">${a.auPlacard > 0 ? `<span class="placard-info">Au placard : ${quantite(a.auPlacard, a.unite)}${a.couvertParPlacard ? ' : rien à acheter' : ''}</span>` : ''}${a.couvertParPlacard ? '' : a.sansPrix ? '<span>Quantité : selon votre recette</span>' : `<span>Besoin : ${quantite(a.quantite, a.unite)}</span><span>Acheter : ${a.conditionnements} × ${esc(a.condLabel)}</span>`}
           <button class="btn-lien btn small ecran-seul" data-a="stock" data-id="${a.id}">${a.enStock ? 'Je n’en ai plus' : 'J’en ai déjà'}</button>
@@ -2538,6 +2678,8 @@
 
   /* ---------- rendu ---------- */
   function rendre() {
+    const partagee = lireListePartagee();
+    if (partagee) { document.getElementById('app').innerHTML = vueListePartagee(partagee); return; }
     document.documentElement.classList.toggle('imprimable', S.imprimable && S.vue === 'app' && S.onglet === 'courses');
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
@@ -2548,7 +2690,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -2832,6 +2974,16 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'envoi-ouvrir': S.envoiOuvert = true; S.envoiQuoi = el.dataset.k || 'liste'; break;
+      case 'envoi-fermer': S.envoiOuvert = false; break;
+      case 'envoi-fond': if (ev.target === el) S.envoiOuvert = false; else return; break;
+      case 'envoi-quoi': S.envoiQuoi = el.dataset.k; break;
+      case 'envoi-copier': copier(texteEnvoi(S.envoiQuoi || 'liste'), null); return;
+      case 'envoi-lien': copier(lienPartage(), null); return;
+      case 'envoi-partager': { const q = S.envoiQuoi || 'liste'; const d = { title: 'Budgétable', text: texteEnvoi(q) }; if (q !== 'menu') d.url = lienPartage(); navigator.share(d).catch(() => {}); return; }
+      case 'promos-maj': chargerPromos(true); return;
+      case 'promo-filtre': S.filtrePromo = el.dataset.k; break;
+      case 'promo-idee': S.onglet = 'soir'; S.jaiCa = { ids: [el.dataset.id], placard: true, ouvert: true, basiques: true }; window.scrollTo(0, 0); break;
       case 'saison-filtre': S.filtreSaison = el.dataset.k; break;
       case 'saison-garder': { const id = el.dataset.r, l = S.saisonGardees || []; S.saisonGardees = l.includes(id) ? l.filter((x) => x !== id) : l.concat(id); E.saisonActives(S.saisonGardees); toast(S.saisonGardees.includes(id) ? 'Gardée : elle sera proposée dans vos menus' : 'Retirée de vos idées gardées'); break; }
       case 'gamelles-ouvrir': if (!S.profil.gamelles || !S.profil.gamelles.n) { S.profil.gamelles = { n: 1, jours: [0, 1, 2, 3, 4], mode: 'restes' }; majGamelles(); } S.gamellesOuvert = true; fiche = null; break;
@@ -3148,7 +3300,9 @@
   });
 
   window.addEventListener('resize', () => ajusterAffiche());
+  window.addEventListener('hashchange', () => rendre());
   document.addEventListener('input', (ev) => {
+    if (ev.target.id === 'promo-cherche') { S.cherchePromo = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('promo-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
     if (ev.target.id === 'affiche-titre') { S.afficheOpts = { ...optsAffiche(), titre: ev.target.value.slice(0, 48) }; const t = document.querySelector('.aff-titre'); if (t) t.textContent = S.afficheOpts.titre || 'Au menu cette semaine'; sauver(); return; }
     const el = ev.target;
     if (el.dataset.a === 'kcal-champ') {
@@ -3272,6 +3426,7 @@
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
     if (el.dataset.a === 'jaica-placard') { S.jaiCa.placard = el.checked; rendre(); return; }
+    if (el.dataset.a === 'partage-cocher') { let c = {}; try { c = JSON.parse(localStorage.getItem(el.dataset.cle) || '{}'); } catch (e) { /* */ } c[el.dataset.k] = el.checked; try { localStorage.setItem(el.dataset.cle, JSON.stringify(c)); } catch (e) { /* */ } rendre(); return; }
     if (el.dataset.a === 'affiche-opt') { S.afficheOpts = { ...optsAffiche(), [el.dataset.k]: el.checked }; rendre(); return; }
     if (el.dataset.a === 'jaica-basiques') { S.jaiCa.basiques = el.checked; rendre(); return; }
     if (el.dataset.a === 'presences-garder') {
@@ -3297,6 +3452,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.envoiOuvert) { S.envoiOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.gamellesOuvert) { S.gamellesOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.afficheOuverte) { S.afficheOuverte = false; rendre(); return; }
     if (ev.key === 'Escape' && edition) { edition = null; rendre(); return; }

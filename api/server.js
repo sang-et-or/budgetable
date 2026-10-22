@@ -1,6 +1,7 @@
 /* Budgétable — lecteur de recettes (petit service web sur Render).
  *
  * GET /recette?url=https://…  →  { nom, ingredients: [lignes], portions, temps, image, site }
+ * GET /promos                  →  { offres: [...], sources, maj } (promotions alimentaires du moment, voir promos.js)
  * GET /sante                   →  ok
  *
  * Il lit UNE page publique, à la demande de la personne qui a collé le lien, et n'en garde que la
@@ -13,6 +14,7 @@ const http = require('http');
 const dns = require('dns').promises;
 const net = require('net');
 const { extraireRecette } = require('./extraire.js');
+const { promosDuMoment } = require('./promos.js');
 
 const PORT = process.env.PORT || 10000;
 // intelligence artificielle de Budgétable (commis de cuisine, goûts, photo du placard) : hébergée ici,
@@ -250,6 +252,11 @@ const serveur = http.createServer(async (req, res) => {
     }
   }
   if (u.pathname === '/sante' || u.pathname === '/') return repondre(res, 200, { ok: true }, origine);
+  if (u.pathname === '/promos' && req.method === 'GET') {
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes' }, origine);
+    try { return repondre(res, 200, await promosDuMoment(), origine); } catch (e) { return repondre(res, 502, { erreur: 'Promotions indisponibles pour le moment' }, origine); }
+  }
   if (u.pathname === '/image' && req.method === 'GET') {
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes' }, origine);
