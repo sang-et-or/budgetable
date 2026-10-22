@@ -1857,10 +1857,17 @@
   }
   // quel produit du catalogue correspond à une offre (« L'ÉTAL DU BOUCHER 4 crépinettes de porc » → porc)
   const ingPromo = new Map();
+  const RAYON_COMPATIBLE = { 'Fruits et légumes': /fruit|légume|legume|salade|herbe/i, 'Viandes et poissons': /viande|volaille|poisson|charcut|boucher|traiteur|porc|boeuf|bœuf|mer/i, 'Crèmerie et frais': /laitier|lait|fromage|crème|creme|beurre|œuf|oeuf|frais|crèmerie|cremerie|yaourt|dessert|traiteur|pâte|pate/i,
+    'Boulangerie': /pain|boulang|viennois|pâtisserie|patisserie/i, 'Épicerie': /épicerie|epicerie|conserve|pâtes|pates|riz|sauce|condiment|huile|petit-déj|céréale|cereale|apéritif|aperitif|café|cafe|monde|bio|féculent|feculent|légumineuse/i, 'Épicerie sucrée': /sucr|biscuit|chocolat|confiserie|petit-déj|céréale|cereale|gâteau|gateau|dessert/i, 'Surgelés': /surgel/i };
+  const MAGASINS = { Lidl: '#0050aa', Aldi: '#00005f', Carrefour: '#1e5bc6', 'E.Leclerc': '#0066b3', Auchan: '#e2001a', Intermarché: '#d90f2a', U: '#e30613' };
+  const badgeMagasin = (n) => `<span class="badge-magasin" style="--m:${MAGASINS[n] || '#5b6b62'}">${esc(n)}</span>`;
   function ingredientDePromo(o) {
     if (ingPromo.has(o.id)) return ingPromo.get(o.id);
     let id = null;
     try { const a = window.Saisie.analyserLigne(o.nom.replace(/^[A-ZÀ-Ý0-9'’&.® -]{3,}(?= [A-Za-zà-ÿ])/, '').trim() || o.nom); id = a && a.id && E.ING[a.id] && !E.ING[a.id].perso ? a.id : null; } catch (e) { id = null; }
+    // le rayon de l'offre doit aller avec celui du produit (des « boules crème » glacées ne sont pas de la crème fraîche)
+    if (id && o.rayon) { const rx = RAYON_COMPATIBLE[E.ING[id].rayon]; if (rx && !rx.test(o.rayon)) id = null; }
+    if (id && /glace|bonbon|biscuit|gâteau|gateau|chips|confiserie|apéritif|aperitif|surprise/i.test(o.nom) && !/glace|biscuit|chips/.test(id)) id = null;
     ingPromo.set(o.id, id);
     return id;
   }
@@ -1870,9 +1877,9 @@
   const finPromo = (o) => (o.quand ? o.quand.replace(/\s*\|.*$/, '') : o.fin ? 'jusqu’au ' + new Date(o.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
   function lignePromo(o, avecIdee) {
     const id = ingredientDePromo(o);
-    return `<li class="promo"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
-      <div class="stack" style="gap:2px;min-width:0"><a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
-        <span class="small muted">${esc(o.enseigne)}${o.cond ? ' · ' + esc(o.cond) : ''}${o.prixKg ? ' · ' + esc(o.prixKg) + ' €' : ''}${finPromo(o) ? ' · ' + esc(finPromo(o)) : ''}</span>
+    return `<li class="promo" style="--m:${MAGASINS[o.enseigne] || '#5b6b62'}"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
+      <div class="stack" style="gap:3px;min-width:0">${badgeMagasin(o.enseigne)}<a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
+        <span class="small muted">${[o.cond, o.prixKg ? o.prixKg + ' €' : '', finPromo(o)].filter(Boolean).map(esc).join(' · ')}</span>
         ${avecIdee && id ? `<span><button class="btn-lien small" data-a="promo-idee" data-id="${id}">Une idée de plat avec ${esc(E.ING[id].nom.toLowerCase())}</button></span>` : ''}</div>
       <div class="promo-prix"><strong class="num">${euros(o.prix)}</strong>${o.prixAvant ? `<s class="small muted num">${euros(o.prixAvant)}</s>` : ''}${o.remise ? `<span class="tag-promo">${esc(o.remise)}</span>` : ''}${o.lidlPlus ? '<span class="tag-promo lidl-plus">Lidl Plus</span>' : ''}</div></li>`;
   }
@@ -1880,33 +1887,45 @@
     chargerPromos(false);
     const charge = !promos || promos.etat === 'charge';
     const offres = (promos && promos.offres) || [];
+    const f = S.filtrePromo || 'tout', mag = S.magasinPromo || 'tout', tri = S.triPromo || 'remise';
+    const q = E.norm(S.cherchePromo || '').trim();
+    const remiseDe = (o) => (o.prixAvant ? (o.prixAvant - o.prix) / o.prixAvant : /(\d+)\s*%/.test(o.remise) ? +o.remise.match(/(\d+)\s*%/)[1] / 200 : 0);
+    const garde = (o) => (mag === 'tout' || o.enseigne === mag) && (!q || q.split(' ').every((w) => E.norm(o.nom + ' ' + o.rayon + ' ' + o.enseigne).includes(w)));
+    const trier = (l) => l.slice().sort(tri === 'prix' ? (a, b) => a.prix - b.prix : tri === 'fin' ? (a, b) => (a.fin || 9e15) - (b.fin || 9e15) : tri === 'magasin' ? (a, b) => a.enseigne.localeCompare(b.enseigne, 'fr') || remiseDe(b) - remiseDe(a) : (a, b) => remiseDe(b) - remiseDe(a));
     const liste = S.plan ? E.listeCourses(S.plan, S.profil).articles.filter((a) => !a.enStock && !a.couvertParPlacard) : [];
-    const pourMoi = liste.map((a) => [a, promosPour(a.id)]).filter(([, l]) => l.length);
-    const f = S.filtrePromo || 'tout';
-    const q = E.norm(S.cherchePromo || '');
-    const visibles = offres.filter((o) => (f === 'tout' || rayonPromo(o) === f) && (!q || E.norm(o.nom).includes(q))).sort((a, b) => (b.prixAvant ? (b.prixAvant - b.prix) / b.prixAvant : 0) - (a.prixAvant ? (a.prixAvant - a.prix) / a.prixAvant : 0));
-    const nbR = (k) => offres.filter((o) => rayonPromo(o) === k).length;
+    const pourMoi = liste.map((a) => [a, trier(promosPour(a.id).filter(garde))]).filter(([a, l]) => l.length && (!q || l.length || E.norm(a.nom).includes(q)));
+    const dispo = offres.filter(garde);
+    const visibles = trier(dispo.filter((o) => f === 'tout' || rayonPromo(o) === f));
+    const nbR = (k) => dispo.filter((o) => rayonPromo(o) === k).length;
+    const magasins = Object.entries(offres.reduce((m, o) => ({ ...m, [o.enseigne]: (m[o.enseigne] || 0) + 1 }), {}));
     const maj = promos && promos.maj ? new Date(promos.maj) : null;
+    const groupes = tri === 'magasin' ? magasins.map(([n]) => [n, visibles.filter((o) => o.enseigne === n)]).filter(([, l]) => l.length) : [[null, visibles]];
     return `<div class="spread"><div><p class="eyebrow">Bons plans</p><h1>Promos du moment</h1></div><button class="btn btn-petit" data-a="promos-maj" ${charge ? 'disabled' : ''}>${charge ? 'Recherche…' : '↻ Actualiser'}</button></div>
-      <p class="muted">Les promotions alimentaires de la semaine, comparées à votre liste de courses. ${maj ? `Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      <p class="muted" style="margin:0">Les promotions alimentaires de la semaine, comparées à votre liste de courses.${maj ? ` Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      ${offres.length ? `<section class="barre-promos" aria-label="Chercher et trier les promotions">
+        <label class="recherche-promo"><span aria-hidden="true">🔍</span><span class="sr">Chercher une promotion</span><input type="text" enterkeyhint="search" id="promo-cherche" value="${esc(S.cherchePromo || '')}" placeholder="Chercher un produit : poulet, fromage, pâtes…" autocomplete="off">${q ? '<button class="btn-lien small" data-a="promo-effacer" aria-label="Effacer la recherche">✕</button>' : ''}</label>
+        <div class="spread" style="gap:10px;align-items:center">
+          <div class="row" role="group" aria-label="Magasin" style="gap:6px"><span class="small muted">Magasin :</span><button class="chip" data-a="promo-magasin" data-k="tout" aria-pressed="${mag === 'tout'}">Tous <span class="small muted">${offres.length}</span></button>${magasins.map(([n, c]) => `<button class="chip chip-magasin" style="--m:${MAGASINS[n] || '#5b6b62'}" data-a="promo-magasin" data-k="${esc(n)}" aria-pressed="${mag === n}"><i aria-hidden="true"></i>${esc(n)} <span class="small muted">${c}</span></button>`).join('')}</div>
+          <label class="row small" style="gap:6px;align-items:center">Trier par <select id="promo-tri" data-a="promo-tri">${[['remise', 'Plus grosse remise'], ['prix', 'Prix le plus bas'], ['magasin', 'Magasin'], ['fin', 'Se termine bientôt']].map(([k, v]) => `<option value="${k}" ${tri === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        </div>
+        ${q || mag !== 'tout' ? `<p class="small" style="margin:0"><strong>${pluriel(dispo.length, 'promo trouvée', 'promos trouvées')}</strong>${q ? ` pour « ${esc(S.cherchePromo)} »` : ''}${mag !== 'tout' ? ` chez ${esc(mag)}` : ''} · <button class="btn-lien small" data-a="promo-effacer">tout afficher</button></p>` : ''}
+      </section>` : ''}
       ${charge && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Recherche des promotions en cours…</strong><span class="small muted">Budgétable lit les pages d’offres des enseignes : cela peut prendre une minute la première fois.</span></section>' : ''}
       ${promos && promos.etat === 'erreur' && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Promotions indisponibles pour le moment</strong><span class="small">Le site de l’enseigne n’a pas répondu. Réessayez plus tard, ou consultez les catalogues ci-dessous.</span></section>' : ''}
       ${offres.length ? `<section class="carte stack promos-moi" style="gap:10px"><h2>Pour vos courses de la semaine</h2>
-        ${pourMoi.length ? `<p class="small muted" style="margin:0">${pluriel(pourMoi.length, 'article de votre liste est', 'articles de votre liste sont')} en promotion en ce moment.</p>
-          ${pourMoi.map(([a, l]) => `<div class="stack" style="gap:6px"><div class="spread"><strong>${esc(a.nom)}</strong><span class="small muted">besoin : ${quantite(a.quantite, a.unite)} · estimé ${euros(a.cout)}</span></div><ul class="liste-promos">${l.slice(0, 4).map((o) => lignePromo(o, false)).join('')}</ul></div>`).join('')}`
-          : '<p class="small" style="margin:0">Aucun article de votre liste n’est en promotion cette semaine. Regardez les promos ci-dessous : elles peuvent donner des idées de plats.</p>'}
+        ${pourMoi.length ? `<p class="small muted" style="margin:0">${pluriel(pourMoi.length, 'article de votre liste est', 'articles de votre liste sont')} en promotion${mag !== 'tout' ? ' chez ' + esc(mag) : ''}.</p>
+          ${pourMoi.map(([a, l]) => `<div class="stack" style="gap:6px"><div class="spread"><strong>${esc(a.nom)}</strong><span class="small muted">il vous faut ${a.unite === 'pièce' ? nb(Math.max(1, Math.ceil(a.quantite - 0.05))) : quantite(a.quantite, a.unite)} · estimé ${euros(a.cout)}</span></div><ul class="liste-promos">${l.slice(0, 4).map((o) => lignePromo(o, false)).join('')}</ul></div>`).join('')}`
+          : `<p class="small" style="margin:0">Aucun article de votre liste n’est en promotion${mag !== 'tout' ? ' chez ' + esc(mag) : ''} cette semaine. Regardez les promos ci-dessous : elles peuvent donner des idées de plats.</p>`}
       </section>
-      <section class="stack" style="gap:10px"><h2>Toutes les promos alimentaires <span class="small muted">(${offres.length})</span></h2>
-        <div class="row" role="group" aria-label="Rayon" style="gap:6px"><button class="chip" data-a="promo-filtre" data-k="tout" aria-pressed="${f === 'tout'}">Tout <span class="small muted">${offres.length}</span></button>${RAYONS_PROMO.filter(([k]) => nbR(k)).map(([k, v]) => `<button class="chip" data-a="promo-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbR(k)}</span></button>`).join('')}</div>
-        <label class="champ"><span class="sr">Chercher une promo</span><input type="search" id="promo-cherche" value="${esc(S.cherchePromo || '')}" placeholder="Chercher : poulet, fromage, pâtes…" autocomplete="off"></label>
-        <ul class="liste-promos" id="promos-toutes">${visibles.slice(0, 80).map((o) => lignePromo(o, true)).join('') || '<li class="small muted">Aucune promo avec ce filtre.</li>'}</ul>
+      <section class="stack" style="gap:10px"><h2>Toutes les promos alimentaires <span class="small muted">(${dispo.length})</span></h2>
+        <div class="row" role="group" aria-label="Rayon" style="gap:6px"><button class="chip" data-a="promo-filtre" data-k="tout" aria-pressed="${f === 'tout'}">Tout <span class="small muted">${dispo.length}</span></button>${RAYONS_PROMO.filter(([k]) => nbR(k)).map(([k, v]) => `<button class="chip" data-a="promo-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbR(k)}</span></button>`).join('')}</div>
+        ${groupes.map(([n, l]) => `${n ? `<h3 class="titre-magasin">${badgeMagasin(n)} <span class="small muted">${pluriel(l.length, 'promo')}</span></h3>` : ''}<ul class="liste-promos">${l.slice(0, 120).map((o) => lignePromo(o, true)).join('')}</ul>`).join('') || '<p class="small muted">Aucune promo ne correspond. Essayez un autre mot ou un autre rayon.</p>'}
       </section>` : ''}
       <section class="carte stack" style="gap:8px"><h2>Chez les autres enseignes</h2>
         <p class="small muted" style="margin:0">Ces sites ne permettent pas la lecture automatique de leurs promotions : retrouvez-les dans leurs catalogues.</p>
         <div class="row" style="gap:6px">${AUTRES_PROMOS.map(([n, u]) => `<a class="btn btn-petit" href="${u}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>
         <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p></section>`;
   }
-
   /* ---------- envoyer la liste ou le menu (mail, SMS, WhatsApp, partage, lien à ouvrir sur un autre téléphone) ---------- */
   function menuTexte() {
     if (!S.plan) return '';
@@ -3182,6 +3201,8 @@
       case 'envoi-partager': { const q = S.envoiQuoi || 'liste'; const d = { title: 'Budgétable', text: texteEnvoi(q) }; if (q !== 'menu') d.url = lienPartage(); navigator.share(d).catch(() => {}); return; }
       case 'promos-maj': chargerPromos(true); return;
       case 'promo-filtre': S.filtrePromo = el.dataset.k; break;
+      case 'promo-magasin': S.magasinPromo = el.dataset.k; break;
+      case 'promo-effacer': S.cherchePromo = ''; S.magasinPromo = 'tout'; S.filtrePromo = 'tout'; break;
       case 'promo-idee': S.onglet = 'soir'; S.jaiCa = { ids: [el.dataset.id], placard: true, ouvert: true, basiques: true }; window.scrollTo(0, 0); break;
       case 'saison-filtre': S.filtreSaison = el.dataset.k; break;
       case 'saison-garder': { const id = el.dataset.r, l = S.saisonGardees || []; S.saisonGardees = l.includes(id) ? l.filter((x) => x !== id) : l.concat(id); E.saisonActives(S.saisonGardees); toast(S.saisonGardees.includes(id) ? 'Gardée : elle sera proposée dans vos menus' : 'Retirée de vos idées gardées'); break; }
@@ -3628,6 +3649,7 @@
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
     if (el.dataset.a === 'jaica-placard') { S.jaiCa.placard = el.checked; rendre(); return; }
     if (el.dataset.a === 'partage-cocher') { let c = {}; try { c = JSON.parse(localStorage.getItem(el.dataset.cle) || '{}'); } catch (e) { /* */ } c[el.dataset.k] = el.checked; try { localStorage.setItem(el.dataset.cle, JSON.stringify(c)); } catch (e) { /* */ } rendre(); return; }
+    if (el.dataset.a === 'promo-tri') { S.triPromo = el.value; rendre(); return; }
     if (el.dataset.a === 'affiche-opt') { S.afficheOpts = { ...optsAffiche(), [el.dataset.k]: el.checked }; rendre(); return; }
     if (el.dataset.a === 'jaica-basiques') { S.jaiCa.basiques = el.checked; rendre(); return; }
     if (el.dataset.a === 'presences-garder') {

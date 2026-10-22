@@ -8,6 +8,9 @@ OFFRES = {"offres": [
   {"id": "lidl-1", "enseigne": "Lidl", "nom": "L'ÉTAL DU BOUCHER 4 crépinettes de porc", "prix": 2.99, "prixAvant": 3.99, "remise": "-25 %", "lidlPlus": False, "cond": "500 g", "prixKg": "1 kg = 5,98", "debut": (now - 86400) * 1000, "fin": (now + 5 * 86400) * 1000, "quand": "22.10. - 28.10. | En supermarché", "lien": "https://www.lidl.fr/p/x/p1", "image": None, "rayon": "Viande et volaille · Porc"},
   {"id": "lidl-2", "enseigne": "Lidl", "nom": "Oignons jaunes", "prix": 0.99, "prixAvant": 1.49, "remise": "-33 %", "lidlPlus": False, "cond": "1 kg", "prixKg": "", "debut": None, "fin": (now + 3 * 86400) * 1000, "quand": "", "lien": "https://www.lidl.fr/p/y/p2", "image": None, "rayon": "Fruits et légumes"},
   {"id": "lidl-3", "enseigne": "Lidl", "nom": "MILBONA Emmental râpé", "prix": 1.49, "prixAvant": None, "remise": "-50% sur le 2e", "lidlPlus": True, "cond": "200 g", "prixKg": "", "debut": None, "fin": None, "quand": "", "lien": "https://www.lidl.fr/p/z/p3", "image": None, "rayon": "Produits laitiers · Fromages"}
+,
+  {"id": "aldi-1", "enseigne": "Aldi", "nom": "Filets de poulet", "prix": 4.99, "prixAvant": 6.49, "remise": "-23 %", "lidlPlus": False, "cond": "600 g", "prixKg": "", "debut": None, "fin": (now + 2 * 86400) * 1000, "quand": "", "lien": "https://www.aldi.fr/p", "image": None, "rayon": "Viande et volaille · Volaille"},
+  {"id": "lidl-4", "enseigne": "Lidl", "nom": "FAVORINA Boules crème", "prix": 7.49, "prixAvant": None, "remise": "OFFRE FLASH", "lidlPlus": False, "cond": "1 kg", "prixKg": "", "debut": None, "fin": None, "quand": "", "lien": "https://www.lidl.fr/p/w", "image": None, "rayon": "Surgelés · Glaces"}
 ], "sources": [{"enseigne": "Lidl", "pages": 12}], "maj": now * 1000}
 with sync_playwright() as p:
     nav = p.chromium.launch()
@@ -33,8 +36,25 @@ with sync_playwright() as p:
     assert "Promos du moment" in t and "Toutes les promos alimentaires" in t
     assert "crépinettes" in t
     page.screenshot(path=f"{OUT}/pr1.png", full_page=True)
+    # pas de faux rapprochement : des boules glacées ne sont pas de la crème fraîche
+    assert page.evaluate("(() => [...document.querySelectorAll('.promos-moi .liste-promos')].map((u) => u.previousElementSibling.innerText + ' → ' + u.innerText).filter((t) => /Crème fraîche/.test(t) && /Boules/.test(t)).length)()") == 0
+    # recherche
+    page.locator("#promo-cherche").press_sequentially("poulet", delay=30)
+    page.wait_for_timeout(200)
+    t = page.locator("main").inner_text()
+    assert "Filets de poulet" in t and "crépinettes" not in t and "promo trouvée" in t, t[:600]
+    page.screenshot(path=f"{OUT}/pr2.png")
+    page.get_by_role("button", name="tout afficher").click()
+    # magasin
+    page.locator("[data-a=promo-magasin][data-k=Aldi]").click()
+    t = page.locator("main").inner_text()
+    assert "Filets de poulet" in t and "Oignons jaunes" not in t
+    page.locator("[data-a=promo-magasin][data-k=tout]").click()
+    page.select_option("#promo-tri", "magasin")
+    assert page.locator(".titre-magasin").count() == 2
+    page.screenshot(path=f"{OUT}/pr3.png", full_page=True)
     page.locator("[data-a=promo-filtre][data-k=viande]").click()
-    assert "Oignons jaunes" not in page.locator("#promos-toutes").inner_text()
+    assert "Oignons jaunes" not in page.locator("main section", has_text="Toutes les promos alimentaires").inner_text()
     # retour aux courses : étiquette promo sur les oignons
     page.locator("nav button", has_text="Courses").click()
     print("étiquettes promo :", page.locator(".article .tag-promo").count())
