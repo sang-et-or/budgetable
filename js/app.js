@@ -418,7 +418,7 @@
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
-    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app">${nav}<main class="stack" style="min-width:0">
+    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
   }
@@ -565,7 +565,7 @@
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocPresences()}
       ${blocCoach()}
-      ${blocNutritionSemaine()}
+      <div class="nutri-mobile">${blocNutritionSemaine()}</div>
       ${blocBudget()}
       ${moyenneAssiette()}
       ${suggestionRituels()}
@@ -1709,6 +1709,29 @@
     </section>`;
   }
 
+  // le bilan en bandeau, à gauche de l'écran sur ordinateur (sous la navigation)
+  function bandeauNutri() {
+    if (!S.plan || !window.Nutrition) return '';
+    const b = window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING);
+    if (!b) return '';
+    const part = b.atteints / b.reperes.length;
+    const fl = (r) => (r.etat === 'ok' ? '✓' : r.etat === 'bas' ? '↓' : '↑');
+    const cles = ['prot', 'fibres', 'legumes'];
+    return `<section class="bandeau-nutri" aria-label="Bilan nutritionnel de la semaine">
+      <div class="spread" style="align-items:center"><strong>Bilan nutritionnel</strong><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong></span></div>
+      <div class="mini-chiffres"><div><span>Énergie</span><strong class="num">${b.kcal}</strong><span>kcal/j</span></div>${b.reperes.filter((r) => cles.includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span>${esc(r.nom)}</span><strong class="num">${nb(r.valeur)}</strong><span>g/j</span></div>`).join('')}</div>
+      ${b.reperes.some((r) => r.etat !== 'ok') ? `<ul class="mini-reperes">${b.reperes.filter((r) => r.etat !== 'ok').map((r) => `<li class="rep-${r.etat}" title="${esc(r.conseil)}"><span class="fleche">${fl(r)}</span><span>${esc(r.nom)}</span><span class="num">${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur}</span></li>`).join('')}</ul>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints.</p>'}
+      <button class="btn btn-petit" data-a="bilan-ouvrir">Détails et conseils</button>
+      <span class="small muted">Par adulte, déjeuners et dîners. Estimation.</span>
+    </section>`;
+  }
+  function vueBilan() {
+    if (!S.bilanOuvert) return '';
+    return `<div class="voile" data-a="bilan-fond"><div class="fiche fenetre-bilan" role="dialog" aria-modal="true" aria-label="Bilan nutritionnel">
+      <div class="spread"><span class="eyebrow">Cette semaine</span><button class="btn btn-petit" data-a="bilan-fermer">Fermer</button></div>
+      ${blocNutritionSemaine().replace('<details>', '<details open>')}</div></div>`;
+  }
+
   /* ---------- coachs alimentaires ---------- */
   const COACHS = {
     minceur: {
@@ -1850,7 +1873,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1902,7 +1925,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -2100,6 +2123,8 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'bilan-ouvrir': S.bilanOuvert = true; break;
+      case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
       case 'presence-editer': S.presenceEdit = el.dataset.k; break;
       case 'presence-fermer': case 'presence-fond': S.presenceEdit = null; break;
       case 'presence-pas': case 'presence-enfant': case 'presence-personne': case 'presence-pareil': {

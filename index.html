@@ -132,9 +132,15 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 .nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: .72rem; font-weight: 600; color: var(--encre-douce); border-radius: 10px; min-height: 52px; }
 .nav button svg { width: 22px; height: 22px; }
 .nav button[aria-current="page"] { color: var(--poireau); background: var(--poireau-pale); }
+/* colonne de gauche : navigation et bandeau du bilan (ordinateur) ; sur téléphone, la navigation reste en bas */
+.cote { display: contents; }
+.bandeau-nutri { display: none; }
 @media (min-width: 900px) {
-  .app { display: grid; grid-template-columns: 200px 1fr; gap: 32px; }
-  .nav { position: sticky; top: calc(20px + env(safe-area-inset-top, 0px)); align-self: start; display: flex; flex-direction: column; gap: 4px; border: 0; background: none; padding: 0; }
+  .app { display: grid; grid-template-columns: 240px 1fr; gap: 28px; }
+  .cote { display: flex; flex-direction: column; gap: 18px; position: sticky; top: calc(20px + env(safe-area-inset-top, 0px)); align-self: start; max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: thin; }
+  .nav { position: static; display: flex; flex-direction: column; gap: 4px; border: 0; background: none; padding: 0; }
+  .bandeau-nutri { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--trait); box-shadow: var(--ombre); }
+  .nutri-mobile { display: none; }
   .nav button { flex-direction: row; justify-content: flex-start; gap: 10px; font-size: .95rem; padding: 10px 14px; min-height: 0; }
   .wrap { padding-bottom: 40px; }
 }
@@ -600,6 +606,19 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .et-haut { background: var(--tomate-pale); color: var(--tomate); }
 .conseil-nutri { color: var(--encre); }
 @media (max-width: 380px) { .chiffres-nutri { grid-template-columns: repeat(2, 1fr); } }
+
+.mini-chiffres { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mini-chiffres > div { display: grid; padding: 6px; border-radius: 10px; background: var(--papier); text-align: center; line-height: 1.2; }
+.mini-chiffres span { font-size: .7rem; color: var(--encre-douce); }
+.mini-chiffres strong { font-size: 1rem; }
+.mini-chiffres .rep-bas, .mini-chiffres .rep-haut { box-shadow: inset 0 0 0 2px var(--moutarde); }
+.mini-reperes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .85rem; }
+.mini-reperes li { display: grid; grid-template-columns: 1.4em 1fr auto; gap: 6px; align-items: center; }
+.mini-reperes .fleche { width: 1.4em; height: 1.4em; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .8rem; }
+.mini-reperes .rep-bas .fleche { background: var(--moutarde-pale); color: var(--moutarde); }
+.mini-reperes .rep-haut .fleche { background: var(--tomate-pale); color: var(--tomate); }
+.fenetre-bilan { display: grid; gap: 10px; }
+.fenetre-bilan .bilan-nutri { border: 0; box-shadow: none; padding: 0; }
 </style>
 
 <div id="app"></div>
