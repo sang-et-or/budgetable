@@ -36,7 +36,7 @@ const version = empreinte.digest('hex').slice(0, 10);
 // au lieu de servir l'ancien fichier, qui resterait ensuite en cache une journée
 const versionnes = [];
 fs.writeFileSync(path.join(dist, 'index.html'), html.replace(/<script src="(js\/[^"?]+)\.js"><\/script>/g, (m, base) => { versionnes.push(base); return `<script src="${base}.${version}.js"></script>`; }));
-for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/cuisine3d.js', 'js/codebarre.js', 'js/gourmand.js', 'js/nutrition.js', 'js/vendor/three-r160.min.js', 'js/vendor/three-LICENSE.txt', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
+for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/cuisine3d.js', 'js/codebarre.js', 'js/gourmand.js', 'js/nutrition.js', 'js/commis.js', 'js/vendor/three-r160.min.js', 'js/vendor/three-LICENSE.txt', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
 for (const base of versionnes) fs.copyFileSync(path.join(__dirname, base + '.js'), path.join(dist, `${base}.${version}.js`));

@@ -1511,15 +1511,13 @@
 
   const QUESTIONS_CHEF = ['Il me manque un ingrédient', 'Comment savoir si c’est cuit ?', 'Une version que les enfants aimeront', 'Que faire des restes ?'];
   function blocChef(r, portions) {
-    if (iaDispo === null) return '<p class="small muted">Recherche de l’assistant IA…</p>';
-    if (!iaDispo) return '<p class="small muted">Le commis IA n’est pas disponible pour le moment. Il répondra bientôt ici à vos questions pendant que vous cuisinez : ingrédient manquant, cuisson, version pour les enfants, restes…</p>';
     const c = chef && chef.cle === cleFiche() ? chef : { tours: [], attente: false, message: '' };
     return `<div class="chat" aria-live="polite">${c.tours.length ? c.tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : `<p class="bulle-chat">Je suis là pendant que vous cuisinez ${esc(r.nom.charAt(0).toLowerCase() + r.nom.slice(1))} pour ${nb(portions)} portion${portions > 1 ? 's' : ''}. Une question ?</p>`}
         ${c.attente ? '<p class="bulle-chat"><span class="muted">Je regarde la recette…</span></p>' : ''}</div>
       ${c.message ? `<p class="small" style="color:var(--tomate)">${esc(c.message)}</p>` : ''}
       ${c.tours.length ? '' : `<div class="row" style="gap:6px">${QUESTIONS_CHEF.map((q) => `<button class="btn btn-petit" data-a="chef-question" data-q="${esc(q)}" ${c.attente ? 'disabled' : ''}>${esc(q)}</button>`).join('')}</div>`}
       <label class="champ"><span class="sr">Votre question au commis</span><input id="chef-texte" type="text" maxlength="500" placeholder="Ex. : je n’ai pas de crème, je mets quoi ?" autocomplete="off"></label>
-      <div class="row"><button class="btn btn-plein btn-petit" data-a="chef-envoyer" ${c.attente ? 'disabled' : ''}>Demander</button><span class="small muted">Réponses générées par IA : en cas de doute sur une allergie, fiez-vous à l’étiquette des produits.</span></div>`;
+      <div class="row"><button class="btn btn-plein btn-petit" data-a="chef-envoyer" ${c.attente ? 'disabled' : ''}>Demander</button><span class="small muted">${iaDispo ? 'Réponses générées par IA' : 'Réponses toutes prêtes du commis'} : en cas de doute sur une allergie, fiez-vous à l’étiquette des produits.</span></div>`;
   }
 
   function vueFiche() {
@@ -1541,7 +1539,7 @@
       <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * m.portions, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
-      <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">IA</span></div>${blocChef(r, m.portions)}</section>
+      <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, m.portions)}</section>
       ${!fiche.recette ? (S.deduits[fiche.jour + '-' + fiche.slot] === 'cuisine' ? '<p class="small pourquoi">Cuisiné : déduit de votre placard</p>' : `<div><button class="btn btn-petit" data-a="cuisine" data-j="${fiche.jour}" data-s="${fiche.slot}">✓ J’ai cuisiné ce plat (mettre à jour mon placard)</button></div>`) : ''}
       <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '♥ Un classique de la famille' : '♡ Ajouter à nos classiques'}</button></div>
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
@@ -1562,7 +1560,7 @@
       <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * parts, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="gourmand-ajouter" data-r="${r.id}">Ajouter à ma semaine</button>${r.perso ? `<button class="btn" data-a="ed-modifier-g" data-r="${r.id}">Modifier</button>` : ''}</div>
-      <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">IA</span></div>${blocChef(r, parts)}</section>
+      <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, parts)}</section>
     </div></div>`;
   }
 
@@ -2164,8 +2162,19 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   async function envoyerChef(question) {
     const texte = String(question || '').trim();
-    if (!texte || !iaDispo || !fiche) return;
+    if (!texte || !fiche) return;
     if (!chef || chef.cle !== cleFiche()) chef = { cle: cleFiche(), tours: [], attente: false, message: '' };
+    const repLocale = () => {
+      const m = fiche.recette ? { recette: fiche.recette, portions: fiche.parts || (E.REC[fiche.recette].gourmand ? E.REC[fiche.recette].parts : E.portions(S.profil, aujourdhui(), 'diner')) } : S.plan.jours[fiche.jour][fiche.slot];
+      return window.Commis.repondre(texte, E.REC[m.recette], m.portions, S.profil, E);
+    };
+    const secours = repLocale();
+    if (!iaDispo) {
+      if (chef.attente) return;
+      chef.tours.push({ role: 'user', content: texte.slice(0, 500) }, { role: 'assistant', content: secours });
+      rendre();
+      return;
+    }
     if (chef.attente) return;
     chef.tours.push({ role: 'user', content: texte.slice(0, 500) });
     chef.attente = true; chef.message = '';
@@ -2177,6 +2186,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     } catch (e) {
       const code = e && e.code;
       if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) iaDispo = false;
+      if (code !== 'cancelled') { moi.tours.push({ role: 'assistant', content: secours }); moi.attente = false; if (chef === moi) rendre(); return; }
       else if (code === 'rate_limited') moi.message = e.message || 'Le commis est très sollicité : réessayez dans quelques minutes.';
       else if (code === 'reseau') moi.message = 'Pas de connexion : réessayez.';
       else if (code !== 'cancelled') moi.message = 'Le commis n’a pas pu répondre. Réessayez.';

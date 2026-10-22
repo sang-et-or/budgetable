@@ -1,5 +1,5 @@
 // Budgétable — fonctionnement hors ligne (mise en cache des fichiers de l'appli)
-const VERSION = 'budgetable-v1.11.0';
+const VERSION = 'budgetable-v1.12.0';
 const FICHIERS = ['./', './index.html', './js/data.js', './js/modeles.js', './js/engine.js', './js/saisie.js', './js/visuels.js', './js/photos.js', './js/magasins.js', './js/app.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg'];
 
 self.addEventListener('install', (e) => {

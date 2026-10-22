@@ -253,7 +253,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .reponses .btn { justify-content: center; padding-inline: 8px; }
 .rep-non { color: var(--tomate); border-color: var(--tomate); }
 .chat { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding: 4px; }
-.bulle-chat { background: var(--poireau-pale); padding: 10px 14px; border-radius: 4px 14px 14px 14px; align-self: flex-start; max-width: 88%; }
+.bulle-chat { white-space: pre-line;  background: var(--poireau-pale); padding: 10px 14px; border-radius: 4px 14px 14px 14px; align-self: flex-start; max-width: 88%; }
 .bulle-chat.moi { background: var(--moutarde-pale); border-radius: 14px 4px 14px 14px; align-self: flex-end; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -553,6 +553,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/codebarre.js"></script>
 <script src="js/gourmand.js"></script>
 <script src="js/nutrition.js"></script>
+<script src="js/commis.js"></script>
 <script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>
