@@ -158,7 +158,7 @@ async function promosAldi() {
 async function prospectusLidl() {
   const h = await lire('/c/catalogues-en-ligne/s10017753');
   const vus = new Set(), out = [];
-  for (const m of h.matchAll(/href="(\/l\/catalogue-de-la-semaine\/([a-z0-9-]+)\/ar\/0[^"]*)"/g)) {
+  for (const m of h.matchAll(/href="(?:https:\/\/www\.lidl\.fr)?(\/l\/catalogue-de-la-semaine\/([a-z0-9-]+)\/ar\/0[^"]*)"/g)) {
     if (vus.has(m[2])) continue; vus.add(m[2]);
     const d = /du-(\d{2})-(\d{2})-au-(\d{2})-(\d{2})-(.*)/.exec(m[2]);
     const titre = d ? `${d[5].replace(/-/g, ' ').replace(/^les /, 'Les ')} · du ${d[1]}/${d[2]} au ${d[3]}/${d[4]}` : m[2].replace(/-/g, ' ');
