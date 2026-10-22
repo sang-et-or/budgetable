@@ -39,14 +39,33 @@ with sync_playwright() as p:
     for x in ["Lardons", "Œufs", "Crème fraîche", "Lait demi-écrémé", "Emmental râpé", "Pâte à tarte"]:
         assert x.lower() in dans.lower(), (x, dans)
     assert "Muscade" not in dans and "Sel" not in dans.split("\n")[0]
-    # quantités par personne : 200 g / 6 = 33 g de lardons
-    assert re.search(r"Lardons\s*·\s*33", dans), dans
+    # recette pour 6 personnes (lue sur le site) : quantités de la recette
+    assert page.locator("#ed-personnes").inner_text() == "6"
+    lard = lambda: ed.locator("li.ing-qte", has_text="Lardons").locator("input[data-a=ed-qte]")
+    assert lard().input_value() == "200", lard().input_value()
+    # une personne de plus : les quantités suivent
+    ed.get_by_role("button", name="Une personne de plus").click()
+    assert page.locator("#ed-personnes").inner_text() == "7"
+    assert lard().input_value() == "235", lard().input_value()
+    ed.get_by_role("button", name="Une personne de moins").click(); ed.get_by_role("button", name="Une personne de moins").click()
+    assert lard().input_value() == "165", lard().input_value()   # 200/6*5
+    # quantité corrigée à la main (virgule acceptée)
+    lard().fill("250,5")
+    ed.get_by_role("button", name="Une personne de plus").click()
+    assert lard().input_value() == "300", lard().input_value()   # 250,5/5*6 = 300,6 → 300
     etat = ed.locator(".lecture-ok").inner_text()
     assert "repris de marmiton.org" in etat and "pour 6" in etat and "sel" in etat.lower(), etat
     assert ed.locator("[data-k=temps]").input_value() == "65"
     page.screenshot(path=f"{OUT}/l1-lien.png", full_page=False)
     clic("Enregistrer dans Mes recettes")
     assert "Quiche lorraine" in page.inner_text("main")
+    # quantité gardée par personne : 300/6 = 50 g ; le nombre de personnes est mémorisé
+    biblio = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).bibliotheque[0]")
+    q = dict((i, v) for i, v in biblio["ing"])
+    assert abs(q["lardons"] - 50.1) < 0.2 and biblio["personnes"] == 6, biblio
+    page.get_by_role("button", name=re.compile("Modifier")).first.click()
+    assert page.locator("#ed-personnes").inner_text() == "6" and lard().input_value() == "300"
+    clic("Fermer")
 
     # 2. page sans fiche recette : repli sur le nom tiré du lien
     clic("+ Ajouter une recette") if page.get_by_role("button", name="+ Ajouter une recette", exact=True).count() else page.get_by_role("button", name=re.compile("Ajouter une recette")).first.click()

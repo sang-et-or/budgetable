@@ -588,11 +588,12 @@
   function ouvrirEdition(depart = {}) {
     const ex = depart.id ? S.bibliotheque.find((r) => r.id === depart.id) : null;
     edition = ex ? {
-      id: ex.id, nom: ex.nom, lien: ex.lien || '', repas: ex.repas && ex.repas.length === 1 ? ex.repas[0] : 'tous', temps: ex.temps || '', etape: 'ingredients', proposer: ex.proposer !== false,
+      id: ex.id, nom: ex.nom, lien: ex.lien || '', personnes: ex.personnes || personnesFoyer(), repas: ex.repas && ex.repas.length === 1 ? ex.repas[0] : 'tous', temps: ex.temps || '', etape: 'ingredients', proposer: ex.proposer !== false,
       ing: ex.ing.map(([id, q]) => ({ id, q, coche: true })), extras: (ex.extras || []).map((x) => ({ ...(typeof x === 'string' ? { nom: x, tags: [] } : x), coche: true })), retires: [], source: '', placer: null
-    } : { nom: depart.nom || '', lien: '', repas: depart.slot || 'tous', temps: '', etape: 'nom', proposer: true, ing: [], extras: [], retires: [], source: '', placer: depart.placer || null };
+    } : { nom: depart.nom || '', lien: '', personnes: personnesFoyer(), repas: depart.slot || 'tous', temps: '', etape: 'nom', proposer: true, ing: [], extras: [], retires: [], source: '', placer: depart.placer || null };
     if (!ex && edition.nom.trim().length >= 2) devinerEdition();
   }
+  const personnesFoyer = () => Math.max(1, Math.min(12, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length));
   function devinerEdition() {
     const g = window.Saisie.devinerIngredients(edition.nom, S.profil);
     const garde = edition.ing.filter((x) => x.manuel);
@@ -649,6 +650,7 @@
     ed.ing = a.coches.map(([id, q]) => ({ id, q, coche: true })).concat(garde);
     ed.extras = a.extras.concat(ed.extras.filter((x) => x.manuel && !a.extras.some((y) => y.nom === x.nom)));
     ajouterIdees(/gateau|cake|tarte|crumble|clafoutis|flan|cookie|muffin|brownie|fondant|crepe/.test(E.norm(ed.nom)) || a.extras.some((x) => x.nom === 'sucre'));
+    if (d.portions > 0 && d.portions <= 30) ed.personnes = d.portions;
     ed.retires = a.retires; ed.ignores = a.ignores; ed.etape = 'ingredients';
     ed.source = `la recette ${d.site || ''}`.trim();
     ed.lecture = { etat: 'ok', lien: ed.lien.trim(), site: d.site, n: a.coches.length + a.extras.length, portions: d.portions };
@@ -666,6 +668,13 @@
     if (i.unite === 'pièce') return q >= 1 ? `${nb(q)} par personne` : 'un peu';
     return `${nb(q)} ${i.unite} par personne`;
   }
+  // quantité pour toute la recette (N personnes), arrondie comme on l'écrirait
+  function qteRecette(id, q, n) {
+    const t = q * n, i = E.ING[id];
+    if (i.unite === 'pièce') return Math.round(t * 4) / 4;
+    return t >= 100 ? Math.round(t / 5) * 5 : t >= 10 ? Math.round(t) : Math.round(t * 10) / 10;
+  }
+  const uniteCourte = (id) => { const i = E.ING[id]; return i.unite === 'pièce' ? (/oeuf/.test(id) ? 'œuf(s)' : id === 'pain' ? 'baguette(s)' : id === 'bouillon' ? 'cube(s)' : 'pièce(s)') : i.unite; };
   // liens de recherche du plat sur internet (ouverts dans un nouvel onglet ; rien n'est envoyé tant qu'on ne clique pas)
   function liensRecherche(nom) {
     const t = String(nom || '').trim();
@@ -691,7 +700,11 @@
     const dansRecette = e.ing.map((x, i) => [x, i]).filter(([x]) => x.coche);
     const extrasDans = e.extras.map((x, i) => [x, i]).filter(([x]) => x.coche);
     const ingredients = e.etape !== 'ingredients' ? '' : `<div class="stack" style="gap:12px">
-        <h3>Ingrédients</h3>
+        <div class="spread" style="align-items:center"><h3>Ingrédients</h3>
+          <div class="row personnes-recette" style="gap:6px;align-items:center;flex-wrap:nowrap"><span class="small">Recette pour</span>
+            <button class="btn btn-petit" data-a="ed-pers" data-d="-1" aria-label="Une personne de moins" ${e.personnes <= 1 ? 'disabled' : ''}>−</button>
+            <strong class="num" id="ed-personnes" aria-live="polite">${e.personnes}</strong>
+            <button class="btn btn-petit" data-a="ed-pers" data-d="1" aria-label="Une personne de plus" ${e.personnes >= 30 ? 'disabled' : ''}>+</button><span class="small">pers.</span></div></div>
         <div class="propositions stack" style="gap:8px">
           <span class="small"><strong>Touchez pour ajouter</strong>${e.source ? ` <span class="muted">· idées d’après le ${esc(e.source)}</span>` : ''}</span>
           ${aProposer.length || extrasProposes.length ? `<div class="row puces-ajout">${aProposer.map(([x, i]) => `<button class="chip puce-ajout" data-a="ed-ajouter" data-type="ing" data-i="${i}">+ ${esc(E.ING[x.id].nom)}</button>`).join('')}${extrasProposes.map(([x, i]) => `<button class="chip puce-ajout ${x.alerte ? 'puce-alerte' : ''}" data-a="ed-ajouter" data-type="extra" data-i="${i}">+ ${esc(x.nom)}${x.alerte ? ` (${esc(libAllergie(x.alerte))})` : ''}</button>`).join('')}</div>` : '<span class="small muted">Toutes les idées sont dans votre recette.</span>'}
@@ -700,10 +713,11 @@
         </div>
         <div class="dans-recette stack" style="gap:6px">
           <div class="spread"><strong>Dans votre recette (${nCoches})</strong><span class="small muted">décochez pour retirer</span></div>
-          ${nCoches ? `<ul class="ing-cocher">${dansRecette.map(([x, i]) => `<li><label class="case"><input type="checkbox" data-a="ed-ing" data-i="${i}" checked><span>${esc(E.ING[x.id].nom)} <span class="small muted">· ${qteTexte(x.id, x.q)}</span></span></label></li>`).join('')}
+          ${nCoches ? `<ul class="ing-cocher">${dansRecette.map(([x, i]) => `<li class="ing-qte"><label class="case"><input type="checkbox" data-a="ed-ing" data-i="${i}" checked><span>${esc(E.ING[x.id].nom)}</span></label>
+              <span class="qte-saisie"><input type="text" inputmode="decimal" data-a="ed-qte" data-i="${i}" value="${nb(qteRecette(x.id, x.q, e.personnes))}" aria-label="Quantité de ${esc(E.ING[x.id].nom)} pour ${e.personnes} personnes"><span class="small muted">${esc(uniteCourte(x.id))}</span></span></li>`).join('')}
             ${extrasDans.map(([x, i]) => `<li><label class="case"><input type="checkbox" data-a="ed-extra" data-i="${i}" checked><span>${esc(x.nom.charAt(0).toUpperCase() + x.nom.slice(1))} <span class="small muted">· hors catalogue, prix à voir en magasin</span>${x.alerte ? ` <strong class="alerte-ing">Attention : ${esc(libAllergie(x.alerte))}</strong>` : ''}</span></label></li>`).join('')}</ul>`
             : '<p class="small muted">Aucun ingrédient pour l’instant : touchez les idées ci-dessus.</p>'}
-          <p class="small muted">Quantités pour une personne : la liste de courses les adapte à votre foyer.</p>
+          <p class="small muted">Quantités pour ${pluriel(e.personnes, 'personne')}, modifiables. Pour vos menus, Budgétable les adapte à votre foyer.</p>
         </div>
         ${e.retires.length ? `<p class="small">Non proposés : ${esc(e.retires.map(libAllergie).join(', '))}.</p>` : ''}
       </div>`;
@@ -734,7 +748,7 @@
     const extras = e.extras.filter((x) => x.coche).map((x) => ({ nom: x.nom, tags: x.tags || [] }));
     if (!ing.length && !extras.length) { toast('Cochez au moins un ingrédient'); return false; }
     const temps = parseInt(e.temps, 10);
-    const rec = { id: e.id || 'p-' + Date.now().toString(36), nom, lien: lien || '', repas: e.repas === 'tous' ? ['dejeuner', 'diner'] : [e.repas], temps: temps > 0 && temps < 600 ? temps : null, ing, extras, proposer: e.proposer, cree: e.id ? undefined : new Date().toISOString().slice(0, 10) };
+    const rec = { id: e.id || 'p-' + Date.now().toString(36), nom, lien: lien || '', personnes: e.personnes, repas: e.repas === 'tous' ? ['dejeuner', 'diner'] : [e.repas], temps: temps > 0 && temps < 600 ? temps : null, ing, extras, proposer: e.proposer, cree: e.id ? undefined : new Date().toISOString().slice(0, 10) };
     const i = S.bibliotheque.findIndex((r) => r.id === rec.id);
     if (i >= 0) S.bibliotheque[i] = { ...S.bibliotheque[i], ...rec, cree: S.bibliotheque[i].cree }; else S.bibliotheque.unshift(rec);
     E.definirPerso(S.bibliotheque);
@@ -1299,6 +1313,7 @@
       case 'ed-nouveau': ouvrirEdition({}); break;
       case 'ed-modifier': ouvrirEdition({ id: el.dataset.r }); fiche = null; break;
       case 'ed-lire': lireLien(); return;
+      case 'ed-pers': edition.personnes = Math.max(1, Math.min(30, (edition.personnes || 4) + +el.dataset.d)); break;
       case 'ed-deviner':
         if (edition.etape === 'nom' && lienValide(edition.lien) && !(edition.lecture && edition.lecture.lien === edition.lien.trim())) { lireLien(); return; }
         if (edition.nom.trim().length < 2 && lienValide(edition.lien)) edition.nom = window.Saisie.nomDepuisLien(edition.lien);
@@ -1514,6 +1529,11 @@
         // lien collé : on lit la recette tout de suite (petit délai si la personne tape)
         if (lienValide(el.value) && !(edition.lecture && edition.lecture.lien === el.value.trim())) minuterieLien = setTimeout(lireLien, ev.inputType === 'insertFromPaste' ? 50 : 900);
       }
+      return;
+    }
+    if (el.dataset.a === 'ed-qte' && edition) {
+      const v = parseFloat(String(el.value).replace(',', '.'));
+      if (v > 0) edition.ing[+el.dataset.i].q = v / (edition.personnes || 1);
       return;
     }
     if (el.dataset.a === 'ajout-ing' && edition) {

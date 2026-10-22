@@ -398,6 +398,14 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .rond-attente { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--trait); border-top-color: var(--poireau); border-radius: 50%; animation: tourne .8s linear infinite; vertical-align: -1px; }
 @keyframes tourne { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rond-attente { animation: none; } }
+
+/* ---------- quantités d'une recette perso ---------- */
+.ing-qte { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ing-qte .case { flex: 1; min-width: 0; }
+.qte-saisie { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.qte-saisie input { width: 72px; text-align: right; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 8px; font: inherit; background: var(--surface); }
+.qte-saisie .muted { min-width: 3.2em; }
+.personnes-recette strong { min-width: 1.5em; text-align: center; font-size: 1.1rem; }
 </style>
 
 <div id="app"></div>
