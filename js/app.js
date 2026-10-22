@@ -642,7 +642,7 @@
   }
   function appliquerRecette(d) {
     const ed = edition;
-    if (ed.nom.trim().length < 2 && d.nom) ed.nom = d.nom;
+    if (ed.nom.trim().length < 2 && d.nom) ed.nom = d.nom.split(/\s+[:|–—-]\s+/)[0].replace(/\s+(facile|rapide|maison)$/i, '').trim() || d.nom;
     if (!ed.temps && d.temps > 0 && d.temps < 600) ed.temps = d.temps;
     const a = window.Saisie.analyserIngredients(d.ingredients, d.portions, S.profil);
     const garde = ed.ing.filter((x) => x.manuel && !a.coches.some(([id]) => id === x.id));

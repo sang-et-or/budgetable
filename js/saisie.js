@@ -270,12 +270,13 @@
     [['brocoli'], 'brocoli'], [['salade', 'laitue', 'mache', 'roquette', 'mesclun', 'jeunes pousses'], 'salade'], [['concombre'], 'concombre'], [['aubergine'], 'aubergine'],
     [['courge', 'butternut', 'potiron', 'potimarron', 'citrouille'], 'courge'], [['citron', 'jus de citron', 'citron vert'], 'citron'], [['persil', 'persil plat'], 'persil'],
     [['chou', 'chou blanc', 'chou vert'], 'chou'], [['epinard', 'pousses d epinard'], 'epinards'], [['pain de mie'], 'pain_mie'], [['baguette', 'pain', 'pain de campagne'], 'pain'],
+    [['sucre', 'sucre semoule', 'sucre en poudre', 'sucre glace', 'sucre roux', 'cassonade', 'sucre vanille'], { nom: 'sucre', tags: [] }],
     [['pate brisee', 'pate feuilletee', 'pate sablee', 'pate a pizza', 'rouleau de pate'], { nom: 'pâte à tarte', tags: ['gluten'] }],
     [['chapelure'], { nom: 'chapelure', tags: ['gluten'] }], [['vinaigre', 'vinaigre balsamique'], { nom: 'vinaigre', tags: [] }],
     [['herbes de provence', 'thym', 'laurier', 'romarin', 'origan', 'ciboulette', 'estragon', 'aneth', 'bouquet garni', 'menthe'], null],
-    [['noix de muscade', 'muscade', 'cannelle', 'vanille', 'sucre vanille', 'piment', 'piment d espelette', 'curcuma', 'gingembre en poudre', 'ras el hanout', 'quatre epices', 'clou de girofle'], null]
+    [['noix de muscade', 'muscade', 'cannelle', 'vanille', 'piment', 'piment d espelette', 'curcuma', 'gingembre en poudre', 'ras el hanout', 'quatre epices', 'clou de girofle'], null]
   ];
-  const IGNORES = /^(sel|poivre|sel et poivre|sel poivre|poivre du moulin|fleur de sel|gros sel|eau|eau froide|eau chaude|eau tiede|glacons?|sel fin)$/;
+  const IGNORES = /^(preparation|garniture|decoration|accompagnement|ingredients|pour la pate|pour la sauce|pour la garniture|parfum au choix.*|sel|poivre|sel et poivre|sel poivre|poivre du moulin|fleur de sel|gros sel|eau|eau froide|eau chaude|eau tiede|glacons?|sel fin)$/;
   // poids d'une pièce quand la recette compte (« 2 oignons ») mais que le catalogue est au poids
   const PIECE = { oignon: 100, ail: 5, carotte: 100, courgette: 250, tomate: 120, poivron: 150, pomme_de_terre: 150, poireau: 200, champignon: 20, brocoli: 400, aubergine: 300, courge: 1000, patate_douce: 300, chou: 1000, poulet_filet: 150, cuisses_poulet: 250, boeuf_hache: 125, jambon: 40, saucisse: 100, saumon: 125, colin: 120, beurre: 10, mozzarella: 125, feta: 200, yaourt: 125, tofu: 200, pain_mie: 25, lardons: 200, emmental: 30 };
   const NOMBRES = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, dix: 10, douze: 12, demi: 0.5, 'une demi': 0.5, 'un demi': 0.5, quelques: 3 };
@@ -303,15 +304,18 @@
     if (m) return [NOMBRES[m[1]], t.slice(m[0].length)];
     return [null, t];
   }
+  // chaque mot peut être au pluriel : « pâte brisée » trouve « pâtes brisées »
+  const MOTIFS = new Map();
+  const motif = (mot) => { if (!MOTIFS.has(mot)) MOTIFS.set(mot, new RegExp('(^| )' + norm(mot).split(' ').map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(s|x)?').join(' ') + '( |$)')); return MOTIFS.get(mot); };
   function trouverAliment(nomNorm) {
     let best = null;
     for (const [mots, cible] of LIGNE) for (const mot of mots) {
-      const m = new RegExp('(^| )' + norm(mot) + '(s|x)?( |$)').exec(nomNorm);
+      const m = motif(mot).exec(nomNorm);
       if (m && (!best || m.index < best.pos || (m.index === best.pos && mot.length > best.mot.length))) best = { pos: m.index, mot, cible };
     }
     if (best) return best;
     for (const [mots, n, tags] of HORS) for (const mot of mots) {
-      const m = new RegExp('(^| )' + norm(mot) + '(s|x)?( |$)').exec(nomNorm);
+      const m = motif(mot).exec(nomNorm);
       if (m && (!best || m.index < best.pos)) best = { pos: m.index, mot, cible: { nom: n, tags } };
     }
     return best;
@@ -324,19 +328,20 @@
     let [n, reste] = lireNombre(t);
     reste = reste.replace(/^\s*(?=[a-zà-ÿ])/, '').trim();
     let unite = null;
+    const sansAccent = reste.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     for (const u of UNITES) {
-      const m = u[0].exec(norm(reste.slice(0, 40)) === '' ? '' : reste.normalize('NFD').replace(/[̀-ͯ]/g, ''));
-      if (m) { unite = u; if (!u[3]) reste = reste.normalize('NFD').replace(/[̀-ͯ]/g, '').slice(m[0].length); break; }
+      const m = u[0].exec(sansAccent);
+      if (m) { unite = u; reste = reste.slice(m[0].length); break; }
     }
     // quantité écrite après le nom : « lardons : 200 g »
     if (n == null) {
       const m = /(\d+(?:[.,]\d+)?)\s*(kg|g|gr|cl|ml|l)\b/.exec(t);
       if (m) { n = parseFloat(m[1].replace(',', '.')); unite = UNITES.find((u) => u[0].test(m[2])); reste = t.replace(m[0], ' '); }
     }
-    const nomNorm = norm(reste).replace(/^(de |d |des |du |de la |la |le |les )+/, '').replace(/[,:;].*$/, '').trim();
+    const nomNorm = norm(reste.split(/[,;]| ou /)[0]).replace(/^(de |d |des |du |de la |la |le |les )+/, '').replace(/[,:;].*$/, '').trim();
     if (!nomNorm || IGNORES.test(nomNorm) || /^(sel|poivre)( |$)/.test(nomNorm) && nomNorm.split(' ').length <= 3) return { ignore: brut };
     const al = trouverAliment(nomNorm);
-    const nomLisible = reste.replace(/^\s*(de |d’|d'|des |du )/i, '').replace(/[,;].*$/, '').trim().slice(0, 40) || brut;
+    const nomLisible = reste.replace(/^\s*(de |d’|d'|des |du )/i, '').split(/[,;]| ou /)[0].trim().slice(0, 40) || brut;
     if (!al) return { extra: { nom: nomLisible, tags: tagsExtra(nomLisible) || [] } };
     if (al.cible === null) return { ignore: brut, epice: true };
     if (typeof al.cible === 'object') return { extra: { nom: al.cible.nom, tags: al.cible.tags } };
