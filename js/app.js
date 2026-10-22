@@ -47,7 +47,8 @@
       return `<span class="visuel-gourmand ${rec.type} ${forme || 'rond'}" style="${dim};font-size:${Math.round(taille * (forme === 'rect' ? 0.42 : 0.55))}px" aria-hidden="true">${rec.emoji}</span>`;
     }
     const svg = window.Visuels.illustration(rec, E, taille);
-    const ph = rec.photo ? { src: rec.photo } : rec.perso ? null : window.Photos && window.Photos.photoPour(rec);
+    const src = rec.base && E.REC[rec.base] ? E.REC[rec.base] : rec;
+    const ph = src.photo ? { src: src.photo } : src.perso ? null : window.Photos && window.Photos.photoPour(src);
     if (!ph) return svg;
     const dim = forme === 'rect' ? 'width:100%;height:' + taille + 'px' : `width:${taille}px;height:${taille}px`;
     return `<span class="photo ${forme || 'rond'}" style="${dim}">${svg}<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`;
@@ -97,7 +98,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [] };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [] };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -120,10 +121,11 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [] });
+      enregistrerManuels();
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
-    finally { definirGourmand(); }
+    finally { definirGourmand(); E.definirVariantes(S.variantes || []); }
   }
 
   /* ---------- outils ---------- */
@@ -719,7 +721,7 @@
     }
     const raison = E.pourquoi(r.id, S.plan, j, slot, S.profil, optsMoteur()).find((x) => !th || !x.startsWith(th.libelle));
     const classique = S.classiques.includes(r.id);
-    return `<div class="repas repas-illu ${m.dehors ? 'repas-dehors' : ''}"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
+    return `<div class="repas repas-illu ${m.dehors ? 'repas-dehors' : ''}"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}${r.variante ? ' · <span class="theme">✏️ ma version</span>' : ''}</span>
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
       <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
@@ -2069,7 +2071,7 @@
     return `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock || a.couvertParPlacard ? 'stock' : ''}">
       <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
       <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
-      <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
+      <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix || (E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo) ? 'prix ?' : euros(a.cout)}</span>
       <div class="qte-achat">${pastille}${a.sansPrix || a.enStock ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
       <div class="actions-article ecran-seul"><button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
@@ -2251,6 +2253,8 @@
       ${!eq.legumes || !eq.feculent ? `<p class="small muted">Pour compléter : ${!eq.legumes ? 'une crudité ou un fruit' : ''}${!eq.legumes && !eq.feculent ? ' et ' : ''}${!eq.feculent ? 'du pain' : ''}.</p>` : ''}
       ${r.perso ? `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:6px"><strong>Une recette de votre bibliothèque</strong>${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : '<span>Recette de famille, sans lien.</span>'}<div><button class="btn btn-petit" data-a="ed-modifier" data-r="${r.id}">Modifier les ingrédients</button></div></div></div>` : ''}
       ${blocQuantites(m)}
+      ${r.variante ? (() => { const d = E.differences(r); const lib = (l) => l.map((id) => E.ING[id].nom.toLowerCase()).join(', '); return `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:4px"><strong>✏️ Ma version de ce plat${S.versionsPreferees && S.versionsPreferees[r.base] === r.id ? ' (à chaque fois)' : ''}</strong><span>${[d.ajouts.length ? 'ajouté : ' + lib(d.ajouts) : '', d.retraits.length ? 'retiré : ' + lib(d.retraits) : '', d.quantites.length ? 'quantités changées : ' + lib(d.quantites) : ''].filter(Boolean).join(' · ') || 'quantités ajustées'}</span>${!fiche.recette ? '<div><button class="btn-lien small" data-a="plat-origine">Revenir à la recette d’origine</button></div>' : ''}</div></div>`; })() : ''}
+      ${!fiche.recette && !m.deRestes ? blocAmeliorer(m, r) : ''}
       <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite)}</span></li>`).join('')}</ul></div>
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
@@ -2260,6 +2264,106 @@
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
         <p class="small muted">${note === 1 ? 'Cette recette ne sera plus proposée.' : note ? 'Merci : les recettes bien notées reviendront plus souvent.' : 'Une étoile : on ne la propose plus. Cinq : plus souvent.'}</p></div>
     </div></div>`;
+  }
+
+  /* ---------- améliorer un plat : ajouter, changer ou retirer des ingrédients (« ma version ») ---------- */
+  let edPlat = null; // { j, sl, ing: [[id, q]], cherche, remplace, manuel, portee, resultats }
+  const AMELIORATIONS = [
+    ['creme', 'yaourt', 'plus léger'], ['creme', 'creme_soja', 'version végétale'], ['beurre', 'huile_olive', 'moins de graisses saturées'],
+    ['lardons', 'des_jambon', 'moins gras'], ['lardons', 'lardons_volaille', 'moins gras'], ['pates', 'pates_completes', 'plus de fibres'],
+    ['riz', 'riz_complet', 'plus de fibres'], ['boeuf_hache', 'dinde_hachee', 'plus léger'], ['emmental', 'parmesan', 'plus de goût, moins de fromage', 0.6],
+    ['saucisse', 'poulet_filet', 'moins gras'], ['pain', 'pain_complet', 'plus de fibres', 80], ['sucre', 'sucre', 'moins sucré', 0.7], ['creme_liquide', 'yaourt', 'plus léger']
+  ];
+  const LEGUMES_AJOUT = ['epinards', 'courgette', 'carotte', 'champignon', 'poivron', 'brocoli', 'haricots_verts', 'tomate'];
+  function suggestionsPlat(ing) {
+    const ids = ing.map(([id]) => id);
+    const ok = (id) => E.ING[id] && !E.ingredientInterdit(E.ING[id], S.profil);
+    const out = [];
+    for (const [de, vers, raison, f] of AMELIORATIONS) {
+      if (!ids.includes(de) || !ok(vers)) continue;
+      if (de === vers) out.push({ type: 'qte', id: de, f, texte: `${E.ING[de].nom} : un peu moins`, raison });
+      else if (!ids.includes(vers)) out.push({ type: 'changer', de, vers, f, texte: `${E.ING[de].nom.toLowerCase()} → ${E.ING[vers].nom.toLowerCase()}`, raison });
+    }
+    const rec = { id: 'tmp', ing, modele: 'maison' };
+    const eq = E.equilibre(rec);
+    if (eq.grammesLegumes < 150) { const l = LEGUMES_AJOUT.find((x) => !ids.includes(x) && ok(x)); if (l) out.push({ type: 'ajouter', id: l, q: 100, texte: `+ ${E.ING[l].nom.toLowerCase()} (100 g)`, raison: 'plus de légumes' }); }
+    if (!eq.proteine && ok('oeufs') && !ids.includes('oeufs')) out.push({ type: 'ajouter', id: 'oeufs', q: 1, texte: '+ un œuf', raison: 'plus de protéines' });
+    if (!eq.feculent && ok('pain') && !ids.includes('pain')) out.push({ type: 'ajouter', id: 'pain', q: 0.2, texte: '+ du pain', raison: 'plus rassasiant' });
+    return out.slice(0, 5);
+  }
+  const uniteIng = (id) => (E.ING[id].unite === 'pièce' ? (E.ING[id].condLabel || 'pièce').replace(/^\d+ ×? ?/, '').slice(0, 14) || 'pièce' : E.ING[id].unite);
+  function blocAmeliorer(m, r) {
+    if (!edPlat) return `<div class="row" style="gap:8px;align-items:center"><button class="btn btn-petit" data-a="plat-editer">✏️ Améliorer ce plat</button><span class="small muted">ajouter, changer ou retirer des ingrédients</span></div>`;
+    const ing = edPlat.ing;
+    const sugg = suggestionsPlat(ing);
+    const q = (S.chercheIngPlat || '').trim();
+    const res = q.length >= 2 ? window.Saisie.chercherIngredients(q, 10).filter((id) => E.ING[id] && !E.ING[id].perso && !ing.some(([x]) => x === id)) : [];
+    const alerte = (id) => E.ingredientInterdit(E.ING[id], S.profil);
+    const ligne = ([id, qte], i) => `<li class="ing-edit ${edPlat.remplace === i ? 'choisi' : ''}"><span class="stack" style="gap:0;min-width:0"><strong>${esc(E.ING[id].nom)}</strong>${alerte(id) ? `<span class="small alerte-ing">Attention : ${esc(libAllergie(alerte(id)))}</span>` : ''}</span>
+      <span class="qte-saisie"><input type="text" inputmode="decimal" data-a="plat-qte" data-i="${i}" value="${nb(Math.round(qte * 100) / 100)}" aria-label="Quantité par personne : ${esc(E.ING[id].nom)}"><span class="small muted">${esc(uniteIng(id))}</span></span>
+      <span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="plat-remplacer" data-i="${i}" aria-label="Changer ${esc(E.ING[id].nom)}">⇄</button><button class="btn-mini" data-a="plat-retirer" data-i="${i}" aria-label="Retirer ${esc(E.ING[id].nom)}">✕</button></span></li>`;
+    const m2 = edPlat.manuel;
+    const formManuel = m2 ? `<div class="manuel-ing stack" style="gap:8px"><strong>Nouvel ingrédient : ${esc(m2.nom)}</strong>
+        <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="plat-off" ${m2.charge ? 'disabled' : ''}>${m2.charge ? 'Recherche…' : '🔍 Chercher les calories en ligne'}</button><span class="small muted">base Open Food Facts</span></div>
+        ${m2.resultats ? (m2.resultats.length ? `<ul class="resultats-off">${m2.resultats.map((p, k) => `<li><button class="btn-lien" data-a="plat-off-choisir" data-k="${k}">${esc(p.nom)}${p.marque ? ` <span class="small muted">· ${esc(p.marque)}</span>` : ''}</button><span class="small num">${Math.round(p.kcal)} kcal / 100 g</span></li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">Rien trouvé en ligne : indiquez les calories à la main (elles sont sur l’emballage).</p>') : ''}
+        <div class="grille-manuel">
+          <label class="champ"><span>Par personne</span><span class="qte-saisie"><input type="text" inputmode="decimal" id="man-q" value="${esc(m2.q || '50')}"><span class="small muted">g</span></span></label>
+          <label class="champ"><span>Calories / 100 g</span><input type="text" inputmode="decimal" id="man-kcal" value="${esc(m2.kcal != null ? String(m2.kcal) : '')}" placeholder="ex. 250"></label>
+          <label class="champ"><span>Protéines / 100 g</span><input type="text" inputmode="decimal" id="man-prot" value="${esc(m2.prot != null ? String(m2.prot) : '')}" placeholder="facultatif"></label>
+          <label class="champ"><span>Prix du paquet <span class="muted">(facultatif)</span></span><span class="qte-saisie"><input type="text" inputmode="decimal" id="man-prix" value="${esc(m2.prix || '')}" placeholder="2,50"><span class="small muted">€ les</span><input type="text" inputmode="decimal" id="man-paquet" value="${esc(m2.paquet || '')}" placeholder="250" style="max-width:70px"><span class="small muted">g</span></span></label>
+        </div>
+        <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="plat-manuel-ok">Ajouter au plat</button><button class="btn-lien small" data-a="plat-manuel-annuler">Annuler</button></div></div>` : '';
+    return `<section class="edition-plat stack" style="gap:12px" aria-label="Améliorer ce plat"><div class="spread"><h3>✏️ Améliorer ce plat</h3><span class="small muted">quantités par personne</span></div>
+      ${sugg.length ? `<div class="stack" style="gap:6px"><span class="small"><strong>Idées</strong></span><div class="row" style="gap:6px">${sugg.map((x, k) => `<button class="chip suggestion-plat" data-a="plat-suggestion" data-k="${k}" title="${esc(x.raison)}">${esc(x.texte)} <span class="small muted">· ${esc(x.raison)}</span></button>`).join('')}</div></div>` : ''}
+      <ul class="liste-ing-edit">${ing.map(ligne).join('')}</ul>
+      ${edPlat.remplace != null ? `<p class="small bandeau bandeau-info" style="margin:0">Choisissez ci-dessous ce qui remplace <strong>${esc(E.ING[ing[edPlat.remplace][0]].nom)}</strong>. <button class="btn-lien small" data-a="plat-remplacer-annuler">annuler</button></p>` : ''}
+      <label class="champ"><span>${edPlat.remplace != null ? 'Remplacer par…' : 'Ajouter un ingrédient'}</span><input type="text" id="plat-cherche" value="${esc(S.chercheIngPlat || '')}" placeholder="Ex. épinards, parmesan, curry…" autocomplete="off"></label>
+      ${q.length >= 2 ? `<div class="row" style="gap:6px">${res.map((id) => `<button class="chip puce-ajout" data-a="plat-ajouter" data-id="${id}">${edPlat.remplace != null ? '⇄' : '+'} ${esc(E.ING[id].nom)}${alerte(id) ? ' ⚠️' : ''}</button>`).join('')}${edPlat.remplace == null ? `<button class="chip" data-a="plat-manuel" data-k="${esc(q)}">✍️ Créer « ${esc(q)} »</button>` : ''}</div>` : ''}
+      ${formManuel}
+      <div class="stack" style="gap:6px"><span class="small"><strong>Pour qui ?</strong></span><div class="row" role="radiogroup" style="gap:6px"><button class="chip" role="radio" data-a="plat-portee" data-k="repas" aria-checked="${edPlat.portee !== 'toujours'}" aria-pressed="${edPlat.portee !== 'toujours'}">Seulement ce repas</button><button class="chip" role="radio" data-a="plat-portee" data-k="toujours" aria-checked="${edPlat.portee === 'toujours'}" aria-pressed="${edPlat.portee === 'toujours'}">Chaque fois que ce plat revient</button></div></div>
+      <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="plat-enregistrer">Enregistrer ma version</button><button class="btn" data-a="plat-annuler">Annuler</button></div>
+    </section>`;
+  }
+  function lireChampsManuel() {
+    if (!edPlat || !edPlat.manuel) return;
+    const v = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; };
+    for (const [k, id] of [['q', 'man-q'], ['kcal', 'man-kcal'], ['prot', 'man-prot'], ['prix', 'man-prix'], ['paquet', 'man-paquet']]) { const x = v(id); if (x !== undefined) edPlat.manuel[k] = x; }
+  }
+  async function chercherCalories(nom) {
+    try {
+      const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(nom)}&search_simple=1&action=process&json=1&page_size=10&lc=fr&cc=fr&fields=code,product_name,product_name_fr,brands,nutriments`, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+      const j = await r.json();
+      return (j.products || []).map((p) => ({ nom: String(p.product_name_fr || p.product_name || '').trim().slice(0, 50), marque: String(p.brands || '').split(',')[0].trim().slice(0, 25), kcal: parseFloat((p.nutriments || {})['energy-kcal_100g']), prot: parseFloat((p.nutriments || {}).proteins_100g) })).filter((p) => p.nom && Number.isFinite(p.kcal)).map((p) => ({ ...p, prot: Number.isFinite(p.prot) ? p.prot : null })).slice(0, 6);
+    } catch (e) { return []; }
+  }
+  function recetteDeBase(id) { const r = E.REC[id]; return r && r.base && E.REC[r.base] ? E.REC[r.base] : r; }
+  function enregistrerPlat() {
+    const m = S.plan.jours[edPlat.j][edPlat.sl];
+    const base = recetteDeBase(m.recette);
+    const memeQueBase = edPlat.ing.length === base.ing.length && edPlat.ing.every(([id, q]) => base.ing.some(([b, qb]) => b === id && Math.abs(qb - q) < 1e-6));
+    if (memeQueBase) { m.recette = base.id; m.original = true; if (edPlat.portee === 'toujours') delete S.versionsPreferees[base.id]; edPlat = null; toast('Recette d’origine'); return; }
+    const id = 'v-' + base.id.slice(0, 40) + '-' + Date.now().toString(36);
+    S.variantes = (S.variantes || []).concat({ id, base: base.id, ing: edPlat.ing.map(([x, q]) => [x, q]) });
+    // on ne garde que les versions encore utilisées (et la préférée)
+    const utilisees = new Set(S.plan.jours.flatMap((jp) => E.SLOTS.map((sl) => jp[sl] && jp[sl].recette)).concat(Object.values(S.versionsPreferees || {}), id, (S.journal || []).map((x) => x.r)));
+    S.variantes = S.variantes.filter((v) => utilisees.has(v.id)).slice(-200);
+    E.definirVariantes(S.variantes);
+    m.recette = id; delete m.original;
+    if (edPlat.portee === 'toujours') S.versionsPreferees = { ...(S.versionsPreferees || {}), [base.id]: id };
+    edPlat = null;
+    toast(S.versionsPreferees && S.versionsPreferees[base.id] === id ? 'Ma version enregistrée : elle reviendra à chaque fois' : 'Ma version enregistrée pour ce repas');
+  }
+  // un plat qui a une version préférée la reprend dans les nouveaux menus
+  function appliquerVersions(plan) {
+    const pref = S.versionsPreferees || {};
+    if (!plan) return;
+    plan.jours.forEach((jp) => E.SLOTS.forEach((sl) => { const m = jp[sl]; if (m && !m.original && pref[m.recette] && E.REC[pref[m.recette]]) m.recette = pref[m.recette]; }));
+  }
+  // ingrédients créés à la main (avec leurs calories) : ajoutés au catalogue de l'appareil
+  function enregistrerManuels() {
+    const l = (S.ingredientsManuels || []).filter((x) => x && x.id && x.nom);
+    E.ajouterIngredients(l.map((x) => ({ id: x.id, nom: x.nom, rayon: 'Mes ingrédients', unite: 'g', cond: x.paquet > 0 ? x.paquet : 100, condLabel: x.paquet > 0 ? `paquet ${x.paquet} g` : 'selon besoin', prixDemo: x.prix > 0 ? x.prix : 0, groupe: x.groupe || 'A', tags: [], manuel: true })));
+    if (window.Nutrition) l.forEach((x) => { window.Nutrition.TABLE[x.id] = [x.kcal || 0, 0, 0, 0, 0, x.prot || 0, 0]; });
   }
 
   function vueFicheGourmande(r, parts) {
@@ -2942,7 +3046,7 @@
     document.documentElement.classList.toggle('imprimable', S.imprimable && S.vue === 'app' && S.onglet === 'courses');
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
-    if (S.plan) E.organiserRestes(S.plan, S.profil);
+    if (S.plan) { appliquerVersions(S.plan); E.organiserRestes(S.plan, S.profil); }
     const html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue]();
     const avantEd = document.querySelector('.fenetre-edition');
     const hautEd = avantEd ? avantEd.scrollTop : 0;
@@ -3063,7 +3167,7 @@
       }
       case 'fiche': fiche = { jour: +el.dataset.j, slot: el.dataset.s }; break;
       case 'fiche-r': fiche = { recette: el.dataset.r }; break;
-      case 'fermer': case 'fermer-fond': fiche = null; break;
+      case 'fermer': case 'fermer-fond': fiche = null; edPlat = null; break;
       case 'mange': {
         const k = el.dataset.j + '-' + el.dataset.s;
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
@@ -3235,6 +3339,41 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'plat-editer': { const m = S.plan.jours[fiche.jour][fiche.slot]; const base = recetteDeBase(m.recette); edPlat = { j: fiche.jour, sl: fiche.slot, ing: E.REC[m.recette].ing.map(([id, q]) => [id, q]), portee: S.versionsPreferees && S.versionsPreferees[base.id] === m.recette ? 'toujours' : 'repas', remplace: null, manuel: null }; S.chercheIngPlat = ''; break; }
+      case 'plat-annuler': edPlat = null; break;
+      case 'plat-retirer': edPlat.ing.splice(+el.dataset.i, 1); edPlat.remplace = null; break;
+      case 'plat-remplacer': edPlat.remplace = edPlat.remplace === +el.dataset.i ? null : +el.dataset.i; S.chercheIngPlat = ''; setTimeout(() => { const c = document.getElementById('plat-cherche'); if (c) c.focus(); }, 30); break;
+      case 'plat-remplacer-annuler': edPlat.remplace = null; break;
+      case 'plat-ajouter': {
+        const id = el.dataset.id, qDef = window.Saisie.QTE[id] || (E.ING[id].unite === 'pièce' ? 0.25 : 80);
+        if (edPlat.remplace != null) { const [ancien, q] = edPlat.ing[edPlat.remplace]; edPlat.ing[edPlat.remplace] = [id, E.ING[ancien].unite === E.ING[id].unite ? q : qDef]; edPlat.remplace = null; }
+        else edPlat.ing.push([id, qDef]);
+        S.chercheIngPlat = ''; break;
+      }
+      case 'plat-suggestion': {
+        const x = suggestionsPlat(edPlat.ing)[+el.dataset.k]; if (!x) return;
+        if (x.type === 'ajouter') edPlat.ing.push([x.id, x.q]);
+        else if (x.type === 'qte') edPlat.ing = edPlat.ing.map(([id, q]) => [id, id === x.id ? q * x.f : q]);
+        else edPlat.ing = edPlat.ing.map(([id, q]) => (id === x.de ? [x.vers, E.ING[x.de].unite === E.ING[x.vers].unite ? q * (x.f || 1) : (window.Saisie.QTE[x.vers] || q)] : [id, q]));
+        break;
+      }
+      case 'plat-manuel': edPlat.manuel = { nom: el.dataset.k.charAt(0).toUpperCase() + el.dataset.k.slice(1) }; S.chercheIngPlat = ''; break;
+      case 'plat-manuel-annuler': edPlat.manuel = null; break;
+      case 'plat-off': { lireChampsManuel(); edPlat.manuel.charge = true; rendre(); const r = await chercherCalories(edPlat.manuel.nom); if (edPlat && edPlat.manuel) { edPlat.manuel.resultats = r; edPlat.manuel.charge = false; } break; }
+      case 'plat-off-choisir': { lireChampsManuel(); const p0 = edPlat.manuel.resultats[+el.dataset.k]; edPlat.manuel.kcal = Math.round(p0.kcal); if (p0.prot != null) edPlat.manuel.prot = Math.round(p0.prot * 10) / 10; toast(`${Math.round(p0.kcal)} kcal pour 100 g`); break; }
+      case 'plat-manuel-ok': {
+        lireChampsManuel(); const x = edPlat.manuel; const num = (v) => parseFloat(String(v || '').replace(',', '.'));
+        const q = num(x.q), kcal = num(x.kcal);
+        if (!(q > 0)) { toast('Indiquez la quantité par personne'); return; }
+        if (!(kcal >= 0)) { toast('Indiquez les calories pour 100 g, ou cherchez-les en ligne'); return; }
+        const id = 'u-' + E.norm(x.nom).replace(/[^a-z0-9]+/g, '-').slice(0, 30) + '-' + Date.now().toString(36);
+        S.ingredientsManuels = (S.ingredientsManuels || []).concat({ id, nom: x.nom.slice(0, 40), kcal, prot: num(x.prot) >= 0 ? num(x.prot) : 0, prix: num(x.prix) > 0 ? num(x.prix) : 0, paquet: num(x.paquet) > 0 ? num(x.paquet) : 0 });
+        enregistrerManuels();
+        edPlat.ing.push([id, q]); edPlat.manuel = null; toast(`${x.nom} ajouté (${Math.round(kcal * q / 100)} kcal par personne)`); break;
+      }
+      case 'plat-portee': edPlat.portee = el.dataset.k; break;
+      case 'plat-enregistrer': enregistrerPlat(); break;
+      case 'plat-origine': { const m = S.plan.jours[fiche.jour][fiche.slot]; m.recette = recetteDeBase(m.recette).id; m.original = true; toast('Recette d’origine pour ce repas'); break; }
       case 'jour-mobile': S.jourMobile = +el.dataset.j; S.menuRepas = null; break;
       case 'semaine-liste': S.semaineEnListe = !S.semaineEnListe; break;
       case 'outil-mobile': S.outilMobile = S.outilMobile === el.dataset.k ? '' : el.dataset.k; break;
@@ -3589,6 +3728,8 @@
   document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); soumettreCompte(f); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
   document.addEventListener('input', (ev) => {
+    if (ev.target.id === 'plat-cherche') { S.chercheIngPlat = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('plat-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
+    if (ev.target.dataset && ev.target.dataset.a === 'plat-qte' && edPlat) { const v = parseFloat(ev.target.value.replace(',', '.')); if (v > 0) edPlat.ing[+ev.target.dataset.i][1] = v; return; }
     if (ev.target.id === 'promo-cherche') { S.cherchePromo = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('promo-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
     if (ev.target.id === 'affiche-titre') { S.afficheOpts = { ...optsAffiche(), titre: ev.target.value.slice(0, 48) }; const t = document.querySelector('.aff-titre'); if (t) t.textContent = S.afficheOpts.titre || 'Au menu cette semaine'; sauver(); return; }
     const el = ev.target;

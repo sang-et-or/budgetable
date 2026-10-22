@@ -905,6 +905,19 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
   .jours-m .jour .repas .pourquoi:not(:first-of-type) { display: none; }
   .jours-m .jour .vignette svg, .jours-m .jour .vignette .photo { width: 56px !important; height: 56px !important; }
 }
+
+/* ---------- améliorer un plat ---------- */
+.edition-plat { padding: 14px; border-radius: 16px; border: 2px dashed var(--poireau); background: var(--poireau-pale); }
+.liste-ing-edit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ing-edit { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--trait); }
+.ing-edit.choisi { border-color: var(--moutarde); box-shadow: 0 0 0 2px var(--moutarde-pale); }
+.ing-edit .qte-saisie input { width: 64px; }
+.suggestion-plat { text-align: left; }
+.manuel-ing { padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
+.grille-manuel { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.resultats-off { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow: auto; }
+.resultats-off li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 8px; background: var(--papier); }
+@media (max-width: 520px) { .ing-edit { grid-template-columns: 1fr auto; } .ing-edit > span:last-child { grid-column: 1 / -1; justify-content: flex-end; } }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

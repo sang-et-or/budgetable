@@ -113,6 +113,31 @@
     return GOURMAND;
   }
   const gourmandises = () => GOURMAND.slice();
+  /* ---------- « ma version » d'un plat : mêmes étapes, ingrédients ajoutés, changés ou retirés ---------- */
+  let VARIANTES = [];
+  /** liste : [{ id: 'v-…', base: id de la recette d'origine, ing: [[id, qté par portion]] }] */
+  function definirVariantes(liste) {
+    for (const r of VARIANTES) delete REC[r.id];
+    VARIANTES = (liste || []).filter((v) => v && v.id && REC[v.base] && Array.isArray(v.ing)).map((v) => {
+      const b = REC[v.base];
+      const ing = v.ing.filter(([id, q]) => ING[id] && q > 0).map(([id, q]) => [id, Math.round(q * 100) / 100]);
+      const rec = { ...b, id: v.id, ing, base: b.id, variante: true, sig: b.sig || b.id, nomBase: b.nom };
+      rec.prot = (ing.find(([id]) => ING[id].groupe === 'P') || [])[0] || b.prot;
+      return rec;
+    });
+    for (const r of VARIANTES) { REC[r.id] = r; cacheCout.delete(r.id); }
+    return VARIANTES;
+  }
+  /** Différences entre une version et sa recette d'origine (pour l'afficher). */
+  function differences(rec) {
+    if (!rec || !rec.variante || !REC[rec.base]) return { ajouts: [], retraits: [], quantites: [] };
+    const avant = new Map(REC[rec.base].ing), apres = new Map(rec.ing);
+    return {
+      ajouts: [...apres.keys()].filter((id) => !avant.has(id)),
+      retraits: [...avant.keys()].filter((id) => !apres.has(id)),
+      quantites: [...apres.keys()].filter((id) => avant.has(id) && Math.abs(avant.get(id) - apres.get(id)) > 1e-6)
+    };
+  }
   /** Ajoute des produits au catalogue (catalogue élargi, produits des desserts et de saison). */
   function ajouterIngredients(liste) {
     let n = 0;
@@ -1161,7 +1186,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, dedoublonner, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };
