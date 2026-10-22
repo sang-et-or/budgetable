@@ -70,7 +70,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -80,7 +80,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
   }
@@ -815,6 +815,38 @@
     if (!S.plan) return [];
     return E.listeCourses(S.plan, S.profil).articles.filter((a) => S.coches[a.id] && !S.ranges[a.id] && !a.enStock && !a.sansPrix && a.conditionnements > 0);
   }
+  // tout ce qu'il reste à acheter (et à ranger) dans la liste de la semaine
+  function articlesARangerTous() {
+    if (!S.plan) return [];
+    return E.listeCourses(S.plan, S.profil).articles.filter((a) => !S.ranges[a.id] && !a.enStock && !a.sansPrix && a.conditionnements > 0);
+  }
+  function rangerArticles(achats) {
+    const ajouts = achats.map(E.achatArticle).filter(Boolean);
+    S.profil.stock = E.ajouterAuStock(S.profil.stock, ajouts);
+    achats.forEach((a) => { S.ranges[a.id] = true; S.coches[a.id] = true; });
+    S.dernierRangement = { quand: new Date().toISOString(), ajouts };
+    S.choixRanger = false;
+    if (S.modeCourses) S.modeCourses.ouvert = false;
+    S.onglet = 'placard';
+    window.scrollTo(0, 0);
+    toast(`${pluriel(achats.length, 'article rangé', 'articles rangés')} dans votre placard`);
+  }
+  function blocCoursesFaites() {
+    const restants = articlesARangerTous();
+    const coches = restants.filter((a) => S.coches[a.id]);
+    if (!restants.length) {
+      return Object.keys(S.ranges).length ? `<section class="carte stack courses-faites ecran-seul" style="gap:8px"><strong>✓ Courses rangées dans le placard</strong><div><button class="btn btn-petit" data-a="onglet" data-k="placard">Voir mon placard</button></div></section>` : '';
+    }
+    if (S.choixRanger && coches.length && coches.length < restants.length) {
+      return `<section class="carte stack courses-faites ecran-seul" style="gap:10px"><strong>Qu’avez-vous rapporté ?</strong>
+        <button class="btn btn-plein" data-a="ranger-tout">Tout a été acheté (${pluriel(restants.length, 'article')})</button>
+        <button class="btn" data-a="ranger-achats">Seulement les articles cochés (${coches.length})</button>
+        <button class="btn-lien small" data-a="ranger-annuler-choix" style="align-self:flex-start">Annuler</button></section>`;
+    }
+    return `<section class="carte stack courses-faites ecran-seul" style="gap:8px">
+      <button class="btn btn-plein btn-grand" data-a="courses-faites">✓ Courses faites : tout mettre au placard</button>
+      <span class="small muted">${coches.length && coches.length < restants.length ? `${coches.length} sur ${restants.length} articles cochés : on vous demandera ce que vous avez rapporté.` : `${pluriel(restants.length, 'article')} ajoutés à votre placard, avec leurs quantités. Ensuite, les repas cuisinés s’en déduisent.`}</span></section>`;
+  }
   function repasATraiter() {
     if (!S.plan) return [];
     const t = aujourdhui(), h = new Date().getHours();
@@ -853,13 +885,20 @@
     const ligne = (id) => {
       const i = E.ING[id], q = st[id];
       const part = Math.min(1, q / i.cond);
-      return `<li class="ligne-stock"><div class="stack" style="gap:2px;flex:1;min-width:0"><span><strong>${esc(i.nom)}</strong> <span class="num">${quantite(q, i.unite)}</span></span>
+      return `<li class="ligne-stock ${nouveaux.has(id) ? 'nouveau' : ''}"><div class="stack" style="gap:2px;flex:1;min-width:0"><span><strong>${esc(i.nom)}</strong> <span class="num">${quantite(q, i.unite)}</span>${nouveaux.has(id) ? ' <span class="tag-nouveau">nouveau</span>' : ''}</span>
           <span class="jauge" aria-hidden="true"><i style="width:${Math.round(part * 100)}%"></i></span><span class="small muted">${q >= i.cond ? pluriel(Math.floor(q / i.cond), 'paquet') + (q % i.cond > i.cond * 0.05 ? ' et un entamé' : '') : 'paquet entamé'} · ${esc(i.condLabel)}</span></div>
         <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${id}" aria-label="Moins de ${esc(i.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${id}" aria-label="Plus de ${esc(i.nom)}">+</button><button class="btn-lien small" data-a="stock-fini" data-id="${id}" aria-label="${esc(i.nom)} : fini">Fini</button></div></li>`;
     };
+    const dr = S.dernierRangement;
+    const nouveaux = new Set(dr ? dr.ajouts.map(([id]) => id) : []);
+    const quand = dr ? new Date(dr.quand) : null;
+    const bilan = dr ? `<section class="carte stack bilan-rangement" style="gap:8px"><strong>✓ Courses rangées ${quand.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + quand.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+        <span class="small">${pluriel(dr.ajouts.length, 'produit ajouté', 'produits ajoutés')} : ${esc(dr.ajouts.slice(0, 10).map(([id, q]) => `${E.ING[id] ? E.ING[id].nom.toLowerCase() : id} (${quantite(q, E.ING[id] ? E.ING[id].unite : '')})`).join(', '))}${dr.ajouts.length > 10 ? '…' : ''}</span>
+        <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="rangement-ok">C’est bon</button><button class="btn-lien small" data-a="rangement-annuler">Annuler ce rangement</button></div></section>` : '';
     const avec = ids.length ? E.recettesAvecStock(S.profil, { slot: 'diner', jour: aujourdhui(), n: 4, notes: S.notes }) : [];
     return `<div><p class="eyebrow">À la maison</p><h1>Mon placard</h1></div>
       <p class="muted">Ce qu’il vous reste, mis à jour avec vos courses et les repas cuisinés. Budgétable s’en sert pour vous proposer des plats et pour ne pas vous faire racheter ce que vous avez.</p>
+      ${bilan}
       ${aRanger.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aRanger.length, 'article acheté', 'articles achetés')} à ranger</strong>
         <span class="small">${esc(aRanger.slice(0, 8).map((a) => a.nom).join(', '))}${aRanger.length > 8 ? '…' : ''}</span>
         <div><button class="btn btn-plein" data-a="ranger-achats">Ranger mes courses dans le placard</button></div></section>` : ''}
@@ -1072,6 +1111,7 @@
  ${''}${S.drives.enseigne && !a.enStock ? `<a class="btn btn-petit ecran-seul" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">Chercher chez ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div></div>`).join('')}</section>`).join('')}</div>
       ${liste.economieStock > 0 ? `<p class="small" style="padding-top:12px">Grâce à vos réserves : <strong class="num">${euros(liste.economieStock)}</strong> économisés</p>` : ''}
       <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>
+      ${blocCoursesFaites()}
       <details class="carte ecran-seul" id="mes-drives" ${S.drivesOuverts ? 'open' : ''}><summary data-a="drives-ouvrir"><strong>Mes drives près de chez moi</strong> <span class="small muted">· trouver les drives autour de chez vous, comparer</span></summary>
         <div class="stack" style="gap:16px;margin-top:12px">${ongletDrives()}</div></details>`;
   }
@@ -1493,13 +1533,28 @@
       case 'ranger-achats': {
         const achats = achatsARanger();
         if (!achats.length) { toast('Rien à ranger : cochez d’abord vos articles achetés'); if (S.modeCourses) S.modeCourses.ouvert = false; break; }
-        p.stock = E.ajouterAuStock(p.stock, achats.map(E.achatArticle).filter(Boolean));
-        achats.forEach((a) => { S.ranges[a.id] = true; });
-        if (S.modeCourses) S.modeCourses.ouvert = false;
-        S.onglet = 'placard';
-        toast(`${pluriel(achats.length, 'article rangé', 'articles rangés')} dans votre placard`);
+        rangerArticles(achats);
         break;
       }
+      case 'courses-faites': {
+        const restants = articlesARangerTous();
+        const coches = restants.filter((a) => S.coches[a.id]);
+        if (coches.length && coches.length < restants.length) { S.choixRanger = true; break; }
+        if (restants.length) rangerArticles(restants);
+        break;
+      }
+      case 'ranger-tout': { const r = articlesARangerTous(); if (r.length) rangerArticles(r); break; }
+      case 'ranger-annuler-choix': S.choixRanger = false; break;
+      case 'rangement-annuler': {
+        const d = S.dernierRangement;
+        if (!d) break;
+        p.stock = E.retirerDuStock(p.stock, d.ajouts);
+        d.ajouts.forEach(([id]) => { delete S.ranges[id]; });
+        S.dernierRangement = null;
+        toast('Rangement annulé : le placard est revenu comme avant');
+        break;
+      }
+      case 'rangement-ok': S.dernierRangement = null; break;
       case 'cuisine': {
         const k = el.dataset.j + '-' + el.dataset.s;
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
