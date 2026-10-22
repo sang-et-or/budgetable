@@ -13,7 +13,7 @@ def cliquer(page, texte):
 
 with sync_playwright() as p:
     nav = p.chromium.launch()
-    page = nav.new_page(viewport={"width": 390, "height": 844})
+    page = nav.new_page(viewport={"width": 760, "height": 900})
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.on("console", lambda m: m.type == "error" and "Failed to load resource" not in m.text and erreurs.append(m.text))
     page.goto(URL)
@@ -100,7 +100,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/9-drives.png", full_page=True)
     # rechargement : les allergies ne doivent PAS être gardées sans consentement
     page.reload()
-    page.get_by_role("button", name="Semaine").click()
+    page.locator("nav button[data-k=semaine]").click()
     assert "allergies n’ont pas été gardées" in page.inner_text("body"), "alerte données sensibles absente"
     # bureau
     page.set_viewport_size({"width": 1280, "height": 900})

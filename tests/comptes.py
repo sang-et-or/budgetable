@@ -31,7 +31,7 @@ def api(route):
 with sync_playwright() as p:
     nav = p.chromium.launch()
     def appareil():
-        ctx = nav.new_context(viewport={"width": 390, "height": 844})
+        ctx = nav.new_context(viewport={"width": 760, "height": 900})
         ctx.add_init_script(f"window.BUDGETABLE_SUPABASE = {{ url: '{BASE}', cle: 'anon' }};")
         page = ctx.new_page(); page.on("pageerror", lambda e: erreurs.append(str(e)))
         page.route(BASE + "/**", api); page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())

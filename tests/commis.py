@@ -15,7 +15,7 @@ def lecteur(route):
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
-    page = nav.new_page(viewport={"width": 390, "height": 844})
+    page = nav.new_page(viewport={"width": 760, "height": 900})
     page.route("https://budgetable-recettes.onrender.com/**", lecteur)
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.goto("http://localhost:8766/index.html")

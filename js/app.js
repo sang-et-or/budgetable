@@ -735,6 +735,8 @@
     }
     if (S.deduits[k] !== 'cuisine') {
       const restes = S.plan && S.plan.jours[j][slot] && S.plan.jours[j][slot].deRestes;
+      const autres = `${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button>`;
+      if (mqMobile.matches) return `<div class="row" style="gap:6px"><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button>${S.menuRepas === k ? autres : `<button class="btn btn-petit btn-plus" data-a="repas-plus" data-k="${k}" aria-label="Autres actions">⋯</button>`}</div>`;
       return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button><button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button></div>`;
     }
     const note = S.notes[r.id] || 0;
@@ -752,8 +754,47 @@
     return `<div class="moyenne"><span>Une assiette vous revient en moyenne à</span><strong class="num">${euros(l.consomme / parts)}</strong><span class="small muted">sur ${nb(parts)} parts adultes cette semaine · prix démo</span></div>`;
   }
 
+  // téléphone : un jour à la fois, outils repliés
+  const mqMobile = window.matchMedia ? window.matchMedia('(max-width: 699px)') : { matches: false };
+  if (mqMobile.addEventListener) mqMobile.addEventListener('change', () => rendre());
+  function carteJour(jp, j, t) {
+    return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
+        ${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`;
+  }
+  function semaineMobile() {
+    const t = aujourdhui();
+    const j = S.jourMobile != null ? S.jourMobile : t;
+    const liste = S.semaineEnListe;
+    const ouvert = S.outilMobile || '';
+    let repas = 0, couverts = 0;
+    for (let x = 0; x < 7; x++) for (const sl of E.SLOTS) { const pr = presenceDe(x, sl); const n = pr.a + pr.e.filter(Boolean).length + pr.invA + pr.invE; if (n) { repas++; couverts += n; } }
+    const g = S.profil.gamelles;
+    const a = E.analyseBudget(S.plan, S.profil);
+    const nut = window.Nutrition ? window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING) : null;
+    const coach = COACHS[S.profil.coach];
+    const outils = [
+      ['presences', '👥', 'Qui mange cette semaine', `${repas} repas · ${couverts} couverts`, blocPresences],
+      ['gamelles', '🥡', 'Gamelles et restes', g && g.n && (g.jours || []).length ? `${g.n} par jour, ${g.jours.length} jours` : 'Aucune gamelle prévue', blocGamelles],
+      ['coach', '🎯', 'Coach', coach ? `${coach.emoji} ${coach.court}` : 'Choisir un objectif', blocCoach],
+      ['nutrition', '🥦', 'Bilan nutritionnel', nut ? `${nut.atteints} repères sur ${nut.reperes.length} atteints` : '—', blocNutritionSemaine],
+      ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
+    ];
+    const jours = S.plan.jours.map((jp, x) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
+    return `${bandeauSensible()}
+      <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
+      ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
+      ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
+      <div class="jours jours-m">${liste ? S.plan.jours.map((jp, x) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
+      ${suggestionRituels()}
+      <section class="outils-m" aria-label="Réglages de la semaine"><h2 class="titre-outils">Ma semaine en un coup d’œil</h2>
+        ${outils.map(([k, ic, titre, resume, f]) => `<div class="outil-m ${ouvert === k ? 'ouvert' : ''}"><button class="outil-tete" data-a="outil-mobile" data-k="${k}" aria-expanded="${ouvert === k}"><span class="outil-ic" aria-hidden="true">${ic}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${titre}</strong><span class="small muted">${esc(resume)}</span></span><span class="chevron" aria-hidden="true">›</span></button>${ouvert === k ? `<div class="outil-corps">${f()}</div>` : ''}</div>`).join('')}
+      </section>
+      <div class="actions-semaine-m"><button class="btn btn-petit" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer</button><button class="btn btn-petit" data-a="affiche-ouvrir">🖨 Pour le frigo</button><button class="btn btn-petit" data-a="nouvelle">↻ Nouvelle semaine</button></div>
+      ${carteRituels()}`;
+  }
   function ongletSemaine() {
     if (!S.plan) return '<p>Aucune semaine.</p>';
+    if (mqMobile.matches) return semaineMobile();
     const t = aujourdhui();
     const restants = 'Changez vos plats autant que vous voulez';
     return `${bandeauSensible()}
@@ -768,8 +809,7 @@
       ${moyenneAssiette()}
       ${suggestionRituels()}
       <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
-      <div class="jours">${S.plan.jours.map((jp, j) => `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour}</h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`).join('')}</div>
+      <div class="jours">${S.plan.jours.map((jp, j) => carteJour(jp, j, t)).join('')}</div>
       ${carteRituels()}
       <p class="small muted">${restants}.</p>`;
   }
@@ -3195,6 +3235,10 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'jour-mobile': S.jourMobile = +el.dataset.j; S.menuRepas = null; break;
+      case 'semaine-liste': S.semaineEnListe = !S.semaineEnListe; break;
+      case 'outil-mobile': S.outilMobile = S.outilMobile === el.dataset.k ? '' : el.dataset.k; break;
+      case 'repas-plus': S.menuRepas = el.dataset.k; break;
       case 'compte-ouvrir': ouvrirCompte(el.dataset.k || 'connexion'); break;
       case 'accueil': S.vue = 'accueil'; window.scrollTo(0, 0); break;
       case 'compte-vue': compte = { ...compte, vue: el.dataset.k, msg: '', erreur: '' }; break;

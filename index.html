@@ -877,6 +877,34 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 .barre-prospectus { padding: 10px 12px; border-bottom: 1px solid var(--trait); background: var(--surface); gap: 10px; }
 .titre-prospectus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fenetre-prospectus iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+
+/* ---------- semaine sur téléphone ---------- */
+.entete-semaine-m { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.entete-semaine-m h1 { font-size: 1.7rem; }
+.jours-puces { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; position: sticky; top: 0; z-index: 4; padding: 6px 0; background: var(--papier); }
+.jour-puce { display: grid; justify-items: center; gap: 0; padding: 6px 0; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
+.jour-puce span { font-size: .7rem; color: var(--encre-douce); text-transform: uppercase; font-weight: 700; }
+.jour-puce strong { font-size: 1.05rem; }
+.jour-puce.auj { border-color: var(--poireau); }
+.jour-puce[aria-selected="true"] { background: var(--poireau); border-color: var(--poireau); color: #fff; }
+.jour-puce[aria-selected="true"] span { color: #fff; opacity: .85; }
+.date-jour { font-weight: 500; color: var(--encre-douce); font-size: .9em; }
+.outils-m { display: grid; gap: 8px; }
+.titre-outils { font-size: 1.15rem; }
+.outil-m { border: 1px solid var(--trait); border-radius: 16px; background: var(--surface); overflow: hidden; }
+.outil-tete { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: none; font: inherit; color: var(--encre); cursor: pointer; }
+.outil-ic { font-size: 1.4rem; }
+.outil-tete .chevron { margin-left: auto; font-size: 1.4rem; color: var(--encre-douce); transition: transform .2s; }
+.outil-m.ouvert .chevron { transform: rotate(90deg); }
+.outil-corps { padding: 0 10px 12px; }
+.outil-corps > section, .outil-corps > div > section { box-shadow: none; border: 0; padding: 4px; background: none; }
+.actions-semaine-m { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.btn-plus { min-width: 44px; font-weight: 800; letter-spacing: .1em; }
+@media (max-width: 699px) {
+  .entete .tag-simu, .entete .tag-ok, .nappe { display: none; }
+  .jours-m .jour .repas .pourquoi:not(:first-of-type) { display: none; }
+  .jours-m .jour .vignette svg, .jours-m .jour .vignette .photo { width: 56px !important; height: 56px !important; }
+}
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

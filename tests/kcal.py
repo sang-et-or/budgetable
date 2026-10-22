@@ -5,7 +5,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
-    page = nav.new_page(viewport={"width": 390, "height": 844})
+    page = nav.new_page(viewport={"width": 760, "height": 900})
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
     page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()

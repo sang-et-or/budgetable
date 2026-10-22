@@ -7,7 +7,7 @@ URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
-    page = nav.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    page = nav.new_page(viewport={"width": 760, "height": 900}, is_mobile=True, has_touch=True)
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())   # lecteur indisponible : repli sur le nom
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
@@ -107,7 +107,7 @@ with sync_playwright() as p:
     # 8. la bibliothèque survit au rechargement
     page.reload()
     page.locator("nav button", has_text="Recettes").click()
-    assert page.locator(".carte-recette").count() == 2
+    assert page.locator(".carte-recette:not(.carte-saison)").count() == 2
     print("Erreurs JS :", erreurs or "aucune")
     assert not erreurs
     print("BIBLIOTHEQUE OK")

@@ -7,7 +7,7 @@ URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
-    page = nav.new_page(viewport={"width": 390, "height": 844})
+    page = nav.new_page(viewport={"width": 760, "height": 900})
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()

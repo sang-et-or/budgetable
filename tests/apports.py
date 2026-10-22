@@ -30,6 +30,7 @@ with sync_playwright() as p:
             page.locator("nav button", has_text="Apports").click()
         else:
             assert not page.locator("nav button", has_text="Apports").is_visible()
+            page.locator("[data-a=outil-mobile][data-k=nutrition]").click()
             page.get_by_role("button", name=re.compile("Mon suivi des apports")).first.click()
         main = page.locator("main")
         assert "Mes apports" in main.inner_text()
