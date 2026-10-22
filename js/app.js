@@ -1368,16 +1368,24 @@
     const c = S.jaiCa || { ids: [], placard: false, ouvert: false };
     if (!c.ouvert) return `<section class="carte jai-ca-ferme spread" style="align-items:center"><div class="stack" style="gap:2px"><strong>🧺 J’ai ces aliments, qu’est-ce que je cuisine ?</strong><span class="small muted">Dites ce que vous avez sous la main : Budgétable trouve les recettes qui vont avec.</span></div><button class="btn btn-plein" data-a="jaica-ouvrir">Choisir mes aliments</button></section>`;
     const st = S.profil.stock || {};
-    let idees = [];
+    // seulement les plats faisables avec les aliments donnés (+ les basiques si coché) ; sinon on demande
+    const BASIQUES = ['huile_olive', 'ail', 'curry', 'cumin', 'paprika', 'bouillon', 'sauce_soja', 'moutarde'];
+    const dispo = new Set(c.ids.concat(c.basiques === false ? [] : BASIQUES).concat(c.placard ? Object.keys(st).filter((id) => st[id] > 0) : []));
+    const non = new Set(c.non || []);
+    let idees = [], questions = [];
     if (c.ids.length) {
-      const stock = c.placard ? { ...st } : {};
-      c.ids.forEach((id) => { stock[id] = 1e5; });
-      const tous = E.recettesAvecStock({ ...S.profil, stock }, { slot: 'diner', jour: aujourdhui(), n: 40, notes: S.notes });
-      idees = tous.map((x) => ({ ...x, choisis: x.utilise.filter((id) => c.ids.includes(id)) })).filter((x) => x.choisis.length)
-        .sort((a, b) => b.choisis.length - a.choisis.length || a.manquants.length - b.manquants.length);
-      // de la variété : au plus 2 plats du même genre (2 omelettes, 2 gratins…)
+      const analyse = E.recettesCompatibles(S.profil).filter((r) => (r.repas.includes('diner') || r.repas.includes('dejeuner')) && S.notes[r.id] !== 1).map((r) => {
+        const ids = r.ing.map(([id]) => id).filter((id) => E.ING[id] && !E.ING[id].perso);
+        return { recette: r.id, choisis: ids.filter((id) => c.ids.includes(id)), placard: ids.filter((id) => !c.ids.includes(id) && dispo.has(id) && !BASIQUES.includes(id)), manquants: ids.filter((id) => !dispo.has(id)), temps: r.temps, gout: E.scoreGout(r, S.profil.gouts) };
+      }).filter((x) => x.choisis.length);
       const parGenre = {};
-      idees = idees.filter((x) => { const g = E.REC[x.recette].modele + ':' + E.REC[x.recette].nom.split(' ')[0]; parGenre[g] = (parGenre[g] || 0) + 1; return parGenre[g] <= 2; }).slice(0, 6);
+      idees = analyse.filter((x) => !x.manquants.length).sort((a, b) => b.choisis.length - a.choisis.length || b.gout - a.gout || a.temps - b.temps)
+        .filter((x) => { const g = E.REC[x.recette].modele + ':' + E.REC[x.recette].nom.split(' ')[0]; parGenre[g] = (parGenre[g] || 0) + 1; return parGenre[g] <= 2; }).slice(0, 6);
+      // ce qu'il faudrait en plus pour débloquer d'autres plats : on pose la question
+      const proches = analyse.filter((x) => x.manquants.length >= 1 && x.manquants.length <= 3 && !x.manquants.some((id) => non.has(id)));
+      const freq = {};
+      proches.forEach((x) => x.manquants.forEach((id) => { freq[id] = (freq[id] || 0) + (4 - x.manquants.length) ** 2 * (1 + x.choisis.length); }));
+      questions = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(([id]) => id).filter((id) => !E.ingredientInterdit(E.ING[id], S.profil)).slice(0, idees.length >= 4 ? 3 : 5);
     }
     const nomIng = (id) => E.ING[id].nom.replace(/\s*\(.*\)$/, '');
     return `<section class="carte stack jai-ca" style="gap:12px" aria-label="J’ai ces aliments">
@@ -1387,13 +1395,16 @@
       <label class="champ"><span class="sr">Ajouter un aliment</span><input type="search" id="jaica-cherche" data-a="jaica-cherche" placeholder="Tapez un aliment : courgette, œufs, saumon…" autocomplete="off"></label>
       <div id="jaica-propositions" class="row" style="gap:6px">${RAPIDES_JAICA.filter((id) => E.ING[id] && !c.ids.includes(id) && !E.ingredientInterdit(E.ING[id], S.profil)).slice(0, 12).map((id) => `<button class="chip puce-ajout" data-a="jaica-ajouter" data-id="${id}">+ ${EMOJI[id] || ''} ${esc(nomIng(id))}</button>`).join('')}</div>
       <label class="case small"><input type="checkbox" data-a="jaica-placard" ${c.placard ? 'checked' : ''}><span>Utiliser aussi ce qu’il y a dans mon placard${Object.keys(st).length ? ` (${pluriel(Object.keys(st).length, 'produit')})` : ''}</span></label>
-      ${c.ids.length ? (idees.length ? `<div class="stack" style="gap:8px"><h3>${pluriel(idees.length, 'recette trouvée', 'recettes trouvées')}</h3><div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
+      <label class="case small"><input type="checkbox" data-a="jaica-basiques" ${c.basiques === false ? '' : 'checked'}><span>J’ai les basiques : huile, ail, épices, bouillon, moutarde, sel et poivre</span></label>
+      ${c.ids.length ? `${idees.length ? `<div class="stack" style="gap:8px"><h3>${pluriel(idees.length, 'recette', 'recettes')} avec seulement ce que vous avez</h3><div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
           <button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
           <div class="meta"><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</div>
-          <span class="pourquoi small">Avec vos ${esc(x.choisis.map(nomIng).map((n) => n.toLowerCase()).join(', '))}${x.utilise.length > x.choisis.length ? ` et ${esc(x.utilise.filter((id) => !x.choisis.includes(id)).map(nomIng).map((n) => n.toLowerCase()).join(', '))} du placard` : ''}</span>
-          <span class="small muted">${x.manquants.length ? `Il manque : ${esc(x.manquants.map(nomIng).map((n) => n.toLowerCase()).join(', '))}` : '✓ Rien à acheter'}</span>
+          <span class="pourquoi small">✓ Rien à acheter : ${esc(x.choisis.concat(x.placard).map(nomIng).map((n) => n.toLowerCase()).join(', '))}${x.placard.length ? ' (dont placard)' : ''}</span>
           ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></div>`
-        : '<p class="small">Pas de recette avec ces aliments dans votre profil. Ajoutez-en un ou deux autres (un féculent comme des pâtes ou du riz aide beaucoup), ou cochez le placard.</p>') : ''}
+        : '<p class="small" style="margin:0">Aucune recette ne se fait uniquement avec ces aliments.</p>'}
+      ${questions.length ? `<div class="stack questions-jaica" style="gap:8px"><strong>${idees.length ? 'Pour plus d’idées : avez-vous aussi…' : 'Avez-vous aussi…'}</strong>
+        <ul>${questions.map((id) => `<li><span>${EMOJI[id] || '🥣'} ${esc(nomIng(id))} ?</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-petit btn-plein" data-a="jaica-oui" data-id="${id}">Oui, j’en ai</button><button class="btn btn-petit" data-a="jaica-non" data-id="${id}">Non</button></span></li>`).join('')}</ul></div>` : (idees.length ? '' : '<p class="small">Ajoutez un ou deux aliments (un féculent comme des pâtes, du riz ou des pommes de terre aide beaucoup), ou cochez le placard.</p>')}
+      ${(c.non || []).length ? `<p class="small muted" style="margin:0">Vous n’avez pas : ${esc(c.non.map(nomIng).map((n) => n.toLowerCase()).join(', '))}. <button class="btn-lien small" data-a="jaica-reset-non">Reposer les questions</button></p>` : ''}` : ''}
     </section>`;
   }
   function ongletSoir() {
@@ -2704,6 +2715,9 @@
       case 'jaica-ouvrir': S.jaiCa = { ids: [], placard: false, ...(S.jaiCa || {}), ouvert: true }; break;
       case 'jaica-fermer': S.jaiCa.ouvert = false; break;
       case 'jaica-ajouter': if (!S.jaiCa.ids.includes(el.dataset.id)) S.jaiCa.ids.push(el.dataset.id); break;
+      case 'jaica-oui': if (!S.jaiCa.ids.includes(el.dataset.id)) S.jaiCa.ids.push(el.dataset.id); break;
+      case 'jaica-non': S.jaiCa.non = (S.jaiCa.non || []).concat(el.dataset.id); break;
+      case 'jaica-reset-non': S.jaiCa.non = []; break;
       case 'jaica-retirer': S.jaiCa.ids = S.jaiCa.ids.filter((x) => x !== el.dataset.id); break;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
@@ -3017,6 +3031,7 @@
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
     if (el.dataset.a === 'jaica-placard') { S.jaiCa.placard = el.checked; rendre(); return; }
+    if (el.dataset.a === 'jaica-basiques') { S.jaiCa.basiques = el.checked; rendre(); return; }
     if (el.dataset.a === 'presences-garder') {
       S.presencesGarder = el.checked;
       S.profil.presences = el.checked && S.plan && S.plan.presences ? { ...S.plan.presences } : (el.checked ? S.profil.presences : null);
