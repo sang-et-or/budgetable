@@ -1362,16 +1362,52 @@
 
   const CLOCHE = `<svg class="cloche" viewBox="0 0 120 90" aria-hidden="true"><ellipse cx="60" cy="78" rx="54" ry="8" fill="#fbfaf3" opacity=".9"/><path d="M14 74a46 46 0 0 1 92 0z" fill="#d9dcd6" stroke="#fbfaf3" stroke-width="3"/><path d="M30 52a32 32 0 0 1 22-20" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".7"/><circle cx="60" cy="24" r="6" fill="#d9dcd6" stroke="#fbfaf3" stroke-width="3"/></svg>`;
 
+  /* ---------- « J'ai ces aliments » : des recettes avec ce qu'on a sous la main ---------- */
+  const RAPIDES_JAICA = ['oeufs', 'pates', 'riz', 'pomme_de_terre', 'tomates_concassees', 'courgette', 'carotte', 'oignon', 'emmental', 'creme', 'jambon', 'lardons', 'poulet_filet', 'thon', 'boeuf_hache', 'lentilles_corail', 'pois_chiches', 'epinards', 'champignon', 'poivron', 'saumon', 'lait'];
+  function blocJaiCa() {
+    const c = S.jaiCa || { ids: [], placard: false, ouvert: false };
+    if (!c.ouvert) return `<section class="carte jai-ca-ferme spread" style="align-items:center"><div class="stack" style="gap:2px"><strong>🧺 J’ai ces aliments, qu’est-ce que je cuisine ?</strong><span class="small muted">Dites ce que vous avez sous la main : Budgétable trouve les recettes qui vont avec.</span></div><button class="btn btn-plein" data-a="jaica-ouvrir">Choisir mes aliments</button></section>`;
+    const st = S.profil.stock || {};
+    let idees = [];
+    if (c.ids.length) {
+      const stock = c.placard ? { ...st } : {};
+      c.ids.forEach((id) => { stock[id] = 1e5; });
+      const tous = E.recettesAvecStock({ ...S.profil, stock }, { slot: 'diner', jour: aujourdhui(), n: 40, notes: S.notes });
+      idees = tous.map((x) => ({ ...x, choisis: x.utilise.filter((id) => c.ids.includes(id)) })).filter((x) => x.choisis.length)
+        .sort((a, b) => b.choisis.length - a.choisis.length || a.manquants.length - b.manquants.length);
+      // de la variété : au plus 2 plats du même genre (2 omelettes, 2 gratins…)
+      const parGenre = {};
+      idees = idees.filter((x) => { const g = E.REC[x.recette].modele + ':' + E.REC[x.recette].nom.split(' ')[0]; parGenre[g] = (parGenre[g] || 0) + 1; return parGenre[g] <= 2; }).slice(0, 6);
+    }
+    const nomIng = (id) => E.ING[id].nom.replace(/\s*\(.*\)$/, '');
+    return `<section class="carte stack jai-ca" style="gap:12px" aria-label="J’ai ces aliments">
+      <div class="spread"><h2>🧺 J’ai ces aliments</h2><button class="btn-lien small" data-a="jaica-fermer">Fermer</button></div>
+      <div class="stack" style="gap:6px"><span class="small"><strong>Mes aliments</strong>${c.ids.length ? '' : ' <span class="muted">· touchez-en au moins un</span>'}</span>
+        <div class="row" style="gap:6px">${c.ids.map((id) => `<button class="chip choisi" data-a="jaica-retirer" data-id="${id}" aria-label="Retirer ${esc(nomIng(id))}">${EMOJI[id] || '🥣'} ${esc(nomIng(id))} ✕</button>`).join('') || '<span class="small muted">Aucun pour l’instant.</span>'}</div></div>
+      <label class="champ"><span class="sr">Ajouter un aliment</span><input type="search" id="jaica-cherche" data-a="jaica-cherche" placeholder="Tapez un aliment : courgette, œufs, saumon…" autocomplete="off"></label>
+      <div id="jaica-propositions" class="row" style="gap:6px">${RAPIDES_JAICA.filter((id) => E.ING[id] && !c.ids.includes(id) && !E.ingredientInterdit(E.ING[id], S.profil)).slice(0, 12).map((id) => `<button class="chip puce-ajout" data-a="jaica-ajouter" data-id="${id}">+ ${EMOJI[id] || ''} ${esc(nomIng(id))}</button>`).join('')}</div>
+      <label class="case small"><input type="checkbox" data-a="jaica-placard" ${c.placard ? 'checked' : ''}><span>Utiliser aussi ce qu’il y a dans mon placard${Object.keys(st).length ? ` (${pluriel(Object.keys(st).length, 'produit')})` : ''}</span></label>
+      ${c.ids.length ? (idees.length ? `<div class="stack" style="gap:8px"><h3>${pluriel(idees.length, 'recette trouvée', 'recettes trouvées')}</h3><div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
+          <button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
+          <div class="meta"><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</div>
+          <span class="pourquoi small">Avec vos ${esc(x.choisis.map(nomIng).map((n) => n.toLowerCase()).join(', '))}${x.utilise.length > x.choisis.length ? ` et ${esc(x.utilise.filter((id) => !x.choisis.includes(id)).map(nomIng).map((n) => n.toLowerCase()).join(', '))} du placard` : ''}</span>
+          <span class="small muted">${x.manquants.length ? `Il manque : ${esc(x.manquants.map(nomIng).map((n) => n.toLowerCase()).join(', '))}` : '✓ Rien à acheter'}</span>
+          ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></div>`
+        : '<p class="small">Pas de recette avec ces aliments dans votre profil. Ajoutez-en un ou deux autres (un féculent comme des pâtes ou du riz aide beaucoup), ou cochez le placard.</p>') : ''}
+    </section>`;
+  }
   function ongletSoir() {
     const r = E.ceSoir(S.plan, S.profil, aujourdhui(), optsMoteur());
     if (!S.ceSoirOuvert) {
-      return `<section class="ce-soir ardoise">${CLOCHE}<h1>Qu’est-ce qu’on mange ce soir ?</h1><button class="btn" data-a="ce-soir">Soulever la cloche</button></section>`;
+      return `<section class="ce-soir ardoise">${CLOCHE}<h1>Qu’est-ce qu’on mange ce soir ?</h1><button class="btn" data-a="ce-soir">Soulever la cloche</button></section>
+      ${blocJaiCa()}`;
     }
     const prevu = r.prevu ? E.REC[r.prevu.recette] : null;
     return `<section class="ce-soir ardoise"><p class="craie-petit">Ce soir, ${E.JOURS[aujourdhui()].toLowerCase()}</p>
         ${prevu ? `<div style="border-radius:50%;background:#fbfaf3;padding:8px">${V(prevu, 170)}</div><p class="reponse">${esc(prevu.nom)}</p><p>${prevu.temps} min · ${nb(r.prevu.portions)} portions · déjà dans votre liste</p>
           <button class="btn" data-a="fiche" data-j="${aujourdhui()}" data-s="diner">Voir la recette</button>` : '<p class="reponse">Rien de prévu ce soir</p>'}
       </section>
+      ${blocJaiCa()}
       ${blocAvecPlacard(r.avecPlacard, 'Avec ce que vous avez à la maison')}
       <section class="stack"><h2>Pas envie ? Trois idées en 20 minutes</h2>
         <div class="jours">${r.idees.map((i) => { const rec = E.REC[i.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps"><button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
@@ -2665,6 +2701,10 @@
       case 'journal-ajouter': S.jourCarnet = el.dataset.d; S.onglet = 'apports'; window.scrollTo(0, 0); break;
       case 'journal-suppr-repas': S.journal = (S.journal || []).filter((x) => !(x.d === el.dataset.d && x.s === el.dataset.s)); toast('Retiré du journal'); break;
       case 'imprimer-journal': window.print(); return;
+      case 'jaica-ouvrir': S.jaiCa = { ids: [], placard: false, ...(S.jaiCa || {}), ouvert: true }; break;
+      case 'jaica-fermer': S.jaiCa.ouvert = false; break;
+      case 'jaica-ajouter': if (!S.jaiCa.ids.includes(el.dataset.id)) S.jaiCa.ids.push(el.dataset.id); break;
+      case 'jaica-retirer': S.jaiCa.ids = S.jaiCa.ids.filter((x) => x !== el.dataset.id); break;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
       case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
@@ -2867,6 +2907,13 @@
       if (g > 0 && g < 5000) { S.scanCarnet.grammes = g; const z = document.getElementById('scan-resume'); if (z) z.innerHTML = resumeScan(); document.querySelectorAll('[data-a=scan-qte]').forEach((b) => b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.g - g) < 0.01))); }
       return;
     }
+    if (el.dataset.a === 'jaica-cherche') {
+      const t = el.value.trim();
+      const z = document.getElementById('jaica-propositions');
+      const ids = t.length < 2 ? [] : window.Saisie.chercherIngredients(t, 10).filter((id) => E.ING[id] && !E.ING[id].perso && !S.jaiCa.ids.includes(id));
+      if (z && t.length >= 2) z.innerHTML = ids.map((id) => `<button class="chip puce-ajout" data-a="jaica-ajouter" data-id="${id}">+ ${EMOJI[id] || ''} ${esc(E.ING[id].nom)}${E.ingredientInterdit(E.ING[id], S.profil) ? ' <span class="small alerte-ing">(profil)</span>' : ''}</button>`).join('') || '<span class="small muted">Aliment inconnu de Budgétable.</span>';
+      return;
+    }
     if (el.dataset.a === 'journal-cherche') {
       S.rechercheJournal = el.value;
       // on redessine seulement la liste des jours pour garder le curseur dans le champ
@@ -2969,6 +3016,7 @@
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
+    if (el.dataset.a === 'jaica-placard') { S.jaiCa.placard = el.checked; rendre(); return; }
     if (el.dataset.a === 'presences-garder') {
       S.presencesGarder = el.checked;
       S.profil.presences = el.checked && S.plan && S.plan.presences ? { ...S.plan.presences } : (el.checked ? S.profil.presences : null);
