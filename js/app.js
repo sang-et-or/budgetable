@@ -576,7 +576,7 @@
     const restants = 'Changez vos plats autant que vous voulez';
     return `${bandeauSensible()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
-      <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button></div>
+      <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocPresences()}
       ${blocCoach()}
@@ -589,6 +589,61 @@
         ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`).join('')}</div>
       ${carteRituels()}
       <p class="small muted">${restants}.</p>`;
+  }
+
+  /* ---------- affiche du frigo : la semaine en une page A4 paysage à imprimer ---------- */
+  const STYLES_AFFICHE = [['papier', 'Papier crème'], ['ardoise', 'Ardoise'], ['eco', 'Économie d’encre']];
+  function optsAffiche() { return { style: 'papier', images: true, douceurs: true, notes: true, titre: '', ...(S.afficheOpts || {}) }; }
+  function celluleAffiche(m, o) {
+    if (!m) return '<div class="aff-case aff-vide"><span>Repas libre</span></div>';
+    const r = E.REC[m.recette];
+    if (!r) return '<div class="aff-case aff-vide"><span>—</span></div>';
+    if (m.aChoisir) { const pr = prenomDuTour(); return `<div class="aff-case aff-enfants"><span class="aff-surprise" aria-hidden="true">?</span><strong>${pr ? 'Le choix de ' + esc(pr) : 'Le choix des enfants'}</strong><span class="aff-meta">surprise !</span></div>`; }
+    const img = o.images && o.style !== 'eco' ? `<div class="aff-img">${V(r, 64).replace(/ loading="lazy"/g, '')}</div>` : '';
+    return `<div class="aff-case">${img}<strong>${esc(r.nom)}</strong><span class="aff-meta">${r.temps} min${m.choisiPar ? ' · choisi par ' + esc(m.choisiPar) : ''}</span><span class="aff-coche" aria-hidden="true"></span></div>`;
+  }
+  function affiche() {
+    const o = optsAffiche(), p = S.plan;
+    const d0 = new Date(dateDuJour(0) + 'T12:00:00'), d6 = new Date(dateDuJour(6) + 'T12:00:00');
+    const memeMois = d0.getMonth() === d6.getMonth();
+    const periode = `du lundi ${d0.getDate()}${memeMois ? '' : ' ' + d0.toLocaleDateString('fr-FR', { month: 'long' })} au dimanche ${d6.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    const lignes = [['dejeuner', 'Midi', '☀️'], ['diner', 'Soir', '🌙']].filter(([sl]) => p.jours.some((jp) => jp[sl]));
+    const douceurs = o.douceurs && p.jours.some((jp) => (jp.gourmand || []).some((g) => E.REC[g.recette]));
+    const cases = (j) => (p.jours[j].gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<span class="aff-douceur">${E.REC[g.recette].emoji} ${esc(E.REC[g.recette].nom)}</span>`).join('') || '<span class="aff-meta">—</span>';
+    const cols = `grid-template-columns: 74px repeat(7, minmax(0, 1fr))`;
+    return `<div class="affiche aff-${o.style}" lang="fr">
+      <header class="aff-tete"><div><h1 class="aff-titre">${esc(o.titre || 'Au menu cette semaine')}</h1><p class="aff-periode">${periode}</p></div>
+        <div class="aff-marque"><span class="aff-cloche" aria-hidden="true">🍽️</span><span>Budgétable</span></div></header>
+      <div class="aff-grille" style="${cols}">
+        <span></span>${p.jours.map((jp, j) => `<div class="aff-jour"><strong>${esc(jp.jour)}</strong><span>${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></div>`).join('')}
+        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${p.jours.map((jp) => celluleAffiche(jp[sl], o)).join('')}`).join('')}
+        ${douceurs ? `<div class="aff-moment"><span aria-hidden="true">🍪</span>Douceur</div>${p.jours.map((jp, j) => `<div class="aff-case aff-case-douceur">${cases(j)}</div>`).join('')}` : ''}
+      </div>
+      ${o.notes ? `<footer class="aff-pied"><div class="aff-notes"><strong>À ne pas oublier</strong><i></i><i></i></div><div class="aff-notes"><strong>À racheter</strong><i></i><i></i></div><p class="aff-astuce">Cochez la case quand le plat est mangé ✓</p></footer>` : ''}
+    </div>`;
+  }
+  function vueAffiche() {
+    if (!S.afficheOuverte || !S.plan) return '';
+    const o = optsAffiche();
+    const imprimerDispo = !DANS_UN_CADRE && typeof window.print === 'function';
+    const coche = (k, lib) => `<label class="case small"><input type="checkbox" data-a="affiche-opt" data-k="${k}" ${o[k] ? 'checked' : ''}><span>${lib}</span></label>`;
+    return `<div class="affiche-voile" role="dialog" aria-modal="true" aria-label="Menu à afficher sur le frigo">
+      <div class="affiche-outils ecran-seul">
+        <div class="spread" style="align-items:center"><h2>Le menu du frigo</h2><div class="row" style="gap:6px">${imprimerDispo ? '<button class="btn btn-plein" data-a="affiche-imprimer">🖨 Imprimer ou PDF</button>' : ''}<button class="btn" data-a="affiche-fermer">Fermer</button></div></div>
+        <div class="row" style="gap:6px" role="radiogroup" aria-label="Style">${STYLES_AFFICHE.map(([k, v]) => `<button class="chip" role="radio" data-a="affiche-style" data-k="${k}" aria-checked="${o.style === k}" aria-pressed="${o.style === k}">${v}</button>`).join('')}</div>
+        <div class="row" style="gap:12px">${o.style !== 'eco' ? coche('images', 'Photos des plats') : ''}${coche('douceurs', 'Desserts et goûters')}${coche('notes', 'Cadre « à ne pas oublier »')}</div>
+        <label class="champ"><span>Titre de l’affiche</span><input type="text" id="affiche-titre" maxlength="48" value="${esc(o.titre)}" placeholder="Au menu cette semaine"></label>
+        ${imprimerDispo ? '<p class="small muted" style="margin:0">Une page A4 à l’horizontale. Dans la fenêtre d’impression, gardez « Graphiques d’arrière-plan » coché pour les couleurs.</p>' : '<p class="small muted" style="margin:0">Pour imprimer, ouvrez Budgétable dans votre navigateur ou installé sur votre appareil.</p>'}
+      </div>
+      <div class="affiche-cadre"><div class="affiche-echelle">${affiche()}</div></div>
+    </div>`;
+  }
+  function ajusterAffiche() {
+    const c = document.querySelector('.affiche-cadre'), a = document.querySelector('.affiche');
+    if (!c || !a) return;
+    const k = Math.min(1, c.clientWidth / 1123);
+    a.style.transform = `scale(${k})`;
+    c.querySelector('.affiche-echelle').style.height = Math.ceil(794 * k) + 'px';
   }
 
   /* ---------- rituels de la semaine, classiques, prénoms des enfants ---------- */
@@ -2357,8 +2412,15 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche();
     if (document.getElementById('scene-cuisine')) monter3D();
+    const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
+    document.documentElement.classList.toggle('mode-affiche', modeAffiche);
+    // format de page réservé à l'affiche (la liste de courses et le journal gardent le format portrait)
+    let pageAff = document.getElementById('page-affiche');
+    if (modeAffiche && !pageAff) { pageAff = document.createElement('style'); pageAff.id = 'page-affiche'; pageAff.textContent = '@page { size: A4 landscape; margin: 0; }'; document.head.appendChild(pageAff); }
+    if (!modeAffiche && pageAff) pageAff.remove();
+    ajusterAffiche();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
     const apresEd = document.querySelector('.fenetre-edition');
@@ -2443,7 +2505,7 @@
       case 'placard': p.placardBase = el.checked; break;
       case 'modifier': allerQuestion(el.dataset.q); break;
       case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; break;
-      case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; window.scrollTo(0, 0); break;
+      case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; window.scrollTo(0, 0); break;
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         nouvellePlanification(); toast('Nouvelle semaine créée'); break;
@@ -2615,6 +2677,10 @@
         break;
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
+      case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'affiche-fermer': S.afficheOuverte = false; break;
+      case 'affiche-style': S.afficheOpts = { ...optsAffiche(), style: el.dataset.k }; break;
+      case 'affiche-imprimer': window.print(); return;
       case 'imprimer': window.print(); return;
       case 'copier-liste': copier(listeTexte(E.listeCourses(S.plan, p)), null); return;
       case 'export-extension': envoyerExtension(exportExtension(E.listeCourses(S.plan, p))); return;
@@ -2912,7 +2978,9 @@
     rendre();
   });
 
+  window.addEventListener('resize', () => ajusterAffiche());
   document.addEventListener('input', (ev) => {
+    if (ev.target.id === 'affiche-titre') { S.afficheOpts = { ...optsAffiche(), titre: ev.target.value.slice(0, 48) }; const t = document.querySelector('.aff-titre'); if (t) t.textContent = S.afficheOpts.titre || 'Au menu cette semaine'; sauver(); return; }
     const el = ev.target;
     if (el.dataset.a === 'kcal-champ') {
       S.calcKcal = S.calcKcal || {};
@@ -3035,6 +3103,7 @@
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
     if (el.dataset.a === 'jaica-placard') { S.jaiCa.placard = el.checked; rendre(); return; }
+    if (el.dataset.a === 'affiche-opt') { S.afficheOpts = { ...optsAffiche(), [el.dataset.k]: el.checked }; rendre(); return; }
     if (el.dataset.a === 'jaica-basiques') { S.jaiCa.basiques = el.checked; rendre(); return; }
     if (el.dataset.a === 'presences-garder') {
       S.presencesGarder = el.checked;
@@ -3059,6 +3128,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.afficheOuverte) { S.afficheOuverte = false; rendre(); return; }
     if (ev.key === 'Escape' && edition) { edition = null; rendre(); return; }
     if (ev.key === 'Escape' && auMenu) { auMenu = null; rendre(); return; }
     if (ev.key === 'Escape' && fiche) { fiche = null; rendre(); } else if (ev.key === 'Escape' && choix) { choix = null; rendre(); } else if (ev.key === 'Escape' && S.modeCourses && S.modeCourses.ouvert) { S.modeCourses.ouvert = false; rendre(); }
