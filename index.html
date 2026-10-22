@@ -365,6 +365,13 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .fenetre-edition .champ input, .fenetre-edition .champ select { width: 100%; }
 .ing-cocher { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 14px; }
 .ing-cocher .case { align-items: flex-start; padding: 4px 0; }
+.lien-chercher { text-decoration: none; color: var(--poireau); font-weight: 600; min-height: 40px; display: inline-flex; align-items: center; }
+.propositions { background: var(--moutarde-pale); border-radius: 14px; padding: 12px 14px; }
+.puces-ajout { gap: 8px; }
+.puce-ajout { min-height: 40px; background: var(--surface); border-color: var(--moutarde); font-weight: 600; }
+.puce-ajout:hover, .puce-ajout:focus-visible { border-color: var(--poireau); color: var(--poireau); }
+.puce-alerte { border-color: var(--tomate); color: var(--tomate); }
+.dans-recette { border: 1px solid var(--trait); border-radius: 14px; padding: 12px 14px; }
 .alerte-ing { color: var(--tomate); font-weight: 700; }
 .vide-recettes { border-style: dashed; }
 .grille-au-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }

@@ -593,6 +593,14 @@
     const garde = edition.ing.filter((x) => x.manuel);
     edition.ing = g.coches.map(([id, q]) => ({ id, q, coche: true })).concat(g.suggestions.map(([id, q]) => ({ id, q, coche: false })));
     for (const x of garde) if (!edition.ing.some((y) => y.id === x.id)) edition.ing.push(x);
+    // idées à ajouter d'un clic : ingrédients courants, jamais un ingrédient interdit par le profil
+    const idees = g.dessert ? ['oeufs', 'lait', 'beurre', 'farine', 'creme', 'yaourt', 'citron']
+      : ['oignon', 'ail', 'huile_olive', 'beurre', 'creme', 'emmental', 'persil', 'citron', 'tomates_concassees', 'champignon', 'carotte', 'courgette', 'riz', 'pates', 'pomme_de_terre', 'oeufs', 'lait', 'bouillon'];
+    for (const id of idees) {
+      if (edition.ing.filter((x) => !x.coche).length >= 12) break;
+      if (!edition.ing.some((y) => y.id === id) && !E.ingredientInterdit(E.ING[id], S.profil)) edition.ing.push({ id, q: window.Saisie.QTE[id] || 100, coche: false });
+    }
+    if (g.dessert) for (const n of ['sucre', 'chocolat']) if (!edition.extras.some((y) => y.nom === n)) edition.extras.push({ nom: n, tags: window.Saisie.tagsExtra(n) || [], coche: false });
     edition.extras = g.extras.concat(edition.extras.filter((x) => x.manuel && !g.extras.some((y) => y.nom === x.nom)));
     edition.retires = g.retires; edition.source = g.source; edition.etape = 'ingredients';
   }
@@ -602,25 +610,52 @@
     if (i.unite === 'pièce') return q >= 1 ? `${nb(q)} par personne` : 'un peu';
     return `${nb(q)} ${i.unite} par personne`;
   }
+  // liens de recherche du plat sur internet (ouverts dans un nouvel onglet ; rien n'est envoyé tant qu'on ne clique pas)
+  function liensRecherche(nom) {
+    const t = String(nom || '').trim();
+    if (t.length < 2) return '<p class="small muted">Écrivez le nom du plat : vous pourrez chercher sa recette sur internet, puis coller son lien ci-dessous.</p>';
+    const q = encodeURIComponent(t);
+    const qr = encodeURIComponent(/recette/i.test(t) ? t : 'recette ' + t);
+    const liens = [
+      ['Sur internet', `https://www.google.com/search?q=${qr}`],
+      ['Marmiton', `https://www.marmiton.org/recettes/recherche.aspx?aqt=${q}`],
+      ['En vidéo', `https://www.youtube.com/results?search_query=${qr}`]
+    ];
+    return `<div class="stack" style="gap:6px"><span class="small"><strong>Chercher « ${esc(t)} »</strong> <span class="muted">· s’ouvre dans un nouvel onglet ; copiez ensuite le lien de la recette qui vous plaît</span></span>
+      <div class="row" style="gap:6px">${liens.map(([lib, url]) => `<a class="chip lien-chercher" href="${url}" target="_blank" rel="noopener noreferrer">${lib} ↗</a>`).join('')}</div></div>`;
+  }
   function vueEdition() {
     if (!edition) return '';
     const e = edition;
     const lienOk = !e.lien || /^https?:\/\/[^\s]+\.[^\s]+$/i.test(e.lien.trim());
     const nCoches = e.ing.filter((x) => x.coche).length + e.extras.filter((x) => x.coche).length;
     const ou = e.placer ? `${e.placer.slot === 'diner' ? 'dîner' : 'déjeuner'} du ${E.JOURS[e.placer.jour].toLowerCase()}` : '';
-    const ingredients = e.etape !== 'ingredients' ? '' : `<div class="stack" style="gap:8px">
-        <div class="spread"><h3>Ingrédients</h3><span class="small muted">${nCoches} coché${nCoches > 1 ? 's' : ''}</span></div>
-        <p class="small muted">${e.source ? `Proposés d’après le ${esc(e.source)}. ` : ''}Cochez ce qu’il y a dans votre recette, décochez le reste. Les quantités sont pour une personne : la liste de courses les adapte à votre foyer.</p>
-        <ul class="ing-cocher">${e.ing.map((x, i) => `<li><label class="case"><input type="checkbox" data-a="ed-ing" data-i="${i}" ${x.coche ? 'checked' : ''}><span>${esc(E.ING[x.id].nom)} <span class="small muted">· ${qteTexte(x.id, x.q)}</span></span></label></li>`).join('')}
-          ${e.extras.map((x, i) => `<li><label class="case"><input type="checkbox" data-a="ed-extra" data-i="${i}" ${x.coche ? 'checked' : ''}><span>${esc(x.nom.charAt(0).toUpperCase() + x.nom.slice(1))} <span class="small muted">· hors catalogue, prix à voir en magasin</span>${x.alerte ? ` <strong class="alerte-ing">Attention : ${esc(libAllergie(x.alerte))}</strong>` : ''}</span></label></li>`).join('')}</ul>
+    const aProposer = e.ing.map((x, i) => [x, i]).filter(([x]) => !x.coche);
+    const extrasProposes = e.extras.map((x, i) => [x, i]).filter(([x]) => !x.coche);
+    const dansRecette = e.ing.map((x, i) => [x, i]).filter(([x]) => x.coche);
+    const extrasDans = e.extras.map((x, i) => [x, i]).filter(([x]) => x.coche);
+    const ingredients = e.etape !== 'ingredients' ? '' : `<div class="stack" style="gap:12px">
+        <h3>Ingrédients</h3>
+        <div class="propositions stack" style="gap:8px">
+          <span class="small"><strong>Touchez pour ajouter</strong>${e.source ? ` <span class="muted">· idées d’après le ${esc(e.source)}</span>` : ''}</span>
+          ${aProposer.length || extrasProposes.length ? `<div class="row puces-ajout">${aProposer.map(([x, i]) => `<button class="chip puce-ajout" data-a="ed-ajouter" data-type="ing" data-i="${i}">+ ${esc(E.ING[x.id].nom)}</button>`).join('')}${extrasProposes.map(([x, i]) => `<button class="chip puce-ajout ${x.alerte ? 'puce-alerte' : ''}" data-a="ed-ajouter" data-type="extra" data-i="${i}">+ ${esc(x.nom)}${x.alerte ? ` (${esc(libAllergie(x.alerte))})` : ''}</button>`).join('')}</div>` : '<span class="small muted">Toutes les idées sont dans votre recette.</span>'}
+          <label class="champ"><span>Un autre ingrédient ?</span><input type="search" id="ajout-ing" data-a="ajout-ing" placeholder="Ex. courgette, crème, crevettes…" autocomplete="off"></label>
+          <div id="propositions-ing" class="row" style="gap:6px"></div>
+        </div>
+        <div class="dans-recette stack" style="gap:6px">
+          <div class="spread"><strong>Dans votre recette (${nCoches})</strong><span class="small muted">décochez pour retirer</span></div>
+          ${nCoches ? `<ul class="ing-cocher">${dansRecette.map(([x, i]) => `<li><label class="case"><input type="checkbox" data-a="ed-ing" data-i="${i}" checked><span>${esc(E.ING[x.id].nom)} <span class="small muted">· ${qteTexte(x.id, x.q)}</span></span></label></li>`).join('')}
+            ${extrasDans.map(([x, i]) => `<li><label class="case"><input type="checkbox" data-a="ed-extra" data-i="${i}" checked><span>${esc(x.nom.charAt(0).toUpperCase() + x.nom.slice(1))} <span class="small muted">· hors catalogue, prix à voir en magasin</span>${x.alerte ? ` <strong class="alerte-ing">Attention : ${esc(libAllergie(x.alerte))}</strong>` : ''}</span></label></li>`).join('')}</ul>`
+            : '<p class="small muted">Aucun ingrédient pour l’instant : touchez les idées ci-dessus.</p>'}
+          <p class="small muted">Quantités pour une personne : la liste de courses les adapte à votre foyer.</p>
+        </div>
         ${e.retires.length ? `<p class="small">Non proposés : ${esc(e.retires.map(libAllergie).join(', '))}.</p>` : ''}
-        <label class="champ"><span>Ajouter un ingrédient</span><input type="search" id="ajout-ing" data-a="ajout-ing" placeholder="Ex. courgette, crème, crevettes…" autocomplete="off"></label>
-        <div id="propositions-ing" class="row" style="gap:6px"></div>
       </div>`;
     return `<div class="voile" data-a="edition-fond"><div class="fiche fenetre-edition" role="dialog" aria-modal="true" aria-labelledby="edition-titre">
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${e.id ? 'Modifier une recette' : 'Mes recettes'}${ou ? ' · pour le ' + ou : ''}</span><h2 id="edition-titre">${e.id ? esc(e.nom) : 'Ajouter une recette'}</h2></div>
         <button class="btn btn-petit" data-a="edition-fermer">Fermer</button></div>
       <label class="champ"><span>Nom du plat</span><input type="text" id="ed-nom" data-a="ed-champ" data-k="nom" maxlength="90" value="${esc(e.nom)}" placeholder="Ex. Lasagnes de mamie, Wok de crevettes…" autocomplete="off"></label>
+      <div id="liens-recherche">${liensRecherche(e.nom)}</div>
       <label class="champ"><span>Lien de la recette (facultatif)</span><input type="url" id="ed-lien" data-a="ed-champ" data-k="lien" inputmode="url" value="${esc(e.lien)}" placeholder="https://www.marmiton.org/recettes/…" autocomplete="off"></label>
       ${lienOk ? '' : '<p class="small alerte-ing">Le lien doit commencer par https:// (copiez-le depuis la barre d’adresse).</p>'}
       <div class="row" style="gap:12px;align-items:flex-end">
@@ -1003,12 +1038,16 @@
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
     const html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue]();
+    const avantEd = document.querySelector('.fenetre-edition');
+    const hautEd = avantEd ? avantEd.scrollTop : 0;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
+    const apresEd = document.querySelector('.fenetre-edition');
+    if (apresEd && avantEd) apresEd.scrollTop = hautEd;
     const fil = document.querySelector('.fiche .chat');
     if (fil) fil.scrollTop = fil.scrollHeight;
     sauver();
@@ -1141,6 +1180,12 @@
       case 'au-menu': auMenu = { id: el.dataset.r }; break;
       case 'au-menu-fermer': case 'au-menu-fond': auMenu = null; break;
       case 'au-menu-placer': S.plan = E.placerRecette(S.plan, +el.dataset.j, el.dataset.s, auMenu.id); toast(`Au menu : ${E.JOURS[+el.dataset.j]} ${el.dataset.s === 'diner' ? 'soir' : 'midi'}`); auMenu = null; break;
+      case 'ed-ajouter': {
+        const liste = el.dataset.type === 'extra' ? edition.extras : edition.ing;
+        const x = liste[+el.dataset.i];
+        if (x) { x.coche = true; if (x.alerte) toast('Attention : ' + libAllergie(x.alerte)); }
+        break;
+      }
       case 'ajout-ing-choisir': {
         const id = el.dataset.id;
         const x = edition.ing.find((y) => y.id === id);
@@ -1272,6 +1317,7 @@
     }
     if (el.dataset.a === 'ed-champ' && edition) {
       edition[el.dataset.k] = el.value;
+      if (el.dataset.k === 'nom') { const z = document.getElementById('liens-recherche'); if (z) z.innerHTML = liensRecherche(el.value); }
       return;
     }
     if (el.dataset.a === 'ajout-ing' && edition) {
@@ -1310,8 +1356,8 @@
   document.addEventListener('change', (ev) => {
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
-    if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; return; }
-    if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; return; }
+    if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
+    if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-proposer' && edition) { edition.proposer = el.checked; return; }
     if (el.dataset.a === 'ed-champ' && edition && el.tagName === 'SELECT') { edition[el.dataset.k] = el.value; return; }
     if (el.dataset.a === 'rituel') {

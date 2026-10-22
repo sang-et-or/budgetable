@@ -22,7 +22,12 @@ with sync_playwright() as p:
     page.locator("nav button", has_text="Recettes").click()
     assert "Votre bibliothèque est vide" in page.inner_text("main")
     clic("Ajouter ma première recette")
+    assert "Écrivez le nom du plat" in page.inner_text("#liens-recherche")
     page.fill("#ed-nom", "Lasagnes de mamie")
+    liens = page.locator("#liens-recherche a")
+    assert liens.count() == 3 and liens.first.get_attribute("href") == "https://www.google.com/search?q=recette%20Lasagnes%20de%20mamie"
+    assert all(liens.nth(i).get_attribute("target") == "_blank" for i in range(3))
+    assert "marmiton.org/recettes/recherche.aspx?aqt=Lasagnes" in liens.nth(1).get_attribute("href")
     page.fill("#ed-lien", "https://www.marmiton.org/recettes/recette_lasagnes-a-la-bolognaise_18215.aspx")
     clic("Trouver les ingrédients")
     ed = page.locator(".fenetre-edition")
@@ -30,11 +35,21 @@ with sync_playwright() as p:
     for ing in ["Pâtes", "Bœuf haché", "Tomates concassées", "Emmental râpé"]:
         assert ing in txt, ing
     assert ed.locator("input[data-a=ed-ing]:checked").count() >= 7
-    ed.locator("label", has_text="Carottes").locator("input").uncheck()       # pas de carottes chez mamie
+    # idées à toucher, AU-DESSUS de la liste des ingrédients de la recette
+    y_idees = ed.locator(".propositions").bounding_box()["y"]; y_liste = ed.locator(".dans-recette").bounding_box()["y"]
+    assert y_idees < y_liste, "les idées doivent être au-dessus"
+    assert ed.locator(".puce-ajout").count() >= 5
+    avant = ed.locator(".dans-recette input:checked").count()
+    ed.get_by_role("button", name="+ Ail", exact=True).click()                # un clic suffit
+    assert ed.locator(".dans-recette input:checked").count() == avant + 1
+    assert "Ail" in ed.locator(".dans-recette").inner_text()
+    ed.locator(".dans-recette label", has_text="Carottes").locator("input").click()       # pas de carottes chez mamie
+    assert ed.get_by_role("button", name="+ Carottes").count() == 1, "un ingrédient retiré doit remonter dans les idées"
+    ed.locator(".dans-recette label", has_text="Ail").locator("input").click()
     page.fill("#ajout-ing", "basilic")
-    page.get_by_role("button", name="+ « basilic » tel quel").click()
+    page.locator("#propositions-ing").get_by_role("button", name="+ « basilic » tel quel").click()
     page.fill("#ajout-ing", "champ")
-    page.get_by_role("button", name="+ Champignons de Paris").click()
+    page.locator("#propositions-ing").get_by_role("button", name="+ Champignons de Paris").click()
     page.screenshot(path=f"{OUT}/b1-saisie.png", full_page=False)
     clic("Enregistrer dans Mes recettes")
     main = page.inner_text("main")
