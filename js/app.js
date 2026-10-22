@@ -1811,10 +1811,28 @@
     return Object.entries(par).map(([r, as]) => `${r.toUpperCase()}\n` + as.map((a) => `- ${a.nom} : ${quantite(a.quantite, a.unite)} (${a.conditionnements} × ${a.condLabel})`).join('\n')).join('\n\n');
   }
 
+  // une ligne de la liste : ce qu'on met dans le panier en gros, le besoin réel en petit
+  function ligneArticle(a) {
+    const piece = a.unite === 'pièce';
+    const besoin = piece ? `il en faut ${nb(Math.max(1, Math.ceil(a.quantite - 0.05)))}` : `il vous faut ${quantite(a.quantite, a.unite)}`;
+    const pastille = a.couvertParPlacard ? '<span class="pastille-qte ok">✓ Déjà au placard</span>'
+      : a.enStock ? '<span class="pastille-qte ok">En réserve</span>'
+      : a.sansPrix ? '<span class="pastille-qte">Selon la recette</span>'
+      : `<span class="pastille-qte"><strong class="num">${a.conditionnements}</strong> × ${esc(a.condLabel)}</span>`;
+    const promo = !a.enStock && promosPour(a.id).length ? promosPour(a.id)[0] : null;
+    return `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock || a.couvertParPlacard ? 'stock' : ''}">
+      <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
+      <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
+      <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
+      <div class="qte-achat">${pastille}${a.sansPrix || a.enStock ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
+      <div class="actions-article ecran-seul"><button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
+    </div>`;
+  }
   function ongletCourses() {
     const liste = E.listeCourses(S.plan, S.profil);
     const par = {};
-    liste.articles.forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push(a); });
+    liste.articles.filter((a) => !a.enStock).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push(a); });
+    const reserve = liste.articles.filter((a) => a.enStock);
     const imprimerDispo = !DANS_UN_CADRE && typeof window.print === 'function';
     return `<div class="spread"><div><p class="eyebrow">Liste de courses</p><h1>Pour la semaine</h1></div>
       <div class="row ecran-seul">
@@ -1837,14 +1855,10 @@
           <div class="row"><button class="btn btn-petit" data-a="export-extension">Envoyer vers l’extension</button></div>${etatEnvoiExtension()}</details>
       </section>
       <div class="ticket"><div class="ticket-tete"><strong>Budgétable</strong><span class="small muted">Liste de la semaine · ${new Date().toLocaleDateString('fr-FR')}</span><span>${tagDemo}</span></div>
+      ${(() => { const aPrendre = liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard); const faits = aPrendre.filter((a) => S.coches[a.id]).length; return `<div class="avancement-courses ecran-seul"><div class="spread" style="align-items:center"><span><strong class="num">${faits}</strong> / ${aPrendre.length} dans le panier</span><span class="row" style="gap:6px"><label class="case small"><input type="checkbox" data-a="masquer-coches" ${S.masquerCoches ? 'checked' : ''}><span>Masquer ce qui est pris</span></label>${faits ? '<button class="btn-lien small" data-a="tout-decocher">Tout décocher</button>' : ''}</span></div><div class="piste-courses" aria-hidden="true"><i style="width:${aPrendre.length ? Math.round(faits / aPrendre.length * 100) : 0}%"></i></div></div>`; })()}
       <div class="colonnes">${Object.entries(par).map(([rayon, as]) => `<section class="rayon"><h3><span>${esc(rayon)}</span><span class="num small muted">${euros(as.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0))}</span></h3>
-        ${as.map((a) => `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock ? 'stock' : ''}">
-          <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
-          <label class="nom" for="c-${a.id}">${esc(a.nom)}${!a.enStock && promosPour(a.id).length ? ` <button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 promo ${esc(promosPour(a.id)[0].enseigne)} ${euros(promosPour(a.id)[0].prix)}</button>` : ''}</label>
-          <span class="prix num">${a.couvertParPlacard ? 'Au placard' : a.enStock ? 'En réserve' : a.sansPrix ? 'prix ?' : euros(a.cout)}</span>
-          <div class="detail">${a.auPlacard > 0 ? `<span class="placard-info">Au placard : ${quantite(a.auPlacard, a.unite)}${a.couvertParPlacard ? ' : rien à acheter' : ''}</span>` : ''}${a.couvertParPlacard ? '' : a.sansPrix ? '<span>Quantité : selon votre recette</span>' : `<span>Besoin : ${quantite(a.quantite, a.unite)}</span><span>Acheter : ${a.conditionnements} × ${esc(a.condLabel)}</span>`}
-          <button class="btn-lien btn small ecran-seul" data-a="stock" data-id="${a.id}">${a.enStock ? 'Je n’en ai plus' : 'J’en ai déjà'}</button>
- ${''}${S.drives.enseigne && !a.enStock ? `<a class="btn btn-petit ecran-seul" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">Chercher chez ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div></div>`).join('')}</section>`).join('')}</div>
+        ${as.filter((a) => !(S.masquerCoches && S.coches[a.id] && !a.enStock)).map((a) => ligneArticle(a)).join('')}</section>`).join('')}</div>
+      ${reserve.length ? `<details class="reserve-courses"><summary class="small"><strong>Déjà à la maison</strong> <span class="muted">· ${pluriel(reserve.length, 'produit')} de base (huile, épices…) : rien à acheter</span></summary><div class="stack" style="gap:0;margin-top:6px">${reserve.map((a) => ligneArticle(a)).join('')}</div></details>` : ''}
       ${liste.economieStock > 0 ? `<p class="small" style="padding-top:12px">Grâce à vos réserves : <strong class="num">${euros(liste.economieStock)}</strong> économisés</p>` : ''}
       <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>
       ${blocCoursesFaites()}
@@ -2961,6 +2975,8 @@
       case 'chef-question': envoyerChef(el.dataset.q); return;
       case 'ce-soir': S.ceSoirOuvert = true; break;
       case 'cocher': S.coches[el.dataset.id] = el.checked; break;
+      case 'tout-decocher': S.coches = {}; break;
+      case 'masquer-coches': S.masquerCoches = el.checked; break;
       case 'stock': {
         const id = el.dataset.id;
         if (p.placardBase && E.PLACARD_BASE.includes(id) && !p.provisions.includes(id)) {

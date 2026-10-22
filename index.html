@@ -182,12 +182,25 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 
 /* courses */
 .rayon h3 { padding-bottom: 6px; border-bottom: 2px solid var(--encre); margin-bottom: 4px; display: flex; justify-content: space-between; }
-.article { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--trait); }
-.article input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--poireau); }
-.article.coche .nom { text-decoration: line-through; color: var(--encre-douce); }
-.article.stock { opacity: .55; }
-.article .detail { grid-column: 2 / 4; display: flex; gap: 8px 14px; flex-wrap: wrap; font-size: .82rem; color: var(--encre-douce); }
+.article { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--trait); }
+.article input[type=checkbox] { width: 26px; height: 26px; accent-color: var(--poireau); cursor: pointer; }
+.article .nom { font-weight: 600; font-size: 1.02rem; cursor: pointer; }
+.article.coche .nom, .article.coche .pastille-qte { text-decoration: line-through; color: var(--encre-douce); }
+.article.coche .pastille-qte { background: transparent; border-color: var(--trait); }
+.article.stock { opacity: .6; }
 .article .prix { font-weight: 600; text-align: right; }
+.article .qte-achat, .article .actions-article { grid-column: 2 / 4; display: flex; gap: 6px 10px; flex-wrap: wrap; align-items: center; }
+.pastille-qte { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 10px; border-radius: 99px; background: var(--moutarde-pale); border: 1px solid color-mix(in srgb, var(--moutarde) 35%, transparent); font-size: .9rem; color: var(--encre); }
+.pastille-qte strong { font-size: 1.1rem; }
+.pastille-qte.ok { background: var(--poireau-pale); border-color: color-mix(in srgb, var(--poireau) 35%, transparent); color: var(--poireau); font-weight: 600; }
+.btn-mini { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre-douce); font: inherit; font-size: .8rem; font-weight: 600; text-decoration: none; cursor: pointer; min-height: 32px; }
+.btn-mini:hover { border-color: var(--poireau); color: var(--poireau); }
+.reserve-courses { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--trait); }
+.reserve-courses summary { cursor: pointer; }
+.avancement-courses { display: grid; gap: 6px; padding: 4px 0 10px; }
+.piste-courses { height: 8px; border-radius: 99px; background: var(--trait); overflow: hidden; }
+.piste-courses i { display: block; height: 100%; background: var(--poireau); border-radius: 99px; transition: width .3s; }
+@media print { .article .qte-achat { grid-column: 2 / 4; } .pastille-qte { border: 1px solid #999; background: none; } }
 .colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 24px; align-items: start; }
 textarea { width: 100%; min-height: 160px; border: 1px solid var(--trait); border-radius: 10px; padding: 10px; background: var(--papier); font-family: ui-monospace, monospace; font-size: .8rem; }
 input[type=text], input[type=number], select { border: 1px solid var(--trait); border-radius: 10px; padding: 10px 12px; background: var(--surface); min-height: 44px; width: 100%; }

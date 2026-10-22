@@ -75,7 +75,7 @@ with sync_playwright() as p:
 
     # 2. la liste de courses tient compte du placard
     page.locator("nav button", has_text="Courses").click()
-    assert "Au placard" in page.inner_text("main")
+    assert "au placard" in page.inner_text("main").lower()
     assert page.locator("#mes-drives").count() == 1
 
     # 3. cocher deux articles achetés puis les ranger
