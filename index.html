@@ -787,6 +787,29 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .apercu-envoi { white-space: pre-wrap; font-size: .8rem; background: var(--papier); padding: 10px; border-radius: 10px; max-height: 260px; overflow: auto; }
 .article-partage { padding: 10px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--surface); }
 .article-partage.coche strong { text-decoration: line-through; opacity: .55; }
+
+/* ---------- menu latéral (ordinateur) ---------- */
+.nav-groupe, .nav-sep, .nav-badge { display: none; }
+.nav-ic { display: contents; }
+@media (min-width: 900px) {
+  .nav { gap: 2px; padding: 10px; border-radius: 20px; background: var(--surface); border: 1px solid var(--trait); box-shadow: var(--ombre); }
+  .nav-groupe { display: block; padding: 12px 12px 4px; font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--encre-douce); }
+  .nav-groupe:first-child { padding-top: 4px; }
+  .nav-sep { display: block; height: 1px; margin: 8px 10px; background: var(--trait); }
+  .nav button { position: relative; gap: 12px; padding: 7px 10px; border-radius: 12px; color: var(--encre); font-weight: 600; font-size: .93rem; transition: background .15s, transform .15s; }
+  .nav button .nav-ic { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); transition: background .15s, color .15s; }
+  .nav button .nav-ic svg { width: 19px; height: 19px; }
+  .nav button:hover { background: color-mix(in srgb, var(--c) 7%, transparent); }
+  .nav button:hover .nav-ic { transform: none; background: color-mix(in srgb, var(--c) 20%, transparent); }
+  .nav button[aria-current="page"] { background: color-mix(in srgb, var(--c) 11%, transparent); color: var(--encre); }
+  .nav button[aria-current="page"] .nav-ic { background: var(--c); color: #fff; box-shadow: 0 3px 10px color-mix(in srgb, var(--c) 40%, transparent); }
+  .nav button[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); }
+  .nav-badge { display: inline-block; margin-left: auto; font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--tomate-pale); color: var(--tomate); }
+  .cote { scrollbar-gutter: stable; }
+  .cote::-webkit-scrollbar { width: 6px; }
+  .cote::-webkit-scrollbar-thumb { background: var(--trait); border-radius: 99px; }
+}
+@media (prefers-reduced-motion: reduce) { .nav button, .nav button .nav-ic { transition: none; } }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }
