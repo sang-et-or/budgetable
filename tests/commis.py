@@ -40,7 +40,7 @@ with sync_playwright() as p:
     assert "commis de cuisine" in consigne and "Ingrédients :" in consigne and "Étapes :" in consigne
     assert "allergie Arachide" in consigne, consigne[:600]
     assert len(envois[1]) == 4, "historique non transmis"
-    commis.scroll_into_view_if_needed()
+    page.wait_for_timeout(300); page.locator(".commis").first.scroll_into_view_if_needed()
     page.screenshot(path=f"{OUT}/7-commis.png")
     print("Consigne (début) :", consigne[:240].replace("\n", " | "))
     print("Erreurs JS :", erreurs or "aucune")
