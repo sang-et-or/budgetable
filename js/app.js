@@ -52,6 +52,27 @@
     const dim = forme === 'rect' ? 'width:100%;height:' + taille + 'px' : `width:${taille}px;height:${taille}px`;
     return `<span class="photo ${forme || 'rond'}" style="${dim}">${svg}<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`;
   }
+  /* ---------- calories et Nutri-Score estimés ---------- */
+  const nutri = (rec) => (window.Nutrition ? window.Nutrition.de(rec, E.ING) : null);
+  function nutriMini(rec) {
+    const n = nutri(rec);
+    if (!n) return '';
+    return `<span class="nutri-mini" title="Estimation pour une portion adulte${n.lettre ? ` · Nutri-Score estimé ${n.lettre}` : ''}">${n.lettre ? `<span class="ns-lettre ns-${n.lettre}" aria-label="Nutri-Score estimé ${n.lettre}">${n.lettre}</span>` : ''}<span class="num">${n.kcal} kcal</span></span>`;
+  }
+  function nutriFiche(rec, unite) {
+    const n = nutri(rec);
+    if (!n) return '';
+    const pp = n.parPortion;
+    const g1 = (v) => nb(Math.round(v * 10) / 10);
+    return `<div class="bloc-nutri">
+      <div class="spread" style="align-items:center;gap:12px">
+        ${n.lettre ? `<div class="echelle-ns" role="img" aria-label="Nutri-Score estimé : ${n.lettre}"><span class="ns-titre">NUTRI-SCORE</span><div class="ns-lettres">${['A', 'B', 'C', 'D', 'E'].map((l) => `<span class="ns-${l} ${l === n.lettre ? 'actif' : ''}">${l}</span>`).join('')}</div></div>` : '<span class="small muted">Nutri-Score : pas assez d’informations sur les ingrédients.</span>'}
+        <div class="stack" style="gap:0;text-align:right"><strong class="num kcal-gros">${n.kcal} kcal</strong><span class="small muted">par ${unite}</span></div>
+      </div>
+      <div class="meta small"><span>Protéines ${g1(pp.prot)} g</span><span>Sucres ${g1(pp.sucres)} g</span><span>Graisses saturées ${g1(pp.ags)} g</span><span>Fibres ${g1(pp.fibres)} g</span><span>Sel ${g1(pp.sel)} g</span></div>
+      <p class="small muted" style="margin:0">Estimation calculée à partir des ingrédients et des tables de composition des aliments (méthode Nutri-Score 2017, plat cuit). Ce n’est pas un étiquetage officiel.</p>
+    </div>`;
+  }
   function creditPhoto(rec) {
     if (rec.photo) return rec.photoSource === 'perso' ? 'Votre photo' : `Photo : ${esc(rec.photoSource || 'site de la recette')}${rec.lien ? ` (<a href="${esc(rec.lien)}" target="_blank" rel="noopener noreferrer">voir la recette</a>)` : ''}`;
     if (rec.perso) return 'Illustration dessinée à partir des ingrédients';
@@ -302,7 +323,7 @@
         <div class="carte-test-illu">${V(rec, 220)}</div>
         <div class="stack" style="gap:6px;text-align:center">
           <h1 style="font-size:1.45rem">${esc(rec.nom)}</h1>
-          <p class="meta" style="justify-content:center"><span>${esc(L.cuisines[rec.cuisine] || 'Maison')}</span><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span></p>
+          <p class="meta" style="justify-content:center"><span>${esc(L.cuisines[rec.cuisine] || 'Maison')}</span><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</p>
         </div>
       </article>
       <div class="reponses" role="group" aria-label="Votre avis sur ce plat">
@@ -459,7 +480,7 @@
     const classique = S.classiques.includes(r.id);
     return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
-      <div class="meta"><span>${r.temps} min</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
+      <div class="meta"><span>${r.temps} min</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${raison ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
       <div><button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button></div></div></div>`;
   }
@@ -1194,7 +1215,7 @@
         const sansPrix = r.ing.filter(([id]) => E.ING[id].perso).length;
         return `<article class="jour carte-recette"><div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps">
           <button class="titre-repas" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button>
-          <div class="meta"><span>${pluriel(r.ing.length, 'ingrédient')}</span><span class="part num">${euros(E.coutPortion(r))} la part${sansPrix ? '*' : ''}</span>${r.lien ? `<a href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">${esc(domaine(r.lien))} ↗</a>` : '<span>recette de famille</span>'}</div>
+          <div class="meta"><span>${pluriel(r.ing.length, 'ingrédient')}</span><span class="part num">${euros(E.coutPortion(r))} la part${sansPrix ? '*' : ''}</span>${nutriMini(r)}${r.lien ? `<a href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">${esc(domaine(r.lien))} ↗</a>` : '<span>recette de famille</span>'}</div>
           ${!compat.ok ? `<span class="small alerte-ing">Ne respecte pas votre profil (${esc(libAllergie(compat.raison))}) : jamais proposée automatiquement.</span>` : src.proposer === false ? '<span class="small muted">Pas proposée dans les menus automatiques</span>' : '<span class="pourquoi small">Proposée dans vos menus</span>'}
           <div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="au-menu" data-r="${r.id}">Mettre au menu</button><button class="btn btn-petit" data-a="ed-modifier" data-r="${r.id}">Modifier</button><button class="btn-lien small" data-a="recette-suppr" data-r="${r.id}">Supprimer</button></div>
         </div></div></article>`;
@@ -1242,7 +1263,7 @@
         <div class="stack" style="gap:6px;padding:12px 14px 14px">
           ${actuel ? '<span class="tag tag-ok">Prévu</span>' : ''}
           <h3>${esc(r.nom)}</h3>
-          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span></div>
+          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
           ${raisons.length ? `<ul class="raisons">${raisons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
           <div class="row"><button class="btn ${actuel ? '' : 'btn-plein'}" data-a="choisir" data-r="${id}">${enf ? 'Celui-là !' : actuel ? 'Garder ce plat' : 'Je choisis ce plat'}</button>
           ${enf ? '' : `<button class="btn-lien small" data-a="fiche-r" data-r="${id}">La recette</button>`}</div>
@@ -1513,6 +1534,7 @@
         <button class="btn btn-petit" data-a="fermer" aria-label="Fermer">Fermer</button></div>
       <figure class="fiche-illu">${V(r, 220, 'rect')}<figcaption class="small muted">${creditPhoto(r)}</figcaption></figure>
       <div class="meta"><span>${r.temps} min</span><span>${['', 'Facile', 'Moyen', 'Avancé'][r.niveau]}</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''} adulte${m.portions > 1 ? 's' : ''}</span><span class="num">≈ ${euros(E.coutPortion(r) * m.portions)}</span>${tagDemo}</div>
+      ${nutriFiche(r, 'portion adulte')}
       <div class="equi"><span class="tag ${eq.legumes ? 'tag-ok' : 'tag-simu'}">Légumes ${eq.legumes ? '✓' : '—'}</span><span class="tag ${eq.feculent ? 'tag-ok' : 'tag-simu'}">Féculent ${eq.feculent ? '✓' : '—'}</span><span class="tag ${eq.proteine ? 'tag-ok' : 'tag-simu'}">Protéines ${eq.proteine ? '✓' : '—'}</span></div>
       ${!eq.legumes || !eq.feculent ? `<p class="small muted">Pour compléter : ${!eq.legumes ? 'une crudité ou un fruit' : ''}${!eq.legumes && !eq.feculent ? ' et ' : ''}${!eq.feculent ? 'du pain' : ''}.</p>` : ''}
       ${r.perso ? `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:6px"><strong>Une recette de votre bibliothèque</strong>${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : '<span>Recette de famille, sans lien.</span>'}<div><button class="btn btn-petit" data-a="ed-modifier" data-r="${r.id}">Modifier les ingrédients</button></div></div></div>` : ''}
@@ -1534,6 +1556,7 @@
         <button class="btn btn-petit" data-a="fermer" aria-label="Fermer">Fermer</button></div>
       <figure class="fiche-illu">${V(r, 200, 'rect')}${r.photo ? `<figcaption class="small muted">${creditPhoto(r)}</figcaption>` : ''}</figure>
       <div class="meta"><span>${r.temps} min</span><span>${pluriel(parts, 'part')}</span><span class="num">${euros(E.coutPortion(r))} la part${r.extras && r.extras.length ? '*' : ''}</span></div>
+      ${nutriFiche(r, 'part')}
       ${!c.ok ? `<div class="bandeau bandeau-demo small">Attention : ${esc(libAllergie(c.raison))}.</div>` : ''}
       ${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : ''}
       <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * parts, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
@@ -1557,6 +1580,7 @@
       <div class="stack" style="gap:3px;min-width:0;flex:1">
         <button class="titre-repas" data-a="fiche-g" data-r="${r.id}">${esc(r.nom)}</button>
         <span class="small muted">${r.type === 'dessert' ? 'Dessert' : 'Goûter'} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
+        <span>${nutriMini(r)}</span>
         ${c.ok ? '' : `<span class="small alerte-ing">${esc(libAllergie(c.raison))}</span>`}
         <div class="row" style="gap:6px;margin-top:4px"><button class="btn btn-petit ${c.ok ? 'btn-plein' : ''}" data-a="gourmand-ajouter" data-r="${r.id}">${dejaN ? `✓ Ajouté (${dejaN}) · encore` : '+ Ajouter à ma semaine'}</button></div>
       </div></article>`;

@@ -528,6 +528,19 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .ligne-gourmande { display: block; width: 100%; text-align: left; border: 0; border-top: 1px dashed var(--trait); background: none; padding: 8px 2px 2px; font: inherit; font-size: .9rem; color: var(--encre); cursor: pointer; }
 .fenetre-gourmand { display: grid; gap: 16px; }
 .nav button span { font-size: .68rem; }
+
+/* ---------- calories et Nutri-Score ---------- */
+.nutri-mini { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ns-lettre { display: inline-grid; place-items: center; width: 1.35em; height: 1.35em; border-radius: 50%; color: #fff; font-weight: 800; font-size: .78rem; line-height: 1; }
+.ns-A { background: #038141; } .ns-B { background: #85bb2f; } .ns-C { background: #fecb02; color: #1d2721 !important; } .ns-D { background: #ee8100; } .ns-E { background: #e63e11; }
+.bloc-nutri { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
+.echelle-ns { display: inline-grid; gap: 2px; padding: 4px 6px 6px; border-radius: 10px; background: #fff; border: 1px solid #d4d4d4; }
+.ns-titre { font-size: .58rem; font-weight: 800; letter-spacing: .06em; color: #555; text-align: center; }
+.ns-lettres { display: flex; align-items: center; }
+.ns-lettres span { width: 22px; height: 26px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: .85rem; opacity: .55; }
+.ns-lettres span:first-child { border-radius: 8px 0 0 8px; } .ns-lettres span:last-child { border-radius: 0 8px 8px 0; }
+.ns-lettres span.actif { opacity: 1; width: 30px; height: 36px; border-radius: 10px; font-size: 1.15rem; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgb(0 0 0 / .3); position: relative; z-index: 1; }
+.kcal-gros { font-size: 1.3rem; }
 </style>
 
 <div id="app"></div>
@@ -539,6 +552,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/cuisine3d.js"></script>
 <script src="js/codebarre.js"></script>
 <script src="js/gourmand.js"></script>
+<script src="js/nutrition.js"></script>
 <script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>

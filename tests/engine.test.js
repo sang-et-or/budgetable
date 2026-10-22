@@ -360,3 +360,15 @@ test('lien de recette : lignes d’ingrédients → quantités par personne', ()
   assert.deepEqual(r.ignores, ['Sel, poivre']);
   assert.equal(S.nomDepuisLien('https://www.marmiton.org/recettes/recette_quiche-lorraine_30283.aspx'), 'Quiche lorraine');
 });
+
+test('nutrition : Nutri-Score et calories estimés', () => {
+  const N = require('../js/nutrition.js');
+  // un produit très gras et sucré est classé E, une salade de légumineuses A
+  assert.equal(N.nutriscore({ kcal: 540, ags: 21, sucres: 50, sel: 0.1, fibres: 2, prot: 7, fl: 0 }).lettre, 'E');
+  assert.equal(N.nutriscore({ kcal: 540, ags: 21, sucres: 30, sel: 0.1, fibres: 10, prot: 7, fl: 0 }).lettre, 'D');   // chocolat noir
+  assert.equal(N.nutriscore({ kcal: 110, ags: 0.2, sucres: 2, sel: 0.3, fibres: 5, prot: 7, fl: 90 }).lettre, 'A');
+  const r = { id: 't', ing: [['pates', 100], ['tomates_concassees', 120], ['emmental', 20]] };
+  const n = N.de(r, E.ING);
+  assert.ok(n.kcal >= 440 && n.kcal <= 480, n.kcal);   // 355 + 30 + 76 kcal
+  assert.ok('ABCDE'.includes(n.lettre));
+});
