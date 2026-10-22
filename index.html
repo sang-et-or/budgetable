@@ -695,6 +695,13 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .produit-scanne { display: grid; gap: 10px; padding: 12px; border-radius: 14px; border: 2px solid var(--poireau); background: var(--surface); }
 .produit-scanne img, .emoji-scan { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; background: #fff; flex-shrink: 0; font-size: 34px; display: grid; place-items: center; }
 .produit-scanne .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+
+.fenetre-kcal { display: grid; gap: 14px; }
+.fenetre-kcal .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.fenetre-kcal .chip[aria-pressed="true"] .muted { color: rgb(255 255 255 / .8); }
+.fenetre-kcal .stack[role="radiogroup"] .chip { justify-content: flex-start; text-align: left; }
+.resultat-kcal { padding: 12px; border-radius: 14px; border-left: 5px solid var(--poireau); background: var(--poireau-pale); }
+.repere-final { color: var(--poireau); }
 </style>
 
 <div id="app"></div>

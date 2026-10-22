@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -1882,11 +1882,53 @@
         <details><summary class="small"><strong>Autre aliment</strong> <span class="muted">· nom et calories à la main</span></summary>
           <div class="row" style="gap:8px;align-items:flex-end;margin-top:8px"><label class="champ" style="flex:1;min-width:140px"><span>Nom</span><input type="text" id="carnet-perso-nom" maxlength="50" placeholder="Ex. : crêpe au sucre"></label><label class="champ" style="max-width:110px"><span>Calories</span><input type="text" inputmode="numeric" id="carnet-perso-kcal" placeholder="250"></label><button class="btn btn-petit btn-plein" data-a="carnet-perso">Ajouter</button></div></details>
       </div>
-      <div class="row" style="gap:6px;align-items:center"><span class="small">Mon repère de calories :</span>${[1800, 2000, 2200, 2500].map((k) => `<button class="chip" data-a="carnet-objectif" data-k="${k}" aria-pressed="${(S.objectifKcal || 2000) === k}">${nb(k)}</button>`).join('')}</div>
+      <div class="row" style="gap:6px;align-items:center"><span class="small">Mon repère de calories :</span>${[...new Set([1800, 2000, 2200, 2500].concat(S.objectifKcal ? [S.objectifKcal] : []))].sort((x, y) => x - y).map((k) => `<button class="chip" data-a="carnet-objectif" data-k="${k}" aria-pressed="${(S.objectifKcal || 2000) === k}">${nb(k)}</button>`).join('')}<button class="btn btn-petit btn-plein" data-a="kcal-ouvrir">🧮 Calculer mon repère</button></div>
       <p class="small muted" style="margin:0">Repères pour un adulte : environ 2 000 kcal (à ajuster selon l’âge, le sexe et l’activité), 60 g de protéines, 30 g de fibres, 400 g de fruits et légumes, moins de 100 g de sucres, 22 g de graisses saturées et 5 g de sel par jour. Ce sont des repères, pas des règles : inutile d’être parfait chaque jour.</p>
     </section>`;
   }
 
+  /* ---------- calcul du repère de calories (formule de Mifflin-St Jeor × niveau d'activité) ---------- */
+  const ACTIVITES = [['1.4', 'Sédentaire', 'travail assis, peu de marche'], ['1.6', 'Un peu actif', 'marche ou vélo au quotidien, 1 à 2 séances de sport'], ['1.75', 'Actif', 'métier debout ou 3 à 5 séances de sport'], ['1.9', 'Très actif', 'métier physique ou sport intense presque tous les jours']];
+  function calculRepere() {
+    const c = S.calcKcal || {};
+    const age = parseFloat(c.age), taille = parseFloat(c.taille), poids = parseFloat(String(c.poids || '').replace(',', '.'));
+    if (!(age >= 18 && age <= 100 && taille >= 130 && taille <= 230 && poids >= 35 && poids <= 250) || !c.sexe) return null;
+    const base = 10 * poids + 6.25 * taille - 5 * age + (c.sexe === 'h' ? 5 : -161);
+    const entretien = base * (parseFloat(c.activite) || 1.4);
+    const plancher = Math.max(base, c.sexe === 'h' ? 1500 : 1200);
+    let repere = entretien + (c.objectif === 'perdre' ? -400 : c.objectif === 'prendre' ? 300 : 0);
+    const limite = c.objectif === 'perdre' && repere < plancher;
+    repere = Math.max(repere, c.objectif === 'perdre' ? plancher : 0);
+    const arr = (v) => Math.round(v / 50) * 50;
+    return { base: arr(base), entretien: arr(entretien), repere: arr(repere), limite };
+  }
+  function vueCalcKcal() {
+    if (!S.calcKcalOuvert) return '';
+    const c = S.calcKcal || {};
+    const r = calculRepere();
+    const radio = (cle, k, v, sous) => `<button class="chip" role="radio" data-a="kcal-choix" data-cle="${cle}" data-k="${k}" aria-checked="${c[cle] === k}" aria-pressed="${c[cle] === k}">${esc(v)}${sous ? ` <span class="small muted">${esc(sous)}</span>` : ''}</button>`;
+    return `<div class="voile" data-a="kcal-fond"><div class="fiche fenetre-kcal" role="dialog" aria-modal="true" aria-labelledby="kcal-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Carnet du jour</span><h2 id="kcal-titre">Calculer mon repère de calories</h2></div>
+        <button class="btn btn-petit" data-a="kcal-fermer">Fermer</button></div>
+      <div class="stack" style="gap:6px"><strong>Vous êtes</strong><div class="row" role="radiogroup" style="gap:6px">${radio('sexe', 'f', 'Une femme')}${radio('sexe', 'h', 'Un homme')}</div></div>
+      <div class="row" style="gap:10px">
+        <label class="champ" style="max-width:110px"><span>Âge</span><span class="saisie-euros"><input type="text" inputmode="numeric" data-a="kcal-champ" data-k="age" value="${esc(c.age || '')}" placeholder="40"><span>ans</span></span></label>
+        <label class="champ" style="max-width:120px"><span>Taille</span><span class="saisie-euros"><input type="text" inputmode="numeric" data-a="kcal-champ" data-k="taille" value="${esc(c.taille || '')}" placeholder="165"><span>cm</span></span></label>
+        <label class="champ" style="max-width:120px"><span>Poids</span><span class="saisie-euros"><input type="text" inputmode="decimal" data-a="kcal-champ" data-k="poids" value="${esc(c.poids || '')}" placeholder="65"><span>kg</span></span></label>
+      </div>
+      <div class="stack" style="gap:6px"><strong>Votre activité</strong><div class="stack" role="radiogroup" style="gap:6px">${ACTIVITES.map(([k, v, sous]) => radio('activite', k, v, sous)).join('')}</div></div>
+      <div class="stack" style="gap:6px"><strong>Votre objectif</strong><div class="row" role="radiogroup" style="gap:6px">${radio('objectif', 'garder', 'Garder mon poids')}${radio('objectif', 'perdre', 'Perdre doucement')}${radio('objectif', 'prendre', 'Prendre du poids')}</div></div>
+      <div id="kcal-resultat">${resultatKcal(r)}</div>
+      <p class="small muted" style="margin:0">Calcul indicatif (formule de Mifflin-St Jeor), pour les adultes. Pas adapté pendant une grossesse ou l’allaitement, avant 18 ans, en cas de maladie ou de troubles du comportement alimentaire : demandez conseil à votre médecin ou à un diététicien. Ces informations restent sur votre appareil.</p>
+    </div></div>`;
+  }
+  function resultatKcal(r) {
+    if (!r) return '<p class="small muted" style="margin:0">Remplissez le sexe, l’âge, la taille, le poids et l’activité.</p>';
+    return `<div class="resultat-kcal stack" style="gap:8px">
+      <div class="chiffres-calc"><div><span class="small muted">Au repos</span><strong class="num">${nb(r.base)}</strong><span class="small muted">kcal / jour</span></div><div><span class="small muted">Pour garder votre poids</span><strong class="num">${nb(r.entretien)}</strong><span class="small muted">kcal / jour</span></div><div><span class="small muted">Votre repère</span><strong class="num repere-final">${nb(r.repere)}</strong><span class="small muted">kcal / jour</span></div></div>
+      ${(S.calcKcal || {}).objectif === 'perdre' ? `<span class="small">Perte douce : environ 400 kcal de moins que vos besoins, soit 1,5 à 2 kg par mois.${r.limite ? ' Le repère est arrêté à ce niveau pour rester au-dessus de vos besoins de base : descendre plus bas n’est pas conseillé sans suivi médical.' : ''}</span>` : ''}
+      <button class="btn btn-plein" data-a="kcal-appliquer" data-k="${r.repere}">Utiliser ${nb(r.repere)} kcal comme repère</button></div>`;
+  }
   function ongletApports() {
     Object.assign(OBJ, objectifsJour());
     const periode = S.periodeApports || '7';
@@ -2167,7 +2209,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -2219,7 +2261,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -2502,6 +2544,10 @@
         S.scanCarnet = null;
         break;
       }
+      case 'kcal-ouvrir': S.calcKcalOuvert = true; S.calcKcal = S.calcKcal || { activite: '1.4', objectif: 'garder' }; break;
+      case 'kcal-fermer': case 'kcal-fond': S.calcKcalOuvert = false; break;
+      case 'kcal-choix': S.calcKcal[el.dataset.cle] = el.dataset.k; break;
+      case 'kcal-appliquer': S.objectifKcal = +el.dataset.k; S.calcKcalOuvert = false; toast(`Repère : ${nb(+el.dataset.k)} kcal par jour`); break;
       case 'carnet-objectif': S.objectifKcal = +el.dataset.k; break;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
@@ -2694,6 +2740,12 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'kcal-champ') {
+      S.calcKcal = S.calcKcal || {};
+      S.calcKcal[el.dataset.k] = el.value;
+      const z = document.getElementById('kcal-resultat'); if (z) z.innerHTML = resultatKcal(calculRepere());
+      sauver(); return;
+    }
     if (el.dataset.a === 'scan-g' && S.scanCarnet) {
       const g = parseFloat(String(el.value).replace(',', '.'));
       if (g > 0 && g < 5000) { S.scanCarnet.grammes = g; const z = document.getElementById('scan-resume'); if (z) z.innerHTML = resumeScan(); document.querySelectorAll('[data-a=scan-qte]').forEach((b) => b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.g - g) < 0.01))); }
