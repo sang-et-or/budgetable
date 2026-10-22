@@ -20,7 +20,7 @@ with sync_playwright() as p:
     page.locator("nav button", has_text="Recettes").click()
     sec = page.locator(".saison")
     assert "de saison en octobre" in sec.inner_text().lower() and "automne" in sec.inner_text(), sec.inner_text()[:300]
-    n = sec.locator(".carte-saison").count(); print("idées :", n); assert n >= 18, n
+    n = sec.locator(".carte-saison").count(); print("idées :", n); assert n >= 45, n
     t = sec.inner_text()
     assert "Tartiflette" not in t  # pas de saison en octobre
     assert "Velouté de courge et châtaignes" in t
