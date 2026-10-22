@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine' };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine' });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -563,6 +563,7 @@
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
+      ${blocPresences()}
       ${blocCoach()}
       ${blocBudget()}
       ${moyenneAssiette()}
@@ -1630,6 +1631,65 @@
     </div></div>`;
   }
 
+  /* ---------- qui mange cette semaine ? ---------- */
+  const profilSemaine = () => ({ ...S.profil, presences: (S.plan && S.plan.presences) || S.profil.presences || null });
+  const presenceDe = (j, slot) => E.presence(profilSemaine(), j, slot);
+  const nomEnfant = (k) => { const pr = (S.profil.prenomsEnfants || [])[k]; return pr ? pr : `Enfant ${k + 1}`; };
+  function texteCellule(pr) {
+    const enf = pr.e.filter(Boolean).length;
+    if (!pr.a && !enf && !pr.invA && !pr.invE) return '<span class="dehors">Personne</span>';
+    return `<span>👤${pr.a}</span>${S.profil.foyer.enfants.length ? `<span>🧒${enf}</span>` : ''}${pr.invA + pr.invE ? `<span class="invites">+${pr.invA + pr.invE}</span>` : ''}`;
+  }
+  function changerPresences(modif, message) {
+    const pres = { ...((S.plan && S.plan.presences) || S.profil.presences || {}) };
+    for (let j = 0; j < 7; j++) for (const sl of E.SLOTS) {
+      const k = j + '-' + sl;
+      const avant = presenceDe(j, sl);
+      const apres = modif(j, sl, { ...avant, e: avant.e.slice() });
+      if (apres) pres[k] = apres;
+    }
+    S.plan.presences = pres;
+    S.plan = E.appliquerPresences(S.plan, { ...S.profil, presences: pres }, optsMoteur());
+    if (S.presencesGarder) S.profil.presences = { ...pres };
+    if (message) toast(message);
+  }
+  function blocPresences() {
+    if (!S.plan) return '';
+    const p = S.profil, enfants = p.foyer.enfants.length;
+    let repas = 0, couverts = 0;
+    for (let j = 0; j < 7; j++) for (const sl of E.SLOTS) { const pr = presenceDe(j, sl); const n = pr.a + pr.e.filter(Boolean).length + pr.invA + pr.invE; if (n) { repas++; couverts += n; } }
+    const raccourcis = [['tous', 'Tout le monde, tous les repas']].concat(enfants ? [['cantine', 'Enfants à la cantine le midi']] : []).concat([['travail', 'Adultes au travail le midi'], ['invites', '+2 invités ce week-end']]).concat(enfants ? [['garde', 'Enfants absents cette semaine']] : []);
+    return `<section class="carte stack presences" style="gap:10px">
+      <div class="spread"><h2>Qui mange cette semaine ?</h2><span class="small muted">${pluriel(repas, 'repas', 'repas')} à la maison · ${pluriel(couverts, 'couvert')}</span></div>
+      <div class="row raccourcis-presences" style="gap:6px">${raccourcis.map(([k, v]) => `<button class="chip" data-a="presences-raccourci" data-k="${k}">${esc(v)}</button>`).join('')}</div>
+      <div class="grille-presences" role="table" aria-label="Personnes à chaque repas">
+        <span role="columnheader"></span><span role="columnheader" class="small muted">Midi</span><span role="columnheader" class="small muted">Soir</span>
+        ${E.JOURS.map((jn, j) => `<span role="rowheader" class="small"><strong>${jn.slice(0, 3)}.</strong></span>${E.SLOTS.map((sl) => { const pr = presenceDe(j, sl); return `<button class="cellule-presence ${S.presenceEdit === j + '-' + sl ? 'sel' : ''}" data-a="presence-editer" data-k="${j}-${sl}" aria-label="${jn} ${sl === 'diner' ? 'soir' : 'midi'} : ${pr.a} adulte${pr.a > 1 ? 's' : ''}${enfants ? `, ${pr.e.filter(Boolean).length} enfant(s)` : ''}${pr.invA + pr.invE ? `, ${pr.invA + pr.invE} invité(s)` : ''}. Modifier">${texteCellule(pr)}</button>`; }).join('')}`).join('')}
+      </div>
+      <label class="case small"><input type="checkbox" data-a="presences-garder" ${S.presencesGarder ? 'checked' : ''}><span>Garder ces habitudes pour les semaines suivantes</span></label>
+      <span class="small muted">Touchez un repas pour l’ajuster. Les portions, les menus et la liste de courses suivent tout seuls.</span>
+    </section>`;
+  }
+  function vuePresence() {
+    if (!S.presenceEdit || !S.plan) return '';
+    const [j, sl] = [+S.presenceEdit.split('-')[0], S.presenceEdit.split('-')[1]];
+    const pr = presenceDe(j, sl), p = S.profil;
+    const stepper = (cle, val, label) => `<div class="spread ligne-presence"><span>${label}</span><div class="row" style="gap:6px;align-items:center;flex-wrap:nowrap"><button class="btn btn-petit" data-a="presence-pas" data-k="${cle}" data-d="-1" aria-label="${label} : un de moins" ${val <= 0 ? 'disabled' : ''}>−</button><strong class="num" style="min-width:1.5em;text-align:center">${val}</strong><button class="btn btn-petit" data-a="presence-pas" data-k="${cle}" data-d="1" aria-label="${label} : un de plus">+</button></div></div>`;
+    return `<div class="voile" data-a="presence-fond"><div class="fiche fenetre-presence" role="dialog" aria-modal="true" aria-labelledby="pres-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Qui mange ?</span><h2 id="pres-titre">${E.JOURS[j]} ${sl === 'diner' ? 'soir' : 'midi'}</h2></div>
+        <button class="btn btn-petit" data-a="presence-fermer">OK</button></div>
+      ${stepper('a', pr.a, 'Adultes du foyer')}
+      ${p.foyer.enfants.length ? `<div class="stack" style="gap:6px"><span>Enfants</span><div class="row" style="gap:6px">${p.foyer.enfants.map((age, k) => `<button class="chip" data-a="presence-enfant" data-k="${k}" aria-pressed="${pr.e[k]}">${pr.e[k] ? '✓ ' : ''}${esc(nomEnfant(k))} <span class="small muted">${esc((L.ages || {})[age] || age)}</span></button>`).join('')}</div></div>` : ''}
+      ${stepper('invA', pr.invA, 'Invités adultes')}
+      ${stepper('invE', pr.invE, 'Invités enfants')}
+      <div class="row" style="gap:8px">
+        <button class="btn btn-petit" data-a="presence-pareil">Pareil tous les ${sl === 'diner' ? 'soirs' : 'midis'} de la semaine (lun.–ven.)</button>
+        <button class="btn btn-petit" data-a="presence-personne">Personne : repas dehors</button>
+      </div>
+      <p class="small muted" style="margin:0">${E.REC[(S.plan.jours[j][sl] || {}).recette] ? `Au menu : ${esc(E.REC[S.plan.jours[j][sl].recette].nom)} · ${nb(S.plan.jours[j][sl].portions)} portion(s)` : 'Pas de repas prévu à la maison.'}</p>
+    </div></div>`;
+  }
+
   /* ---------- coachs alimentaires ---------- */
   const COACHS = {
     minceur: {
@@ -1771,7 +1831,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1823,7 +1883,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -2021,6 +2081,31 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'presence-editer': S.presenceEdit = el.dataset.k; break;
+      case 'presence-fermer': case 'presence-fond': S.presenceEdit = null; break;
+      case 'presence-pas': case 'presence-enfant': case 'presence-personne': case 'presence-pareil': {
+        const [j0, sl0] = [+S.presenceEdit.split('-')[0], S.presenceEdit.split('-')[1]];
+        const cur = presenceDe(j0, sl0);
+        if (a === 'presence-pas') cur[el.dataset.k] = Math.max(0, Math.min(20, cur[el.dataset.k] + +el.dataset.d));
+        if (a === 'presence-enfant') cur.e[+el.dataset.k] = !cur.e[+el.dataset.k];
+        if (a === 'presence-personne') { cur.a = 0; cur.e = cur.e.map(() => false); cur.invA = 0; cur.invE = 0; }
+        const cible = a === 'presence-pareil' ? (j, sl) => j < 5 && sl === sl0 : (j, sl) => j === j0 && sl === sl0;
+        changerPresences((j, sl, x) => (cible(j, sl) ? { ...cur, e: cur.e.slice() } : null), a === 'presence-pareil' ? 'Appliqué à tous les jours de semaine' : null);
+        break;
+      }
+      case 'presences-raccourci': {
+        const k = el.dataset.k, f = p.foyer;
+        const msg = { tous: 'Tout le monde à tous les repas', cantine: 'Enfants à la cantine les midis (sauf mercredi)', travail: 'Adultes absents les midis de semaine', invites: '+2 invités samedi soir et dimanche midi', garde: 'Enfants absents cette semaine' }[k];
+        changerPresences((j, sl, x) => {
+          if (k === 'tous') return { a: f.adultes, e: f.enfants.map(() => true), invA: 0, invE: 0 };
+          if (k === 'cantine') return j < 5 && j !== 2 && sl === 'dejeuner' ? { ...x, e: x.e.map(() => false) } : null;
+          if (k === 'travail') return j < 5 && sl === 'dejeuner' ? { ...x, a: 0 } : null;
+          if (k === 'invites') return (j === 5 && sl === 'diner') || (j === 6 && sl === 'dejeuner') ? { ...x, invA: x.invA + 2 } : null;
+          if (k === 'garde') return { ...x, e: x.e.map(() => false) };
+          return null;
+        }, msg + ' : menus et courses mis à jour');
+        break;
+      }
       case 'budget-ouvrir': S.budgetOuvert = true; S.budgetSaisi = null; S.budgetCalc = S.budgetCalc || { charges: {} }; break;
       case 'budget-fermer': case 'budget-fond': S.budgetOuvert = false; break;
       case 'budget-periode': {
@@ -2256,6 +2341,12 @@
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
+    if (el.dataset.a === 'presences-garder') {
+      S.presencesGarder = el.checked;
+      S.profil.presences = el.checked && S.plan && S.plan.presences ? { ...S.plan.presences } : (el.checked ? S.profil.presences : null);
+      toast(el.checked ? 'Ces habitudes serviront pour les prochaines semaines' : 'Les prochaines semaines repartiront de votre profil');
+      sauver(); return;
+    }
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }

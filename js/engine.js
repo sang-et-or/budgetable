@@ -173,10 +173,29 @@
   }
 
   /** Nombre de portions « adulte » pour un repas donné. */
+  /** Qui mange à ce repas d'après le profil : { a: adultes, e: [enfant présent ?], invA, invE } */
+  function presenceParDefaut(p, jour, slot) {
+    let a = p.foyer.adultes, e = p.foyer.enfants.map(() => true);
+    if (slot === 'dejeuner' && jour < 5 && p.dejeuners && p.dejeuners.mode === 'dehors') {
+      a = Math.min(p.dejeuners.adultesMaison, p.foyer.adultes);
+      const em = p.dejeuners.enfantsMaison;
+      if (!(em === 'oui' || (em === 'mercredi' && jour === 2))) e = e.map(() => false);
+    }
+    return { a, e, invA: 0, invE: 0 };
+  }
+  function presence(p, jour, slot) {
+    const pr = p.presences && p.presences[jour + '-' + slot];
+    return pr ? { a: Math.max(0, Math.min(20, pr.a | 0)), e: p.foyer.enfants.map((_, k) => !pr.e || pr.e[k] !== false), invA: Math.max(0, pr.invA | 0), invE: Math.max(0, pr.invE | 0) } : presenceParDefaut(p, jour, slot);
+  }
   function portions(p, jour, slot) {
     const fa = facteurAdulte(p);
     let adultes = p.foyer.adultes;
     let enfants = p.foyer.enfants;
+    if (p.presences && p.presences[jour + '-' + slot]) {
+      const pr = presence(p, jour, slot);
+      const t = (pr.a + pr.invA) * fa + p.foyer.enfants.reduce((s, a, k) => s + (pr.e[k] ? (AGE_FACTEUR[a] || 0.7) : 0), 0) + pr.invE * 0.7;
+      return Math.round(t * 10) / 10;
+    }
     if (slot === 'dejeuner' && jour < 5 && p.dejeuners && p.dejeuners.mode === 'dehors') {
       adultes = Math.min(p.dejeuners.adultesMaison, p.foyer.adultes);
       const em = p.dejeuners.enfantsMaison;
@@ -522,6 +541,34 @@
     return { resultats: uniques.slice(0, opts.n || 8).map((r) => r.id), masques: Math.max(0, tous - compat.length) };
   }
   /** Met une recette quelconque (recherche, bibliothèque) à la place du plat prévu. */
+  /**
+   * Recalcule les portions de la semaine selon qui mange (p.presences) : un repas sans personne est mis de côté
+   * (« pris dehors »), un repas qui revient retrouve son plat, ou reçoit un plat choisi comme pour une semaine neuve.
+   */
+  function appliquerPresences(plan, p, opts = {}) {
+    const ctx = nouveauContexte(opts.notes, opts.classiques);
+    plan.jours.forEach((jp) => SLOTS.forEach((sl) => { if (jp[sl] && REC[jp[sl].recette]) ajouterAuContexte(ctx, REC[jp[sl].recette], jp[sl].portions); }));
+    const r = rng(opts.seed || 97);
+    const jours = plan.jours.map((jp, j) => {
+      const n = { ...jp };
+      const aujourdHui = SLOTS.map((sl) => jp[sl] && jp[sl].recette).filter(Boolean);
+      for (const slot of SLOTS) {
+        const nb = portions(p, j, slot);
+        const mis = '_' + slot;
+        if (nb <= 0) { if (n[slot]) n[mis] = n[slot]; n[slot] = null; continue; }
+        if (n[slot]) { n[slot] = { ...n[slot], portions: nb }; continue; }
+        if (n[mis] && REC[n[mis].recette]) { n[slot] = { ...n[mis], portions: nb }; delete n[mis]; continue; }
+        const liste = candidats(p, j, slot, ctx, aujourdHui);
+        if (!liste.length) continue;
+        let best = null, bestS = -Infinity;
+        for (const rec of liste) { const sc = score(rec, p, ctx, r); if (sc > bestS) { bestS = sc; best = rec; } }
+        ajouterAuContexte(ctx, best, nb);
+        n[slot] = { recette: best.id, portions: nb };
+      }
+      return n;
+    });
+    return { ...plan, jours };
+  }
   function placerRecette(plan, jour, slot, recetteId) { return choisirRepas(plan, jour, slot, recetteId); }
 
   /** Met le plat choisi à la place du plat prévu (choix parmi les propositions : ne compte pas comme un remplacement). */
@@ -901,7 +948,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, portions, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

@@ -569,6 +569,19 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .choix-budget { display: grid; gap: 2px; justify-items: center; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
 .choix-budget[aria-checked="true"] { border-color: var(--poireau); background: var(--poireau-pale); }
 .choix-budget strong { font-size: 1.15rem; }
+
+/* ---------- qui mange cette semaine ---------- */
+.grille-presences { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: center; }
+.cellule-presence { display: flex; gap: 8px; justify-content: center; align-items: center; min-height: 40px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; font-size: .9rem; cursor: pointer; }
+.cellule-presence .dehors { color: var(--encre-douce); font-style: italic; }
+.cellule-presence .invites { color: var(--poireau); font-weight: 700; }
+.cellule-presence.sel { border-color: var(--poireau); box-shadow: 0 0 0 2px var(--poireau-pale); }
+.raccourcis-presences { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.raccourcis-presences .chip { font-size: .85rem; white-space: nowrap; flex-shrink: 0; }
+.fenetre-presence .chip[aria-pressed="true"] .muted { color: rgb(255 255 255 / .85); }
+.fenetre-presence { display: grid; gap: 14px; }
+.fenetre-presence .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.ligne-presence { align-items: center; }
 </style>
 
 <div id="app"></div>
