@@ -1,6 +1,7 @@
 /* Budgétable — promotions alimentaires du moment (lecture automatique).
  *
- * Source : les pages publiques « offres » de lidl.fr (catégories /c/…), autorisées par son robots.txt.
+ * Sources : les pages publiques « offres » de lidl.fr (catégories /c/…) et le texte du prospectus de la semaine d'Aldi
+ * (catalogues.aldi.fr, visionneuse iPaper), autorisés par leur robots.txt.
  * Les offres y sont décrites dans les attributs data-grid-data de chaque fiche produit.
  * Lecture polie : une page à la fois, 30 pages au plus, au plus une fois toutes les 6 heures pour tout le site.
  * Les autres enseignes (Carrefour, Auchan, E.Leclerc, Intermarché, U, Aldi) bloquent la lecture automatique
@@ -70,6 +71,84 @@ function offre(d, maintenant = Date.now()) {
   };
 }
 
+/* ---------- Aldi : texte du prospectus de la semaine (visionneuse iPaper, texte de chaque page dans la page) ---------- */
+const ALDI = 'https://www.aldi.fr';
+const NON_ALIMENTAIRE = /lessive|shampo|gel douche|dentifrice|papier toilette|essuie|nettoyant|adoucissant|désodorisant|chrysanth|plante|fleur|jardin|outil|perceuse|lampe|guirlande|jouet|peluche|pyjama|vêtement|pull|chaussette|veste|coussin|couette|vaisselle|poêle|casserole|batterie|chargeur|compresseur|voiture|pneu|décoration|bougie|seau citrouille|litière|croquettes|pâtée|liqueur|bière|vin |alcool/i;
+const STOP = new Set(['PRIX', 'DISCOUNT', 'XXL', 'ORIGINE', 'FRANCE', 'ITALIE', 'ESPAGNE', 'MAROC', 'BELGIQUE', 'AFRIQUE', 'NOUVEAU', 'NOS', 'BONS', 'PLANS', 'SEMAINE', 'CUIT', 'JOUR', 'ÉCONOMISEZ', 'JUSQU’À', 'OFFERT', 'ALDI', 'MEILLEURE', 'QUALITÉ', 'PRODUITS', 'RÉCOMPENSÉS', 'RETROUVEZ', 'ÈME', 'SUR', 'LOT', 'PRODUIT', 'MOINS', 'CHER', 'QU’AILLEURS', 'ÉLABORÉ', 'ÉLABORÉEN', 'EN', 'SAVEURS', 'TOUS', 'JOURS', 'FRAIS', 'LÉGUMES', 'FRUITS', 'ET', 'DES', 'DU', 'SUD', 'LA', 'DE', 'LE', 'À', 'LES', '%', '2', '3']);
+const majuscule = (w) => /[A-ZÀ-ÖØ-Ý]/.test(w) && !/[a-zß-öø-ÿ]/.test(w.replace(/[’']/g, ''));
+const motNom = (w) => w === '®' || w === '&' || (majuscule(w) && !/[()|]/.test(w)) || /^\d+$/.test(w);
+/** Offres alimentaires lues dans le texte des pages du prospectus. */
+function offresProspectus(pages, { enseigne = 'Aldi', lien = '', maintenant = Date.now() } = {}) {
+  const out = [];
+  pages.forEach((texte, n) => {
+    const t = String(texte).replace(/\s+/g, ' ');
+    // pages alimentaires : elles portent le message « mangerbouger » ou parlent du rayon frais
+    if (!/MANGERBOUGER|rayon frais|rayon surgel|fruits et l[ée]gumes|abus d.alcool/i.test(t)) return;
+    const dates = /au (?:[a-z]{3,8}\.? )?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i.exec(t);
+    let fin = null;
+    if (dates) { const an = dates[3] ? +dates[3] : new Date(maintenant).getFullYear(); fin = new Date(an, +dates[2] - 1, +dates[1], 23, 59).getTime(); }
+    const morceaux = t.split(/Réf\. ?\d+(?: ?\/ ?Réf\. ?\d+)*/);
+    for (let i = 1; i < morceaux.length; i++) {
+      // nom : la dernière suite de mots en capitales avant « Réf. » (marque ® comprise)
+      const mots0 = morceaux[i - 1].replace(/\((?:[A-F]|\d)\)|\bI A \*/g, ' ').replace(/(\S)[*✪]+/g, '$1').replace(/(^|\s)[*✪]+(?=\s|$)/g, ' | ').replace(/\s+/g, ' ').trim().split(' ');
+      let k = mots0.length - 1;
+      while (k >= 0 && !(majuscule(mots0[k]) && mots0[k].replace(/[^A-Za-zÀ-ÿ]/g, '').length >= 2)) k--;
+      if (k < 0) continue;
+      let d = k;
+      while (d > 0 && motNom(mots0[d - 1])) d--;
+      let mots = mots0.slice(d, k + 1);
+      const desc = mots0.slice(k + 1).join(' ');
+      const r = mots.indexOf('®');
+      if (r >= 0) { mots = mots.slice(Math.max(0, r - 3)); while (mots.indexOf('®') > 0 && STOP.has(mots[0]) && !['LE', 'LA', 'LES', 'DE', 'DU', 'DES', 'ET'].includes(mots[0])) mots.shift(); }
+      else { mots = mots.slice(-8); while (mots.length > 1 && STOP.has(mots[0])) mots.shift(); }
+      if (d > 0 && /^\d+\.$/.test(mots0[d - 1]) && /^\d+$/.test(mots[0])) mots.shift(); // reste d'un prix « 2. 99 »
+      while (mots.length > 1 && /^\d+$/.test(mots[0]) && /^\d+$/.test(mots[1])) mots.shift();
+      const nomBrut = mots.join(' ').trim();
+      if (nomBrut.replace(/[^A-Za-zÀ-ÿ]/g, '').length < 4) continue;
+      const apres = morceaux[i].slice(0, 260);
+      const px = /(\d{1,3})\. ?(\d{2})\b/.exec(apres);
+      if (!px) continue;
+      const prix = +(px[1] + '.' + px[2]);
+      const avantPrix = apres.slice(0, px.index);
+      const suite = apres.slice(px.index + px[0].length, px.index + px[0].length + 110);
+      const deuxieme = /-\s?(\d{1,2}) ?% ?SUR ?LE ?2/i.exec(apres);
+      const pct = deuxieme ? null : /-\s?(\d{1,2}) ?%/.exec(avantPrix);
+      const offert = /(\+\s?\d{1,3} ?% OFFERT|\d+ \+ \d+ OFFERTS?)/i.exec(avantPrix);
+      const unite = /(\d+(?:[.,]\d+)?\s?(?:x \d+ ?)?(?:kg|g|cl|ml|L)\b)/;
+      const cond = unite.exec(avantPrix.slice(-45)) || unite.exec(suite.slice(0, 40)) || unite.exec(suite);
+      const kg = /\((\d+[.,]\d{2}) ?€ ?(?:le|la) ?(kg|L|dose)\)/i.exec(suite) || /\((\d+[.,]\d{2}) ?€ ?le ?(kg|L)\)/i.exec(avantPrix);
+      let prixAvant = null;
+      if (pct) { const m = /\)\s*(\d{1,3}\.\d{2})\b/.exec(suite); if (m && +m[1] > prix) prixAvant = +m[1]; }
+      const remise = pct ? `-${pct[1]} %` : deuxieme ? `-${deuxieme[1]} % sur le 2e` : offert ? offert[1].replace(/\s+/g, ' ').toLowerCase() : /XXL/.test(avantPrix) ? 'Format XXL' : /LOT DE/.test(avantPrix) ? 'Lot' : 'Prix prospectus';
+      const lisible = nomBrut.toLowerCase().replace(/ ®/g, '').replace(/(^|[\s'’-])([a-zà-ÿ])/g, (m0, a, b) => a + b.toUpperCase());
+      const phrase = desc.split(/\.\s/)[0].replace(/\.$/, '');
+      const complement = /^[A-Z]?[a-zàâéèêç]/.test(phrase) && phrase.length <= 70 && !/réf|prix|origine|catégorie|variét|calibre|mg sur|^le |^la |produit de/i.test(phrase) ? ' — ' + phrase : '';
+      const nom = (lisible + complement).slice(0, 120);
+      if (NON_ALIMENTAIRE.test(nom)) continue;
+      if (fin && fin < maintenant - 86400000) continue;
+      out.push({ id: `${enseigne.toLowerCase()}-p${n + 1}-${i}`, enseigne, nom, prix, prixAvant, remise, lidlPlus: false, cond: cond ? cond[1].replace(/\s+/g, ' ') : '', prixKg: kg ? `1 ${kg[2]} = ${kg[1].replace('.', ',')}` : '', debut: null, fin, quand: '', lien: lien || '', image: null, rayon: 'Prospectus', page: n + 1 });
+    }
+  });
+  return out;
+}
+async function lireUrl(url) {
+  const rep = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(15000), headers: { 'User-Agent': AGENT, Accept: 'text/html', 'Accept-Language': 'fr-FR,fr;q=0.9' } });
+  if (!rep.ok) throw Object.assign(new Error('HTTP ' + rep.status), { code: 502 });
+  const t = await rep.text();
+  return t.length > 6e6 ? t.slice(0, 6e6) : t;
+}
+function textesPages(html) {
+  const m = /"pageTexts":(\[[\s\S]*?\])(?=,"|\})/.exec(html);
+  if (!m) return [];
+  try { return JSON.parse(m[1]).map(String); } catch (e) { return []; }
+}
+async function promosAldi() {
+  const page = await lireUrl(ALDI + '/catalogues/cette-semaine.html');
+  const lien = (/"link":"(https:\/\/catalogues\.aldi\.fr\/[^"\\]+)/.exec(page) || [])[1];
+  if (!lien) return [];
+  return offresProspectus(textesPages(await lireUrl(lien)), { enseigne: 'Aldi', lien });
+}
+
 async function lire(chemin) {
   const rep = await fetch(BASE + chemin, { redirect: 'follow', signal: AbortSignal.timeout(12000), headers: { 'User-Agent': AGENT, Accept: 'text/html', 'Accept-Language': 'fr-FR,fr;q=0.9' } });
   if (!rep.ok) throw Object.assign(new Error('Lidl ' + rep.status), { code: 502 });
@@ -100,11 +179,13 @@ async function promosDuMoment() {
       try { for (const g of grilles(await lire(chemin))) { const o = offre(g); if (o && !offres.has(o.id)) offres.set(o.id, o); } lues++; } catch (e) { /* page suivante */ }
       await pause(250);
     }
-    const r = { offres: [...offres.values()], sources: [{ enseigne: 'Lidl', pages: lues, lien: BASE }], maj: Date.now() };
+    let aldi = [];
+    try { aldi = await promosAldi(); } catch (e) { aldi = []; }
+    const r = { offres: [...offres.values(), ...aldi], sources: [{ enseigne: 'Lidl', pages: lues, lien: BASE }, { enseigne: 'Aldi', offres: aldi.length, lien: ALDI + '/catalogues.html' }], maj: Date.now() };
     if (r.offres.length || !cache) cache = { t: Date.now(), r };
     return r;
   })();
   try { return await enCours; } finally { enCours = null; }
 }
 
-module.exports = { promosDuMoment, grilles, liensOffres, offre, decoder };
+module.exports = { promosDuMoment, grilles, liensOffres, offre, decoder, offresProspectus, textesPages };

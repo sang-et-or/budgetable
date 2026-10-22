@@ -1840,7 +1840,7 @@
   /* ---------- promotions du moment (lues par le serveur Budgétable sur les pages publiques des enseignes) ---------- */
   const CLE_PROMOS = 'budgetable.promos';
   let promos = (() => { try { const x = JSON.parse(localStorage.getItem(CLE_PROMOS) || 'null'); return x && Date.now() - x.t < 6 * 3600000 ? { ...x.r, etat: 'ok' } : null; } catch (e) { return null; } })();
-  const AUTRES_PROMOS = [['Carrefour', 'https://www.carrefour.fr/promotions'], ['Intermarché', 'https://www.intermarche.com/catalogues'], ['Aldi', 'https://www.aldi.fr/catalogues.html'], ['Lidl (catalogues)', 'https://www.lidl.fr/c/catalogues-en-ligne/s10017753']];
+  const AUTRES_PROMOS = [['Carrefour', 'https://www.carrefour.fr/catalogue'], ['Intermarché', 'https://www.intermarche.com/catalogues'], ['Netto', 'https://www.netto.fr/prospectus'], ['Lidl (catalogues)', 'https://www.lidl.fr/c/catalogues-en-ligne/s10017753']];
   async function chargerPromos(forcer) {
     if (promos && promos.etat === 'charge') return;
     if (promos && promos.etat === 'ok' && !forcer) return;
@@ -1866,7 +1866,9 @@
     let id = null;
     try { const a = window.Saisie.analyserLigne(o.nom.replace(/^[A-ZÀ-Ý0-9'’&.® -]{3,}(?= [A-Za-zà-ÿ])/, '').trim() || o.nom); id = a && a.id && E.ING[a.id] && !E.ING[a.id].perso ? a.id : null; } catch (e) { id = null; }
     // le rayon de l'offre doit aller avec celui du produit (des « boules crème » glacées ne sont pas de la crème fraîche)
-    if (id && o.rayon) { const rx = RAYON_COMPATIBLE[E.ING[id].rayon]; if (rx && !rx.test(o.rayon)) id = null; }
+    if (id && o.rayon && o.rayon !== 'Prospectus') { const rx = RAYON_COMPATIBLE[E.ING[id].rayon]; if (rx && !rx.test(o.rayon)) id = null; }
+    // plats préparés et desserts : ce n'est pas l'ingrédient de la liste
+    if (id && /dessert|danette|yaourt|skyr|enrob|cake|brioche|pain au|préparation|preparation|panés|panes|nugget|nems|feuilleté|feuillete|gratin de|paëlla|paella|parmentier|velouté|veloute|goulash|croque|flan|tripes|grignot|frites de/i.test(o.nom) && !/^(yaourt|yaourt_grec|frites|bechamel)$/.test(id)) id = null;
     if (id && /glace|bonbon|biscuit|gâteau|gateau|chips|confiserie|apéritif|aperitif|surprise/i.test(o.nom) && !/glace|biscuit|chips/.test(id)) id = null;
     ingPromo.set(o.id, id);
     return id;
@@ -1879,7 +1881,7 @@
     const id = ingredientDePromo(o);
     return `<li class="promo" style="--m:${MAGASINS[o.enseigne] || '#5b6b62'}"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
       <div class="stack" style="gap:3px;min-width:0">${badgeMagasin(o.enseigne)}<a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
-        <span class="small muted">${[o.cond, o.prixKg ? o.prixKg + ' €' : '', finPromo(o)].filter(Boolean).map(esc).join(' · ')}</span>
+        <span class="small muted">${[o.cond, o.prixKg ? o.prixKg + ' €' : '', finPromo(o), o.page ? 'prospectus p. ' + o.page : ''].filter(Boolean).map(esc).join(' · ')}</span>
         ${avecIdee && id ? `<span><button class="btn-lien small" data-a="promo-idee" data-id="${id}">Une idée de plat avec ${esc(E.ING[id].nom.toLowerCase())}</button></span>` : ''}</div>
       <div class="promo-prix"><strong class="num">${euros(o.prix)}</strong>${o.prixAvant ? `<s class="small muted num">${euros(o.prixAvant)}</s>` : ''}${o.remise ? `<span class="tag-promo">${esc(o.remise)}</span>` : ''}${o.lidlPlus ? '<span class="tag-promo lidl-plus">Lidl Plus</span>' : ''}</div></li>`;
   }
@@ -1922,7 +1924,7 @@
         ${groupes.map(([n, l]) => `${n ? `<h3 class="titre-magasin">${badgeMagasin(n)} <span class="small muted">${pluriel(l.length, 'promo')}</span></h3>` : ''}<ul class="liste-promos">${l.slice(0, 120).map((o) => lignePromo(o, true)).join('')}</ul>`).join('') || '<p class="small muted">Aucune promo ne correspond. Essayez un autre mot ou un autre rayon.</p>'}
       </section>` : ''}
       <section class="carte stack" style="gap:8px"><h2>Chez les autres enseignes</h2>
-        <p class="small muted" style="margin:0">Ces sites ne permettent pas la lecture automatique de leurs promotions : retrouvez-les dans leurs catalogues.</p>
+        <p class="small muted" style="margin:0">Budgétable lit automatiquement les offres de Lidl et le prospectus de la semaine d’Aldi. Les autres enseignes bloquent ou interdisent cette lecture : retrouvez leurs prospectus ici.</p>
         <div class="row" style="gap:6px">${AUTRES_PROMOS.map(([n, u]) => `<a class="btn btn-petit" href="${u}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>
         <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p></section>`;
   }

@@ -22,3 +22,17 @@ assert.strictEqual(o[0].lien, 'https://www.lidl.fr/p/x/p1'); assert.strictEqual(
 assert.strictEqual(o[1].lidlPlus, true); assert.strictEqual(o[1].prix, 4.25);
 assert.strictEqual(decoder('a &amp; b &#39;c&#x27;'), "a & b 'c'");
 console.log('promos : ok');
+// prospectus Aldi : texte des pages (extrait réel)
+const { offresProspectus, textesPages } = require('../api/promos.js');
+const pages = ["Du mar. 20/10 au sam. 24/10 DES FRUITS ET LÉGUMES FRAIS TOUS LES JOURS À PRIX DISCOUNT ORANGES À JUS Variété Valencia. Catégorie 1. Calibre 5/6 (70/84 mm). Réf. 5016512 AFRIQUE DU SUD ORIGINE Le filet de 1.5 kg 2. 29 1. 53 Le kg MANDARINES Variété Nadorcott. Catégorie 1. Calibre 54/69 mm. Réf. 5022922 ORIGINE AFRIQUE DU SUD -21% 1. 79 (1) Le filet 750 g (2.39 € le kg) 2.29 Les offres de cette double page sont valables du 20/10/2026 au 24/10/2026. *Source Worldpanel, prix moyen payé au kilo de fruits et de légumes",
+  "Du mar. 20/10 au lun. 26/10 I A * ST-CLÉMENT LE VOLAILLER ® GRIGNOT’ DE POULET (A) ** À déguster chaud ou froid. Au choix : nature ou mexicain. Réf. 5001663 / Réf. 5001664 I A * -26% 1. 79 (1) 250 g (7.16 € le kg) 2.45 ÉCONOMISEZ JUSQU’À 50 % SUR LE 2 ÈME PRODUIT I A * ST-CLÉMENT LE VOLAILLER ® FILETS DE POULET (B) Réf. 5003050 I A * XXL 11. 99 1.5 kg 8. 00 Le kg POUR VOTRE SANTÉ, ÉVITEZ DE MANGER TROP GRAS. WWW.MANGERBOUGER.FR",
+  "À partir du mer. 21/10 LILY & DAN ® PYJAMA Réf. 5021071 5. 99 L‘ensemble"];
+const ofs = offresProspectus(pages, { enseigne: 'Aldi', lien: 'https://catalogues.aldi.fr/x/', maintenant: Date.UTC(2026, 9, 21) });
+const noms = ofs.map((o) => o.nom);
+assert.ok(noms.includes('Oranges À Jus'), noms);
+const mand = ofs.find((o) => o.nom === 'Mandarines'); assert.ok(mand && mand.prix === 1.79 && mand.prixAvant === 2.29 && mand.remise === '-21 %' && mand.cond === '750 g', JSON.stringify(mand));
+const grig = ofs.find((o) => /Grignot/.test(o.nom)); assert.ok(grig && grig.prix === 1.79 && grig.remise === '-26 %' && /^St-Clément Le Volailler/.test(grig.nom), JSON.stringify(grig));
+const fil = ofs.find((o) => /Filets De Poulet/.test(o.nom)); assert.ok(fil && fil.prix === 11.99 && fil.remise === 'Format XXL' && fil.cond === '1.5 kg', JSON.stringify(fil));
+assert.ok(!noms.some((n) => /Pyjama/i.test(n)), 'page non alimentaire gardée');
+assert.deepStrictEqual(textesPages('{"a":1,"pageTexts":["p1","p2"],"b":2}'), ['p1', 'p2']);
+console.log('prospectus : ok');
