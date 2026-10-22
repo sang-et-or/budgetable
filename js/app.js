@@ -70,7 +70,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -80,7 +80,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
   }
@@ -876,7 +876,7 @@
         ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></section>`;
   }
   /* ---------- la cuisine : frigo, congélateur, placard et corbeille qu'on ouvre ---------- */
-  const EMOJI = { oignon: '🧅', ail: '🧄', carotte: '🥕', courgette: '🥒', tomate: '🍅', poivron: '🫑', pomme_de_terre: '🥔', poireau: '🥬', champignon: '🍄', brocoli: '🥦', salade: '🥬', concombre: '🥒', aubergine: '🍆', courge: '🎃', citron: '🍋', persil: '🌿', patate_douce: '🍠', chou: '🥬',
+  const EMOJI = { oignon: '🧅', ail: '🧄', carotte: '🥕', courgette: '🥒', tomate: '🍅', poivron: '🫑', pomme_de_terre: '🥔', poireau: '🥬', champignon: '🍄', brocoli: '🥦', salade: '🥬', concombre: '🥒', aubergine: '🍆', courge: '🍠', citron: '🍋', persil: '🌿', patate_douce: '🍠', chou: '🥬',
     poulet_filet: '🍗', cuisses_poulet: '🍗', boeuf_hache: '🥩', jambon: '🍖', lardons: '🥓', saucisse: '🌭', saumon: '🐟', oeufs: '🥚', lait: '🥛', beurre: '🧈', creme: '🥛', emmental: '🧀', mozzarella: '🧀', feta: '🧀', yaourt: '🍶', tofu: '🍱',
     pates: '🍝', riz: '🍚', semoule: '🌾', quinoa: '🌾', farine: '🌾', lentilles_corail: '🫘', lentilles_vertes: '🫘', pois_chiches: '🫘', haricots_rouges: '🫘', haricots_blancs: '🫘', pois_casses: '🫛', mais: '🌽', tomates_concassees: '🥫', lait_coco: '🥥', thon: '🥫',
     huile_olive: '🫒', curry: '🍛', cumin: '🧂', paprika: '🌶️', bouillon: '🍲', sauce_soja: '🍶', moutarde: '🫙', tortillas: '🫓', colin: '🐟', epinards: '🥬', haricots_verts: '🫛', petits_pois: '🫛', pain: '🥖', pain_mie: '🍞' };
@@ -917,7 +917,55 @@
       ${manquent.length ? `<div class="row puces-ajout" style="gap:6px"><span class="small">Ranger ici :</span>${manquent.map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom.replace(/\s*\(.*\)$/, ''))}</button>`).join('')}</div>` : ''}
     </div>`;
   }
+  /* cuisine 3D : three.js chargé au premier passage dans le Placard */
+  let three = null;   // null : pas demandé ; 'chargement' ; true ; false (échec)
+  const veut3D = () => S.vue3d !== false && window.Cuisine3D && window.Cuisine3D.disponible() && three !== false;
+  function chargerThree() {
+    if (three) return;
+    three = 'chargement';
+    const sc = document.createElement('script');
+    sc.src = 'js/vendor/three-r160.min.js';
+    sc.onload = () => { three = !!window.THREE; rendre(); };
+    sc.onerror = () => { three = false; rendre(); };
+    document.head.appendChild(sc);
+  }
+  function donnees3D() {
+    const st = S.profil.stock || {};
+    const nouveaux = new Set(S.dernierRangement ? S.dernierRangement.ajouts.map(([id]) => id) : []);
+    const z = { frigo: { cremerie: [], viandes: [], legumes: [] }, congel: { surgeles: [] }, placard: { feculents: [], conserves: [], epices: [] }, corbeille: { tout: [] } };
+    Object.keys(st).filter((id) => E.ING[id]).sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')).forEach((id) => {
+      const i = E.ING[id], zone = zoneDe(id);
+      const cle = zone === 'frigo' ? (i.rayon === 'Crèmerie et frais' ? 'cremerie' : i.rayon === 'Viandes et poissons' ? 'viandes' : 'legumes')
+        : zone === 'placard' ? (EPICES.has(id) ? 'epices' : CONSERVES.has(id) ? 'conserves' : 'feculents') : zone === 'congel' ? 'surgeles' : 'tout';
+      z[zone][cle].push({ id, zone, emoji: EMOJI[id] || '🥣', part: Math.min(1, st[id] / i.cond), nouveau: nouveaux.has(id) });
+    });
+    const sombre = document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    return { zones: z, ouvert: S.cuisine || null, sel: S.stockSel || null, sombre };
+  }
+  function monter3D() {
+    const el = document.getElementById('scene-cuisine');
+    if (!el) return;
+    if (three !== true) { chargerThree(); return; }
+    const ok = window.Cuisine3D.monter(el, donnees3D(), {
+      ouvrir: (zone) => { S.cuisine = S.cuisine === zone ? null : zone; S.stockSel = null; rendre(); },
+      choisir: (id) => { S.stockSel = S.stockSel === id ? null : id; rendre(); }
+    });
+    if (!ok) { three = false; rendre(); }
+  }
+  function vueCuisine3D(st, ids, nouveaux) {
+    const o = S.cuisine || null;
+    const n = (zone) => ids.filter((id) => zoneDe(id) === zone).length;
+    const noms = { frigo: 'le frigo', congel: 'le congélateur', placard: 'le placard', corbeille: 'la corbeille' };
+    return `<section class="cuisine-3d" aria-label="Ma cuisine en 3D">
+      <div class="scene3d" id="scene-cuisine">${three === true ? '' : '<div class="chargement-3d small muted"><span class="rond-attente" aria-hidden="true"></span> Préparation de la cuisine…</div>'}</div>
+      <p class="small muted aide-3d">Touchez un meuble pour l’ouvrir · glissez pour tourner</p>
+      <div class="row zones-3d" role="group" aria-label="Ouvrir un meuble">${['frigo', 'congel', 'placard', 'corbeille'].map((zn) => `<button class="chip" data-a="cuisine-ouvrir" data-z="${zn}" aria-pressed="${o === zn}" aria-label="${o === zn ? 'Fermer' : 'Ouvrir'} ${noms[zn]} (${pluriel(n(zn), 'produit')})">${{ frigo: '🧊 Frigo', congel: '❄️ Congélateur', placard: '🚪 Placard', corbeille: '🧺 Corbeille' }[zn]} <span class="compte">${n(zn)}</span></button>`).join('')}</div>
+      ${o ? `<div class="panneau-3d">${interieur(o, ids, st, nouveaux)}</div>` : ''}
+      <button class="btn-lien small" data-a="cuisine-vue" data-v="plat" style="justify-self:start">Voir la cuisine à plat</button>
+    </section>`;
+  }
   function vueCuisine(st, ids, nouveaux) {
+    if (veut3D()) return vueCuisine3D(st, ids, nouveaux);
     const o = S.cuisine || null;
     const n = (zone) => ids.filter((id) => zoneDe(id) === zone).length;
     const porte = (zone, classe, libelle) => `<button class="porte ${classe}" data-a="cuisine-ouvrir" data-z="${zone}" aria-expanded="${o === zone}" aria-label="${o === zone ? 'Fermer' : 'Ouvrir'} ${libelle} (${pluriel(n(zone), 'produit')})"><span class="poignee" aria-hidden="true"></span><span class="etiquette">${esc(libelle.replace(/^(le|la) /i, ''))}<span class="compte">${n(zone)}</span></span></button>`;
@@ -939,7 +987,7 @@
         </div>
       </div>
       <div class="sol" aria-hidden="true"></div>
-    </section>`;
+    </section>${window.Cuisine3D && window.Cuisine3D.disponible() && three !== false ? '<button class="btn-lien small" data-a="cuisine-vue" data-v="3d">Voir la cuisine en 3D</button>' : ''}`;
   }
   function ongletPlacard() {
     const st = S.profil.stock || {};
@@ -1345,6 +1393,7 @@
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition();
+    if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
     const apresEd = document.querySelector('.fenetre-edition');
@@ -1589,6 +1638,7 @@
         S.modeCourses = { ...m, ouvert: true, i };
         break;
       }
+      case 'cuisine-vue': S.vue3d = el.dataset.v === '3d'; break;
       case 'cuisine-ouvrir': S.cuisine = S.cuisine === el.dataset.z ? null : el.dataset.z; S.stockSel = null; break;
       case 'stock-sel': S.stockSel = S.stockSel === el.dataset.id ? null : el.dataset.id; break;
       case 'liste-stock-ouvrir': S.listeStockOuverte = !el.parentElement.open; return;

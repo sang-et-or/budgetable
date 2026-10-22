@@ -29,7 +29,7 @@ with sync_playwright() as p:
     page.fill("#stock-cherche", "emment")
     page.locator("#stock-propositions .puce-ajout").first.click()
     # la cuisine : le placard contient les pâtes, le frigo les œufs et l'emmental
-    k = main.locator(".cuisine")
+    k = main.locator(".cuisine-3d, .cuisine").first
     assert "Placard" in k.inner_text() and "Frigo" in k.inner_text()
     k.get_by_role("button", name=re.compile("^Ouvrir le placard")).click()
     pates = k.locator(".produit", has_text="Pâtes")
@@ -39,7 +39,7 @@ with sync_playwright() as p:
     q1 = k.locator(".produit", has_text="Pâtes").locator(".p-qte").inner_text()
     assert q0 != q1, (q0, q1)
     k.get_by_role("button", name=re.compile("^Ouvrir le frigo")).click()
-    ft = k.locator(".meuble-frigo").inner_text()
+    ft = k.locator(".interieur").inner_text()
     assert "Emmental" in ft and "Œufs" in ft, ft
     assert "Pâtes" not in ft
     # la liste détaillée reste disponible

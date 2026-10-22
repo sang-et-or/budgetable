@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const dist = path.join(__dirname, 'dist');
 fs.rmSync(dist, { recursive: true, force: true });
-fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
+fs.mkdirSync(path.join(dist, 'js', 'vendor'), { recursive: true });
 fs.mkdirSync(path.join(dist, 'telechargements'), { recursive: true });
 
 const corps = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
@@ -29,11 +29,11 @@ ${reste.slice(finStyle).trim()}
 // ensemble, sans mélanger un ancien et un nouveau (cache du navigateur ou du réseau de diffusion).
 const crypto = require('crypto');
 const empreinte = crypto.createHash('sha1');
-for (const f of fs.readdirSync(path.join(__dirname, 'js')).sort()) empreinte.update(fs.readFileSync(path.join(__dirname, 'js', f)));
+for (const f of fs.readdirSync(path.join(__dirname, 'js')).sort().filter((f) => f.endsWith('.js'))) empreinte.update(fs.readFileSync(path.join(__dirname, 'js', f)));
 empreinte.update(corps);
 const version = empreinte.digest('hex').slice(0, 10);
 fs.writeFileSync(path.join(dist, 'index.html'), html.replace(/<script src="(js\/[^"?]+)"><\/script>/g, `<script src="$1?v=${version}"></script>`));
-for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
+for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/cuisine3d.js', 'js/vendor/three-r160.min.js', 'js/vendor/three-LICENSE.txt', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
 console.log('dist/ prêt');

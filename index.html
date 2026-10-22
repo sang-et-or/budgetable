@@ -493,6 +493,18 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .produit-detail .emoji { font-size: 30px; }
 .liste-detaillee summary { cursor: pointer; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .porte { transition: none; } }
+
+/* ---------- cuisine 3D ---------- */
+.cuisine-3d { display: grid; gap: 10px; }
+.scene3d { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--trait); background: var(--mur); min-height: 300px; display: grid; place-items: center; }
+.scene3d canvas { display: block; touch-action: pan-y; cursor: pointer; }
+.chargement-3d { display: flex; gap: 8px; align-items: center; }
+.aide-3d { margin: -2px 0 0; text-align: center; }
+.zones-3d { gap: 6px; justify-content: center; }
+.zones-3d .chip { display: inline-flex; gap: 6px; align-items: center; }
+.zones-3d .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.panneau-3d { border-radius: 16px; border: 1px solid var(--trait); background: var(--frigo-int); }
+.panneau-3d .etagere { border-bottom-color: var(--frigo-bord); }
 </style>
 
 <div id="app"></div>
@@ -501,6 +513,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/data.js"></script>
 <script src="js/modeles.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/cuisine3d.js"></script>
 <script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>
