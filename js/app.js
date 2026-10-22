@@ -544,13 +544,13 @@
     ];
     return `<div class="wrap accueil"><div class="store" aria-hidden="true"></div>
       <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
-        <div class="row" style="gap:8px">${connecte ? `<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>` : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>`}</div></header>
+        <div class="row" style="gap:8px">${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
       <section class="accueil-hero">
         <div class="stack" style="gap:16px">
           <p class="eyebrow">Bien manger, petit budget</p>
           <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
           <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
-          <div class="row" style="gap:10px"><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
+          <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
           <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · aucune application à installer</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
@@ -594,11 +594,11 @@
   const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? `<em class="nav-badge">${promos.offres.length}</em>` : ''}</button>`; };
-    const nav = `<nav class="nav" aria-label="Navigation principale">${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
+    const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
-      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
+      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
   }
 
@@ -3159,6 +3159,7 @@
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
       case 'compte-ouvrir': ouvrirCompte(el.dataset.k || 'connexion'); break;
+      case 'accueil': S.vue = 'accueil'; window.scrollTo(0, 0); break;
       case 'compte-vue': compte = { ...compte, vue: el.dataset.k, msg: '', erreur: '' }; break;
       case 'compte-voir': compte.voir = !compte.voir; rendreCompte(); return;
       case 'compte-fermer': compte.vue = null; break;
