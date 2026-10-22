@@ -582,6 +582,24 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .fenetre-presence { display: grid; gap: 14px; }
 .fenetre-presence .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
 .ligne-presence { align-items: center; }
+
+/* ---------- bilan nutritionnel ---------- */
+.score-reperes { padding: 4px 10px; border-radius: 99px; font-size: .9rem; }
+.score-reperes.bon { background: var(--poireau-pale); color: var(--poireau); }
+.score-reperes.moyen { background: var(--moutarde-pale); color: var(--moutarde); }
+.score-reperes.faible { background: var(--tomate-pale); color: var(--tomate); }
+.chiffres-nutri { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chiffres-nutri > div { display: grid; gap: 0; padding: 8px 6px; border-radius: 10px; background: var(--papier); text-align: center; }
+.chiffres-nutri strong { font-size: 1rem; }
+.chiffres-nutri .rep-bas, .chiffres-nutri .rep-haut { box-shadow: inset 0 0 0 2px var(--moutarde); }
+.liste-reperes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.liste-reperes li { display: flex; gap: 10px; align-items: flex-start; }
+.liste-reperes li > span:first-child { width: 1.6em; height: 1.6em; border-radius: 50%; display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
+.et-ok { background: var(--poireau-pale); color: var(--poireau); }
+.et-bas { background: var(--moutarde-pale); color: var(--moutarde); }
+.et-haut { background: var(--tomate-pale); color: var(--tomate); }
+.conseil-nutri { color: var(--encre); }
+@media (max-width: 380px) { .chiffres-nutri { grid-template-columns: repeat(2, 1fr); } }
 </style>
 
 <div id="app"></div>

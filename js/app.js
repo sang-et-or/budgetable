@@ -565,6 +565,7 @@
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocPresences()}
       ${blocCoach()}
+      ${blocNutritionSemaine()}
       ${blocBudget()}
       ${moyenneAssiette()}
       ${suggestionRituels()}
@@ -1688,6 +1689,24 @@
       </div>
       <p class="small muted" style="margin:0">${E.REC[(S.plan.jours[j][sl] || {}).recette] ? `Au menu : ${esc(E.REC[S.plan.jours[j][sl].recette].nom)} · ${nb(S.plan.jours[j][sl].portions)} portion(s)` : 'Pas de repas prévu à la maison.'}</p>
     </div></div>`;
+  }
+
+  /* ---------- bilan nutritionnel de la semaine ---------- */
+  function blocNutritionSemaine() {
+    if (!S.plan || !window.Nutrition) return '';
+    const b = window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING);
+    if (!b) return '';
+    const icone = (r) => (r.etat === 'ok' ? '<span class="et-ok" aria-label="Repère atteint">✓</span>' : r.etat === 'bas' ? '<span class="et-bas" aria-label="Pas assez">↓</span>' : '<span class="et-haut" aria-label="Trop">↑</span>');
+    const ligne = (r) => `<li class="rep-${r.etat}">${icone(r)}<span class="stack" style="gap:0;min-width:0;flex:1"><span><strong>${esc(r.nom)}</strong> <span class="num">${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur} ${esc(r.unite)}</span>${r.cle === 'poisson' ? ` <span class="small muted">(dont ${b.poissonGras} gras)</span>` : ''}</span><span class="small muted">Repère : ${esc(r.repere)}</span>${r.conseil ? `<span class="small conseil-nutri">${esc(r.conseil)}</span>` : ''}</span></li>`;
+    const aRevoir = b.reperes.filter((r) => r.etat !== 'ok');
+    const part = b.atteints / b.reperes.length;
+    return `<section class="carte stack bilan-nutri" style="gap:10px" aria-label="Bilan nutritionnel de la semaine">
+      <div class="spread" style="align-items:center"><h2>Bilan nutritionnel</h2><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong> repères</span></div>
+      <div class="chiffres-nutri"><div><span class="small muted">Énergie</span><strong class="num">${b.kcal} kcal</strong><span class="small muted">par jour</span></div>${b.reperes.filter((r) => ['prot', 'fibres', 'legumes'].includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span class="small muted">${esc(r.nom)}</span><strong class="num">${nb(r.valeur)} ${r.cle === 'legumes' ? 'g' : 'g'}</strong><span class="small muted">par jour</span></div>`).join('')}</div>
+      ${aRevoir.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">À améliorer</span><ul class="liste-reperes">${aRevoir.map(ligne).join('')}</ul></div>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints cette semaine. Bravo !</p>'}
+      <details><summary class="small"><strong>Voir tout le détail</strong></summary><ul class="liste-reperes" style="margin-top:8px">${b.reperes.map(ligne).join('')}</ul></details>
+      <p class="small muted" style="margin:0">Pour un adulte, sur les déjeuners et dîners de la semaine${b.gourmand ? ' et les desserts ou goûters prévus' : ''}, hors petit-déjeuner. Estimation d’après les ingrédients et les repères de santé publique (PNNS), pas un avis médical.</p>
+    </section>`;
   }
 
   /* ---------- coachs alimentaires ---------- */

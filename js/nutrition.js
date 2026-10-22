@@ -88,6 +88,69 @@
     cache.set(cle, r);
     return r;
   }
-  const api = { de, nutriscore, TABLE: T };
+  /* ---------- bilan de la semaine, pour un adulte (déjeuners, dîners, desserts et goûters prévus) ---------- */
+  const ROUGE = new Set(['boeuf_hache']);
+  const CHARCUTERIE = new Set(['jambon', 'lardons', 'saucisse']);
+  const VOLAILLE = new Set(['poulet_filet', 'cuisses_poulet']);
+  const POISSON = new Set(['saumon', 'colin', 'thon']);
+  const GRAS = new Set(['saumon']);
+  const LEGUMINEUSES = new Set(['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses']);
+  const LAITAGES = new Set(['lait', 'yaourt', 'emmental', 'mozzarella', 'feta']);
+  /**
+   * plan (semaine Budgétable), REC, ING → totaux par jour et repères pour un adulte.
+   * Repères : PNNS / ANSES (adulte), ramenés aux deux repas principaux quand c'est pertinent.
+   */
+  function bilanSemaine(plan, REC, ING) {
+    if (!plan) return null;
+    const t = { kcal: 0, prot: 0, fibres: 0, sucres: 0, ags: 0, sel: 0 };
+    const g = { rouge: 0, charcuterie: 0, volaille: 0, poisson: 0, legumes: 0 };
+    const n = { poisson: 0, gras: 0, legumineuses: 0, laitages: 0, repas: 0, gourmand: 0 };
+    let sucresGourmand = 0;
+    const jours = plan.jours.filter((jp) => jp.dejeuner || jp.diner || (jp.gourmand || []).length).length || 7;
+    const ajouter = (rec, gourmand) => {
+      const r = de(rec, ING);
+      if (!r) return;
+      for (const k of Object.keys(t)) t[k] += r.parPortion[k] || 0;
+      if (gourmand) { sucresGourmand += r.parPortion.sucres; n.gourmand++; return; }
+      n.repas++;
+      const ids = rec.ing.map(([id]) => id);
+      for (const [id, q] of rec.ing) {
+        const i = ING[id]; if (!i || i.perso) continue;
+        if (ROUGE.has(id)) g.rouge += q; if (CHARCUTERIE.has(id)) g.charcuterie += q; if (VOLAILLE.has(id)) g.volaille += q; if (POISSON.has(id)) g.poisson += q;
+        if (i.groupe === 'L' && i.unite !== 'pièce') g.legumes += q;
+        if (i.groupe === 'L' && i.unite === 'pièce') g.legumes += q * ((T[id] && T[id][7]) || 100);
+      }
+      if (ids.some((id) => POISSON.has(id))) n.poisson++;
+      if (ids.some((id) => GRAS.has(id))) n.gras++;
+      if (ids.some((id) => LEGUMINEUSES.has(id))) n.legumineuses++;
+      if (ids.some((id) => LAITAGES.has(id))) n.laitages++;
+    };
+    for (const jp of plan.jours) {
+      for (const sl of ['dejeuner', 'diner']) if (jp[sl] && REC[jp[sl].recette]) ajouter(REC[jp[sl].recette], false);
+      for (const x of jp.gourmand || []) if (REC[x.recette]) ajouter(REC[x.recette], true);
+    }
+    if (!n.repas) return null;
+    const parJour = (v) => v / jours;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    // [clé, libellé, valeur, unité, mini, maxi, repère affiché, conseil si pas assez, conseil si trop]
+    const reperes = [
+      ['prot', 'Protéines', Math.round(parJour(t.prot)), 'g / jour', 40, null, '40 g et plus sur les 2 repas', 'Ajoutez des œufs, du poisson, des légumineuses ou un laitage aux repas.', ''],
+      ['fibres', 'Fibres', Math.round(parJour(t.fibres)), 'g / jour', 20, null, '20 g et plus (30 g sur la journée)', 'Plus de légumes, de légumineuses et de pain ou pâtes complets.', ''],
+      ['legumes', 'Légumes', Math.round(parJour(g.legumes)), 'g / jour', 300, null, '300 g et plus (en plus des fruits)', 'Un légume en plus à chaque repas : crudités, soupe, poêlée.', ''],
+      ['sel', 'Sel', r1(parJour(t.sel)), 'g / jour', null, 4, 'moins de 4 g (5 g sur la journée)', '', 'Moins de charcuterie, de fromage et de bouillon ; goûtez avant de saler.'],
+      ['ags', 'Graisses saturées', Math.round(parJour(t.ags)), 'g / jour', null, 16, 'moins de 16 g sur les 2 repas', '', 'Moins de beurre, de crème, de charcuterie et de fromage.'],
+      ['sucres', 'Sucres', Math.round(parJour(t.sucres)), 'g / jour', null, 50, 'moins de 50 g (desserts compris)', '', 'Moins de desserts sucrés : fruits et yaourts nature.'],
+      ['rouge', 'Viande rouge', Math.round(g.rouge), 'g / semaine', null, 500, 'moins de 500 g par semaine', '', 'Remplacez une viande rouge par de la volaille, du poisson ou des légumineuses.'],
+      ['charcuterie', 'Charcuterie', Math.round(g.charcuterie), 'g / semaine', null, 150, 'moins de 150 g par semaine', '', 'Gardez lardons et jambon pour une ou deux recettes.'],
+      ['poisson', 'Poisson', n.poisson, 'repas / semaine', 2, null, '2 par semaine, dont 1 gras', 'Ajoutez un repas de poisson, par exemple du saumon.', ''],
+      ['legumineuses', 'Légumineuses', n.legumineuses, 'repas / semaine', 2, null, '2 par semaine et plus', 'Lentilles, pois chiches ou haricots : économiques et riches en fibres.', ''],
+      ['laitages', 'Laitages dans les repas', n.laitages, 'repas / semaine', 5, null, 'environ 1 repas sur 2 (2 laitages par jour au total)', 'Un yaourt ou un morceau de fromage en fin de repas.', '']
+    ].map(([cle, nom, valeur, unite, mini, maxi, repere, conseilBas, conseilHaut]) => {
+      const etat = mini != null && valeur < mini ? 'bas' : maxi != null && valeur > maxi ? 'haut' : 'ok';
+      return { cle, nom, valeur, unite, repere, etat, conseil: etat === 'bas' ? conseilBas : etat === 'haut' ? conseilHaut : '' };
+    });
+    return { kcal: Math.round(parJour(t.kcal) / 10) * 10, jours, repas: n.repas, gourmand: n.gourmand, poissonGras: n.gras, volaille: Math.round(g.volaille), reperes, atteints: reperes.filter((r) => r.etat === 'ok').length };
+  }
+  const api = { de, nutriscore, bilanSemaine, TABLE: T };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Nutrition = api;
 })(typeof window !== 'undefined' ? window : globalThis);
