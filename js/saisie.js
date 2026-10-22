@@ -25,7 +25,7 @@
   const MOTS = [
     [['poulet', 'volaille', 'blanc de poulet', 'aiguillette'], 'poulet_filet'], [['cuisse', 'pilon'], 'cuisses_poulet'],
     [['boeuf', 'bœuf', 'steak', 'hache', 'haché', 'boulette', 'viande hachee', 'burger'], 'boeuf_hache'],
-    [['jambon'], 'jambon'], [['lardon', 'bacon'], 'lardons'], [['saucisse', 'chipolata', 'merguez', 'knack'], 'saucisse'],
+    [['jambon'], 'jambon'], [['lardon', 'bacon'], 'lardons'], [['saucisse', 'chipolata'], 'saucisse'],
     [['saumon'], 'saumon'], [['thon'], 'thon'], [['colin', 'cabillaud', 'merlu', 'poisson blanc', 'lieu', 'poisson pane', 'poisson'], 'colin'],
     [['oeuf', 'œuf', 'omelette'], 'oeufs'], [['tofu'], 'tofu'],
     [['pate', 'pâtes', 'spaghetti', 'tagliatelle', 'penne', 'macaroni', 'coquillette', 'fusilli', 'lasagne', 'nouille', 'linguine'], 'pates'],
@@ -41,7 +41,7 @@
     [['fromage', 'gruyere', 'gruyère', 'emmental', 'comte', 'comté', 'raclette', 'gratine', 'gratiné'], 'emmental'], [['mozzarella', 'mozza'], 'mozzarella'], [['feta'], 'feta'],
     [['creme', 'crème', 'carbonara', 'creme fraiche'], 'creme'], [['lait de coco', 'coco'], 'lait_coco'], [['curry'], 'curry'],
     [['tortilla', 'wrap', 'fajita', 'burrito', 'taco', 'quesadilla'], 'tortillas'], [['croque', 'pain de mie'], 'pain_mie'], [['tartine', 'bruschetta', 'pain perdu'], 'pain'],
-    [['crepe', 'crêpe', 'galette', 'pancake', 'beignet', 'tarte', 'quiche', 'bechamel', 'béchamel'], 'farine'], [['yaourt', 'tzatziki'], 'yaourt'], [['moutarde'], 'moutarde']
+    [['crepe', 'crêpe', 'galette', 'pancake', 'beignet', 'tarte', 'quiche'], 'farine'], [['yaourt', 'tzatziki'], 'yaourt'], [['moutarde'], 'moutarde']
   ];
 
   // Aliments hors catalogue de Budgétable : ajoutés en « autres ingrédients », avec leurs allergènes connus.
@@ -175,6 +175,8 @@
     }
     if (cites.has('tomates_concassees') && coches.has('tomate')) coches.delete('tomates_concassees');
     if (['nouilles', 'lasagnes', 'gnocchis', 'raviolis'].some((id) => cites.has(id))) coches.delete('pates');
+    if (cites.has('bechamel')) for (const id of ['lait', 'beurre', 'farine']) if (!cites.has(id)) coches.delete(id);
+    if (cites.has('frites')) coches.delete('pomme_de_terre');
     if (coches.has('lentilles_corail') && !/lentilles? vertes?|lentilles? du puy/.test(t)) coches.delete('lentilles_vertes');
     if (coches.has('patate_douce') && !/pomme de terre|frite|puree/.test(t)) coches.delete('pomme_de_terre');
     // une protéine nommée remplace celle du plat par défaut (wok aux crevettes, lasagnes au saumon…)
@@ -236,14 +238,24 @@
   function chercherIngredients(texte, n = 12) {
     const t = norm(texte);
     if (t.length < 2) return [];
-    const sing = t.replace(/(s|x)$/, '');
-    const debut = (x) => x.split(' ').some((w) => w.startsWith(sing));
-    // les noms qui commencent par le texte d'abord, puis les autres façons de l'écrire, puis ce qui le contient
-    const noms = E.DATA.ingredients.filter((i) => !i.perso);
-    const viaDebut = noms.filter((i) => debut(norm(i.nom))).map((i) => i.id);
-    const viaMots = MOTS.filter(([mots]) => mots.some((m) => { const x = norm(m); return debut(x) || (t.length >= 4 && t.startsWith(x)); })).map(([, id]) => id);
-    const viaNoms = noms.filter((i) => norm(i.nom).includes(sing)).map((i) => i.id);
-    return [...new Set(viaDebut.concat(viaMots, viaNoms))].filter((id) => E.ING[id]).slice(0, n);
+    const sing = t.split(' ').map((w) => w.replace(/(s|x)$/, '')).join(' ');
+    const debut = (x) => x === sing || x.startsWith(sing) || x.split(' ').some((w, i, a) => a.slice(i).join(' ').startsWith(sing));
+    // rang : nom qui commence par le texte, autre façon de l'écrire, nom qui le contient, puis le texte qui commence par un mot connu
+    const rang = new Map();
+    const noter = (id, r) => { if (E.ING[id] && !E.ING[id].perso && (!rang.has(id) || rang.get(id) > r)) rang.set(id, r); };
+    for (const i of E.DATA.ingredients) {
+      const x = norm(i.nom);
+      if (x.startsWith(sing)) noter(i.id, 0); else if (debut(x)) noter(i.id, 1); else if (x.includes(sing)) noter(i.id, 3);
+    }
+    for (const [mots, id] of MOTS) for (const m of mots) {
+      const x = norm(m);
+      if (x === t || x === sing) noter(id, 0); else if (debut(x)) noter(id, 2); else if (t.length >= 4 && t.startsWith(x + ' ')) noter(id, 4);
+    }
+    let res = [...rang.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
+    if (!res.length && t.includes(' ')) {
+      for (const w of t.split(' ').filter((x) => x.length >= 4)) res = res.concat(chercherIngredients(w, n).filter((id) => !res.includes(id)));
+    }
+    return res.slice(0, n);
   }
 
   /* ---------- lignes d'ingrédients d'une vraie recette (« 200 g de lardons », « 2 oignons »…) ---------- */
@@ -253,7 +265,7 @@
     [['cuisse de poulet', 'cuisses de poulet', 'haut de cuisse', 'hauts de cuisse', 'pilon', 'poulet entier'], 'cuisses_poulet'],
     [['boeuf hache', 'viande hachee', 'steak hache', 'steaks haches', 'hache de boeuf', 'boeuf'], 'boeuf_hache'],
     [['jambon', 'des de jambon'], 'jambon'], [['lardon', 'poitrine fumee', 'poitrine de porc fumee', 'allumettes'], 'lardons'],
-    [['saucisse', 'chipolata', 'merguez', 'saucisse de toulouse'], 'saucisse'], [['saumon', 'pave de saumon'], 'saumon'], [['thon'], 'thon'],
+    [['saucisse', 'chipolata', 'saucisse de toulouse'], 'saucisse'], [['saumon', 'pave de saumon'], 'saumon'], [['thon'], 'thon'],
     [['colin', 'merlu', 'lieu', 'poisson blanc', 'filet de poisson'], 'colin'],
     [['oeuf', 'jaune d oeuf', 'jaunes d oeufs', 'blanc d oeuf', 'blancs d oeufs'], 'oeufs'], [['tofu'], 'tofu'],
     [['lait de coco', 'creme de coco', 'lait coco'], 'lait_coco'], [['lait'], 'lait'], [['beurre', 'beurre doux', 'beurre demi sel'], 'beurre'],
@@ -427,6 +439,12 @@
       tous.add(norm(E.ING[id].nom));
     }
     for (const [id, q] of Object.entries(quantites || {})) if (QTE[id] == null) QTE[id] = q;
+    // quantité habituelle par défaut selon le type de produit
+    for (const [, id] of mots || []) {
+      const i = E.ING[id];
+      if (!i || QTE[id] != null) continue;
+      QTE[id] = i.unite === 'pièce' ? (i.cond > 1 ? 1 : 0.25) : i.unite === 'ml' ? (i.groupe === 'D' || i.groupe === 'L' ? 100 : 20) : ({ P: 120, F: 80, L: 100, D: 30 })[i.groupe] || 15;
+    }
     for (let i = HORS.length - 1; i >= 0; i--) if (HORS[i][0].some((m) => tous.has(norm(m))) || tous.has(norm(HORS[i][1]))) HORS.splice(i, 1);
     MOTIFS.clear();
   }
