@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine' };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine' });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -248,7 +248,8 @@
       }
       case 'budget': return `<div class="stack">
         <div class="gros-chiffre num"><output id="budget-val">${euros(p.budget)}</output> <span class="small muted" style="font:500 1rem var(--f-texte)">par semaine</span></div>
-        <input class="range" type="range" id="budget" min="20" max="250" step="5" value="${p.budget}" data-a="budget" aria-label="Budget hebdomadaire en euros">
+        <input class="range" type="range" id="budget" min="20" max="300" step="5" value="${Math.min(300, p.budget)}" data-a="budget" aria-label="Budget hebdomadaire en euros">
+        <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="budget-ouvrir">Taper un montant ou calculer mon budget</button></div>
         <p class="small muted">Si ce budget ne suffit pas, l’appli vous le dira et proposera des ajustements. Les montants de cette version sont des estimations de démonstration.</p></div>`;
       case 'provisions': {
         const courants = ['pates', 'riz', 'semoule', 'farine', 'tomates_concassees', 'oeufs', 'lait', 'beurre', 'pomme_de_terre', 'oignon', 'ail', 'emmental', 'thon', 'lentilles_vertes', 'sauce_soja'].filter((id) => E.ING[id]);
@@ -444,11 +445,72 @@
     </svg>`;
   }
 
+  /* ---------- budget : montant libre et calculateur à partir des charges du foyer ---------- */
+  const SEMAINES_PAR_MOIS = 52 / 12;
+  const CHARGES = [
+    ['logement', 'Loyer ou crédit immobilier'], ['energie', 'Électricité, gaz, chauffage'], ['eau', 'Eau'], ['assurances', 'Assurances (habitation, auto, santé)'],
+    ['transport', 'Transport, carburant, crédit auto'], ['telecom', 'Téléphone, internet, box'], ['credits', 'Autres crédits'], ['enfants', 'Garde, cantine, école'],
+    ['impots', 'Impôts, taxe foncière (par mois)'], ['abonnements', 'Abonnements, sport, loisirs'], ['autres', 'Autres dépenses fixes']
+  ];
+  const NIVEAUX = [['serre', 'Serré', 0.22], ['equilibre', 'Équilibré', 0.3], ['confort', 'Confort', 0.38]];
+  const nombre = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; };
+  function calculBudget() {
+    const c = S.budgetCalc || {};
+    const revenus = nombre(c.revenu1) + nombre(c.revenu2) + nombre(c.aides);
+    const charges = CHARGES.reduce((t, [k]) => t + nombre((c.charges || {})[k]), 0);
+    const epargne = nombre(c.epargne);
+    const reste = revenus - charges - epargne;
+    const parts = (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length * 0.6;
+    const propositions = NIVEAUX.map(([k, nom, taux]) => ({ k, nom, semaine: Math.max(0, Math.round(reste * taux / SEMAINES_PAR_MOIS)) }));
+    return { revenus, charges, epargne, reste, parts, propositions, parJour: reste / 30 / Math.max(1, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length) };
+  }
+  function resultatCalcul() {
+    const r = calculBudget();
+    if (!r.revenus) return '<p class="small muted">Indiquez vos revenus et vos charges : le calcul se fait au fur et à mesure.</p>';
+    const estimation = S.plan ? E.listeCourses(S.plan, S.profil).total : null;
+    const choisi = (S.budgetCalc || {}).niveau || 'equilibre';
+    return `<div class="stack" style="gap:10px">
+      <div class="chiffres-calc"><div><span class="small muted">Revenus</span><strong class="num">${euros(r.revenus)}</strong></div><div><span class="small muted">Charges${r.epargne ? ' et épargne' : ''}</span><strong class="num">− ${euros(r.charges + r.epargne)}</strong></div><div><span class="small muted">Reste à vivre</span><strong class="num ${r.reste < 0 ? 'negatif' : ''}">${euros(r.reste)}</strong></div></div>
+      <span class="small muted">par mois · soit environ ${euros(Math.max(0, r.parJour))} par jour et par personne pour tout le reste (courses, vêtements, loisirs…)</span>
+      ${r.reste <= 0 ? `<div class="bandeau bandeau-alerte small"><span>Vos charges dépassent vos revenus ce mois-ci. Des aides existent : votre CAF, le CCAS de votre mairie (aide alimentaire, épiceries solidaires), ou un conseiller « Point conseil budget », gratuit, qui aide à faire le point.</span></div>`
+        : `<div class="stack" style="gap:6px"><strong>Budget courses conseillé</strong>
+          <div class="propositions-budget" role="radiogroup" aria-label="Niveau de budget">${r.propositions.map((x) => `<button class="choix-budget" role="radio" data-a="calc-niveau" data-k="${x.k}" aria-checked="${choisi === x.k}"><span class="small">${x.nom}</span><strong class="num">${euros(x.semaine)}</strong><span class="small muted">par semaine</span></button>`).join('')}</div>
+          <span class="small muted">Environ ${Math.round(NIVEAUX.find(([k]) => k === choisi)[2] * 100)} % du reste à vivre, pour les repas à la maison.${estimation != null ? ` Votre semaine actuelle est estimée à ${euros(estimation)}.` : ''}</span>
+          ${r.propositions.find((x) => x.k === choisi).semaine < 20 * r.parts ? '<span class="small">C’est très serré : Budgétable choisira les plats les moins chers, et le Placard vous aidera à ne rien racheter. Le CCAS de votre mairie peut aussi vous orienter vers une épicerie solidaire.</span>' : ''}
+          <button class="btn btn-plein" data-a="calc-appliquer">Utiliser ${euros(r.propositions.find((x) => x.k === choisi).semaine)} par semaine</button></div>`}
+    </div>`;
+  }
+  function vueBudget() {
+    if (!S.budgetOuvert) return '';
+    const c = S.budgetCalc || {};
+    const champ = (cle, label, valeur, aide) => `<label class="champ champ-euros"><span>${label}${aide ? ` <span class="small muted">${aide}</span>` : ''}</span><span class="saisie-euros"><input type="text" inputmode="decimal" autocomplete="off" data-a="calc-champ" data-k="${cle}" value="${esc(valeur || '')}" placeholder="0"><span aria-hidden="true">€</span></span></label>`;
+    return `<div class="voile" data-a="budget-fond"><div class="fiche fenetre-budget" role="dialog" aria-modal="true" aria-labelledby="budget-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Budget courses</span><h2 id="budget-titre">Mon budget</h2></div>
+        <button class="btn btn-petit" data-a="budget-fermer">Fermer</button></div>
+      <section class="stack" style="gap:8px"><h3>Je connais mon budget</h3>
+        <div class="row" style="gap:8px;align-items:flex-end">
+          <label class="champ champ-euros" style="max-width:170px"><span>Montant</span><span class="saisie-euros"><input type="text" inputmode="decimal" id="budget-libre" autocomplete="off" value="${esc(String(S.budgetSaisi != null ? Math.round(S.budgetSaisi) : S.budgetPeriode === 'mois' ? Math.round(S.profil.budget * SEMAINES_PAR_MOIS) : S.profil.budget))}"><span aria-hidden="true">€</span></span></label>
+          <div class="row" role="radiogroup" style="gap:4px">${[['semaine', 'par semaine'], ['mois', 'par mois']].map(([k, v]) => `<button class="chip" role="radio" data-a="budget-periode" data-k="${k}" aria-checked="${(S.budgetPeriode || 'semaine') === k}" aria-pressed="${(S.budgetPeriode || 'semaine') === k}">${v}</button>`).join('')}</div>
+        </div>
+        <div><button class="btn btn-plein btn-petit" data-a="budget-valider">Enregistrer ce budget</button></div>
+      </section>
+      <section class="stack" style="gap:10px"><h3>Je calcule mon budget</h3>
+        <p class="small muted" style="margin:0">À partir de ce qui rentre et de ce qui sort chaque mois. Ces chiffres restent sur votre appareil.</p>
+        <details class="carte" open><summary><strong>Revenus du foyer</strong> <span class="small muted">· nets, par mois</span></summary><div class="grille-calc">
+          ${champ('revenu1', 'Salaire ou revenu 1', c.revenu1)}${champ('revenu2', 'Salaire ou revenu 2', c.revenu2)}${champ('aides', 'Allocations, aides, pensions', c.aides)}</div></details>
+        <details class="carte" open><summary><strong>Charges fixes</strong> <span class="small muted">· par mois</span></summary><div class="grille-calc">
+          ${CHARGES.map(([k, v]) => champ('c:' + k, v, (c.charges || {})[k])).join('')}</div></details>
+        <details class="carte"><summary><strong>Épargne</strong> <span class="small muted">· facultatif</span></summary><div class="grille-calc">${champ('epargne', 'Mettre de côté chaque mois', c.epargne)}</div></details>
+        <div id="calc-resultat" class="carte resultat-calc" aria-live="polite">${resultatCalcul()}</div>
+      </section>
+    </div></div>`;
+  }
+
   function blocBudget() {
     const a = E.analyseBudget(S.plan, S.profil);
     const max = Math.max(a.estimation, a.budget) * 1.1;
     return `<section class="carte budget" aria-label="Budget de la semaine">
-      <div class="spread"><h2>Budget de la semaine</h2>${tagDemo}</div>
+      <div class="spread"><h2>Budget de la semaine</h2><div class="row" style="gap:6px;align-items:center">${tagDemo}<button class="btn btn-petit" data-a="budget-ouvrir">Modifier ou calculer</button></div></div>
       <div class="tirelire-bloc">${tirelire(a.ok ? Math.max(0.08, -a.ecart / a.budget) : 0, a.ok)}
         <p class="message-eco ${a.ok ? '' : 'manque'}">${a.ok ? `Il reste <b class="num">${euros(-a.ecart)}</b> dans la tirelire cette semaine` : `Il manque <b class="num">${euros(a.ecart)}</b> pour tenir le budget`}</p></div>
       <div class="chiffres"><div><span class="small muted">Courses à faire</span><br><strong class="num">${euros(a.estimation)}</strong></div>
@@ -1701,7 +1763,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1753,7 +1815,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -1951,6 +2013,30 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'budget-ouvrir': S.budgetOuvert = true; S.budgetSaisi = null; S.budgetCalc = S.budgetCalc || { charges: {} }; break;
+      case 'budget-fermer': case 'budget-fond': S.budgetOuvert = false; break;
+      case 'budget-periode': {
+        const z = document.getElementById('budget-libre'); const v = z ? nombre(z.value) : 0;
+        const avant = S.budgetPeriode || 'semaine'; S.budgetPeriode = el.dataset.k;
+        if (v && avant !== S.budgetPeriode) S.budgetSaisi = S.budgetPeriode === 'mois' ? v * SEMAINES_PAR_MOIS : v / SEMAINES_PAR_MOIS;
+        break;
+      }
+      case 'budget-valider': {
+        const z = document.getElementById('budget-libre'); const v = z ? nombre(z.value) : 0;
+        const semaine = Math.round(S.budgetPeriode === 'mois' ? v / SEMAINES_PAR_MOIS : v);
+        if (semaine < 5 || semaine > 2000) { toast('Indiquez un montant entre 5 € et 2 000 € par semaine'); return; }
+        p.budget = semaine; S.budgetOuvert = false; S.budgetSaisi = null;
+        toast(`Budget : ${euros(semaine)} par semaine`);
+        break;
+      }
+      case 'calc-niveau': S.budgetCalc.niveau = el.dataset.k; { const z = document.getElementById('calc-resultat'); if (z) z.innerHTML = resultatCalcul(); } sauver(); return;
+      case 'calc-appliquer': {
+        const r = calculBudget(); const x = r.propositions.find((y) => y.k === (S.budgetCalc.niveau || 'equilibre'));
+        if (!x || x.semaine < 5) return;
+        p.budget = x.semaine; S.budgetOuvert = false;
+        toast(`Budget : ${euros(x.semaine)} par semaine`);
+        break;
+      }
       case 'coach-voir': S.coachVoir = el.dataset.k; break;
       case 'coach-fermer': case 'coach-fond': S.coachVoir = null; break;
       case 'coach-semaine': {
@@ -2137,6 +2223,14 @@
       const n = [...(S.profil.prenomsEnfants || [])];
       n[+el.dataset.i] = el.value.slice(0, 20);
       S.profil.prenomsEnfants = n;
+      sauver();
+      return;
+    }
+    if (el.dataset.a === 'calc-champ') {
+      const c = S.budgetCalc = S.budgetCalc || { charges: {} };
+      const k = el.dataset.k;
+      if (k.startsWith('c:')) { c.charges = c.charges || {}; c.charges[k.slice(2)] = el.value; } else c[k] = el.value;
+      const z = document.getElementById('calc-resultat'); if (z) z.innerHTML = resultatCalcul();
       sauver();
       return;
     }

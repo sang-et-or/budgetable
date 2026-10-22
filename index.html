@@ -553,6 +553,22 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .fenetre-coach .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
 .astuces-coach { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 .prudence-coach { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--moutarde-pale); }
+
+/* ---------- budget : saisie libre et calculateur ---------- */
+.fenetre-budget { display: grid; gap: 18px; }
+.fenetre-budget .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.grille-calc { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); margin-top: 10px; }
+.saisie-euros { display: flex; align-items: center; gap: 6px; }
+.saisie-euros input { flex: 1; min-width: 0; text-align: right; }
+.chiffres-calc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chiffres-calc > div { display: grid; gap: 2px; }
+.chiffres-calc strong { font-size: 1.1rem; }
+.chiffres-calc .negatif { color: var(--tomate); }
+.resultat-calc { border-left: 5px solid var(--poireau); }
+.propositions-budget { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.choix-budget { display: grid; gap: 2px; justify-items: center; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
+.choix-budget[aria-checked="true"] { border-color: var(--poireau); background: var(--poireau-pale); }
+.choix-budget strong { font-size: 1.15rem; }
 </style>
 
 <div id="app"></div>
