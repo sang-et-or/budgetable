@@ -918,6 +918,15 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 .resultats-off { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow: auto; }
 .resultats-off li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 8px; background: var(--papier); }
 @media (max-width: 520px) { .ing-edit { grid-template-columns: 1fr auto; } .ing-edit > span:last-child { grid-column: 1 / -1; justify-content: flex-end; } }
+
+/* ---------- alertes promos ---------- */
+.chip-alerte { display: inline-flex; align-items: center; gap: 6px; }
+.chip-alerte.trouvee { border-color: var(--tomate); background: var(--tomate-pale); }
+.promo.nouvelle { box-shadow: 0 0 0 2px var(--tomate-pale); }
+.promo.nouvelle .promo-nom::after { content: " · nouveau"; color: var(--tomate); font-size: .75rem; font-weight: 800; }
+.bandeau-alertes { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; border-radius: var(--r); border: 0; background: var(--tomate); color: #fff; font: inherit; cursor: pointer; }
+.bandeau-alertes > span:nth-child(2) { flex: 1; display: grid; }
+.nav-badge.alerte { background: var(--tomate); color: #fff; }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

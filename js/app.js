@@ -98,7 +98,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [] };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [] };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -121,7 +121,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [] });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
@@ -595,7 +595,7 @@
   const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', journal: '#6b5ea8', profil: '#5b6b62' };
   const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
-    const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? `<em class="nav-badge">${promos.offres.length}</em>` : ''}</button>`; };
+    const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${promos.offres.length}</em>`) : ''}</button>`; };
     const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
@@ -785,6 +785,7 @@
     return `${bandeauSensible()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
+      ${bandeauAlertes()}
       ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
       <div class="jours jours-m">${liste ? S.plan.jours.map((jp, x) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
       ${suggestionRituels()}
@@ -803,6 +804,7 @@
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
+      ${bandeauAlertes()}
       ${blocPresences()}
       ${blocGamelles()}
       ${blocCoach()}
@@ -1894,6 +1896,7 @@
       if (!rep.ok) throw new Error(r.erreur || 'erreur');
       promos = { ...r, etat: 'ok' };
       try { localStorage.setItem(CLE_PROMOS, JSON.stringify({ t: Date.now(), r })); } catch (e) { /* stockage plein */ }
+      setTimeout(notifierAlertes, 300);
     } catch (e) { promos = { offres: (promos && promos.offres) || [], etat: 'erreur' }; }
     rendre();
   }
@@ -1946,6 +1949,7 @@
     const groupes = tri === 'magasin' ? magasins.map(([n]) => [n, visibles.filter((o) => o.enseigne === n)]).filter(([, l]) => l.length) : [[null, visibles]];
     return `<div class="spread"><div><p class="eyebrow">Bons plans</p><h1>Promos du moment</h1></div><button class="btn btn-petit" data-a="promos-maj" ${charge ? 'disabled' : ''}>${charge ? 'Recherche…' : '↻ Actualiser'}</button></div>
       <p class="muted" style="margin:0">Les promotions alimentaires de la semaine, comparées à votre liste de courses.${maj ? ` Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      ${blocAlertes()}
       ${blocProspectus()}
       ${offres.length ? `<section class="barre-promos" aria-label="Chercher et trier les promotions">
         <label class="recherche-promo"><span aria-hidden="true">🔍</span><span class="sr">Chercher une promotion</span><input type="text" enterkeyhint="search" id="promo-cherche" value="${esc(S.cherchePromo || '')}" placeholder="Chercher un produit : poulet, fromage, pâtes…" autocomplete="off">${q ? '<button class="btn-lien small" data-a="promo-effacer" aria-label="Effacer la recherche">✕</button>' : ''}</label>
@@ -1968,6 +1972,59 @@
       </section>` : ''}
       <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p>`;
   }
+  /* ---------- alertes promos : produits surveillés dans les offres et les prospectus ---------- */
+  const motsAlerte = (t) => E.norm(t).replace(/[^a-z0-9 ]+/g, ' ').split(' ').filter((w) => w.length >= 2).map((w) => w.replace(/(s|x)$/, ''));
+  function offresPourAlerte(mot) {
+    const ms = motsAlerte(mot);
+    if (!ms.length || !promos || !promos.offres) return [];
+    return promos.offres.filter((o) => { const n = motsAlerte(o.nom); return ms.every((m) => n.some((w) => w.startsWith(m))); });
+  }
+  function alertesTrouvees() {
+    return (S.alertesPromos || []).map((a) => [a, offresPourAlerte(a.mot)]).filter(([, l]) => l.length);
+  }
+  function nouvellesAlertes() {
+    const vues = new Set(S.alertesVues || []);
+    return alertesTrouvees().flatMap(([a, l]) => l.filter((o) => !vues.has(o.id)).map((o) => [a, o]));
+  }
+  function bandeauAlertes() {
+    const n = nouvellesAlertes();
+    if (!n.length) return '';
+    const mots = [...new Set(n.map(([a]) => a.mot))];
+    return `<button class="bandeau-alertes ecran-seul" data-a="alertes-voir"><span aria-hidden="true">🔔</span><span><strong>${pluriel(n.length, 'nouvelle promo', 'nouvelles promos')} sur ce que vous surveillez</strong> <span class="small">${esc(mots.slice(0, 4).join(', '))}${mots.length > 4 ? '…' : ''}</span></span><span aria-hidden="true">→</span></button>`;
+  }
+  function ajouterAlerte(mot) {
+    const m = String(mot || '').trim().slice(0, 40);
+    if (m.length < 2) return;
+    S.alertesPromos = S.alertesPromos || [];
+    if (S.alertesPromos.some((a) => E.norm(a.mot) === E.norm(m))) { toast('Déjà surveillé'); return; }
+    S.alertesPromos.push({ mot: m, cree: Date.now() });
+    const n = offresPourAlerte(m).length;
+    toast(n ? `${pluriel(n, 'promo trouvée', 'promos trouvées')} pour « ${m} »` : `« ${m} » est surveillé : vous serez prévenu dès qu’il est en promo`);
+  }
+  function blocAlertes() {
+    const liste = S.alertesPromos || [];
+    const trouvees = alertesTrouvees();
+    const vues = new Set(S.alertesVues || []);
+    const notifDispo = typeof Notification !== 'undefined';
+    return `<section class="carte stack alertes-promos" style="gap:10px" id="mes-alertes"><div class="spread"><h2>🔔 Mes alertes promos</h2>${liste.length ? `<span class="small muted">${pluriel(liste.length, 'produit surveillé', 'produits surveillés')}</span>` : ''}</div>
+      <p class="small muted" style="margin:0">Indiquez les produits que vous guettez : Budgétable les cherche dans les promos et les prospectus à chaque mise à jour, et vous prévient.</p>
+      <form class="row" data-form="alerte" style="gap:8px;flex-wrap:nowrap"><label class="champ" style="flex:1"><span class="sr">Produit à surveiller</span><input type="text" id="alerte-mot" maxlength="40" placeholder="Ex. café, saumon, Nutella, couches…" autocomplete="off"></label><button class="btn btn-plein" type="submit">Surveiller</button></form>
+      ${liste.length ? `<div class="row" style="gap:6px">${liste.map((a, i) => { const n = offresPourAlerte(a.mot).length; return `<span class="chip chip-alerte ${n ? 'trouvee' : ''}">${n ? '🔔' : '🔕'} ${esc(a.mot)} ${n ? `<strong class="num">${n}</strong>` : '<span class="small muted">rien cette semaine</span>'}<button class="btn-lien small" data-a="alerte-suppr" data-i="${i}" aria-label="Ne plus surveiller ${esc(a.mot)}">✕</button></span>`; }).join('')}</div>` : `<div class="row" style="gap:6px"><span class="small muted">Idées :</span>${['café', 'saumon', 'lessive', 'chocolat', 'huile d’olive'].map((x) => `<button class="chip chip-petit" data-a="alerte-idee" data-k="${x}">+ ${x}</button>`).join('')}</div>`}
+      ${trouvees.length ? `<div class="stack" style="gap:8px">${trouvees.map(([a, l]) => `<div class="stack" style="gap:6px"><strong>${esc(a.mot)} <span class="small muted">· ${pluriel(l.length, 'offre')}</span></strong><ul class="liste-promos">${l.slice(0, 5).map((o) => lignePromo(o, false).replace('<li class="promo"', `<li class="promo ${vues.has(o.id) ? '' : 'nouvelle'}"`)).join('')}</ul></div>`).join('')}
+        <div class="row" style="gap:8px">${nouvellesAlertes().length ? '<button class="btn btn-petit" data-a="alertes-lues">✓ Marquer comme vues</button>' : ''}${notifDispo && liste.length ? (Notification.permission === 'granted' && S.alertesNotif ? '<span class="small pourquoi">Notifications activées à l’ouverture de Budgétable</span>' : '<button class="btn btn-petit" data-a="alertes-notif">🔔 Me prévenir par une notification</button>') : ''}</div></div>` : ''}
+    </section>`;
+  }
+  function notifierAlertes() {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || !S.alertesNotif) return;
+    const deja = new Set(S.alertesNotifiees || []);
+    const n = nouvellesAlertes().filter(([, o]) => !deja.has(o.id));
+    if (!n.length) return;
+    const mots = [...new Set(n.map(([a]) => a.mot))];
+    try { new Notification('Budgétable : promo sur ' + mots.slice(0, 3).join(', '), { body: n.slice(0, 3).map(([, o]) => `${o.enseigne} · ${o.nom} : ${o.prix.toFixed(2).replace('.', ',')} €`).join('\n'), icon: 'icon.svg', tag: 'budgetable-alertes' }); } catch (e) { /* notifications indisponibles */ }
+    S.alertesNotifiees = [...deja, ...n.map(([, o]) => o.id)].slice(-500);
+    sauver();
+  }
+
   function blocProspectus() {
     const lus = (promos && promos.prospectus) || [];
     const cartes = lus.map((p) => `<article class="carte-prospectus" style="--m:${MAGASINS[p.enseigne] || '#5b6b62'}"><div class="couverture-prospectus" aria-hidden="true">📰</div><div class="stack" style="gap:4px;min-width:0">${badgeMagasin(p.enseigne)}<strong>${esc(p.titre)}</strong>${p.pages ? `<span class="small muted">${p.pages} pages</span>` : ''}
@@ -2090,6 +2147,7 @@
         ${imprimerDispo ? '<button class="btn btn-plein" data-a="imprimer">Imprimer ou PDF</button>' : ''}
       </div></div>
       ${S.imprimable && !imprimerDispo ? '<p class="bandeau bandeau-info small ecran-seul">Pour obtenir un PDF, ouvrez Budgétable installé sur votre appareil et utilisez « Imprimer ou PDF ». Ici, la version imprimable sert d’aperçu.</p>' : ''}
+      ${bandeauAlertes()}
       <button class="bandeau-promos ecran-seul" data-a="onglet" data-k="promos"><span aria-hidden="true">🏷</span><span><strong>Promos du moment</strong> <span class="small">${promos && promos.offres ? (() => { const n = liste.articles.filter((a) => !a.enStock && promosPour(a.id).length).length; return n ? pluriel(n, 'article de votre liste en promo', 'articles de votre liste en promo') : 'voir les bons plans de la semaine'; })() : 'comparer votre liste aux promotions de la semaine'}</span></span><span aria-hidden="true">→</span></button>
       <section class="carte stack ecran-seul panier-drive" style="gap:12px"><h2>Faire mes courses sur mon drive</h2>
         <p class="small">Choisissez votre drive, puis laissez-vous guider : un article à la fois, un bouton qui ouvre sa recherche sur le site du drive, et « C’est dans mon panier ». Sur téléphone comme sur ordinateur, rien à installer.</p>
@@ -3339,6 +3397,11 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'alertes-voir': S.onglet = 'promos'; window.scrollTo(0, 0); setTimeout(() => { const c = document.getElementById('mes-alertes'); if (c) c.scrollIntoView({ block: 'start' }); }, 80); break;
+      case 'alerte-idee': ajouterAlerte(el.dataset.k); break;
+      case 'alerte-suppr': S.alertesPromos.splice(+el.dataset.i, 1); break;
+      case 'alertes-lues': S.alertesVues = [...new Set([...(S.alertesVues || []), ...nouvellesAlertes().map(([, o]) => o.id)])]; break;
+      case 'alertes-notif': try { const r = await Notification.requestPermission(); S.alertesNotif = r === 'granted'; toast(r === 'granted' ? 'Vous serez prévenu à l’ouverture de Budgétable' : 'Notifications refusées par le navigateur'); } catch (e) { toast('Notifications indisponibles sur cet appareil'); } break;
       case 'plat-editer': { const m = S.plan.jours[fiche.jour][fiche.slot]; const base = recetteDeBase(m.recette); edPlat = { j: fiche.jour, sl: fiche.slot, ing: E.REC[m.recette].ing.map(([id, q]) => [id, q]), portee: S.versionsPreferees && S.versionsPreferees[base.id] === m.recette ? 'toujours' : 'repas', remplace: null, manuel: null }; S.chercheIngPlat = ''; break; }
       case 'plat-annuler': edPlat = null; break;
       case 'plat-retirer': edPlat.ing.splice(+el.dataset.i, 1); edPlat.remplace = null; break;
@@ -3725,7 +3788,7 @@
 
   window.addEventListener('resize', () => ajusterAffiche());
   window.addEventListener('hashchange', () => { traiterRetourCompte(); rendre(); });
-  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); soumettreCompte(f); });
+  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'alerte') { const c = document.getElementById('alerte-mot'); ajouterAlerte(c ? c.value : ''); rendre(); const c2 = document.getElementById('alerte-mot'); if (c2) c2.focus(); return; } soumettreCompte(f); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
   document.addEventListener('input', (ev) => {
     if (ev.target.id === 'plat-cherche') { S.chercheIngPlat = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('plat-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
@@ -4037,6 +4100,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     return !!r;
   }
   if (!traiterRetourCompte() && C.connecte()) synchroniserConnexion();
+  // alertes promos : on vérifie les offres de la semaine en arrière-plan
+  if ((S.alertesPromos || []).length) { if (promos && promos.etat === 'ok') setTimeout(notifierAlertes, 800); else setTimeout(() => chargerPromos(false), 1500); }
   // une semaine déjà enregistrée peut contenir deux fois le même plat : on remplace le second
   if (S.plan && E.dedoublonner) {
     try {
