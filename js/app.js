@@ -1777,7 +1777,65 @@
     if (v >= mi) return 'vert';
     return journeeFinie && v < mi * 0.5 ? 'rouge' : 'neutre';
   }
-  const alimentDe = (x) => (x.a ? (window.Aliments.ALIMENTS.find((y) => y.id === x.a) || null) : { nom: x.nom, portion: 'portion', kcal: x.kcal || 0, prot: 0, fibres: 0, sucres: 0, ags: 0, sel: 0, fl: 0 });
+  const alimentDe = (x) => (x.a ? (window.Aliments.ALIMENTS.find((y) => y.id === x.a) || null)
+    : x.nut ? { nom: x.nom, portion: x.portion || 'portion', ...x.nut }
+    : { nom: x.nom, portion: 'portion', kcal: x.kcal || 0, prot: 0, fibres: 0, sucres: 0, ags: 0, sel: 0, fl: 0 });
+  // produit scanné : valeurs nutritionnelles d'Open Food Facts (pour 100 g ou 100 ml)
+  async function scannerProduit(code) {
+    S.scanCarnet = { etat: 'lecture', message: 'Recherche du produit…' }; rendre();
+    try {
+      const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,product_name_fr,brands,quantity,product_quantity,serving_size,serving_quantity,nutriments,nutriscore_grade,image_front_small_url`, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+      const j = await r.json();
+      if (j.status !== 1 || !j.product) { S.scanCarnet = { etat: 'erreur', message: `Produit ${code} inconnu d’Open Food Facts. Ajoutez-le avec « Autre aliment ».` }; rendre(); return; }
+      const p = j.product, n = p.nutriments || {};
+      const v = (k) => { const x = parseFloat(n[k + '_100g']); return Number.isFinite(x) ? x : 0; };
+      const kcal = v('energy-kcal') || (v('energy') ? v('energy') / 4.184 : 0);
+      if (!kcal && !v('proteins') && !v('sugars')) { S.scanCarnet = { etat: 'erreur', message: `« ${p.product_name_fr || p.product_name || code} » n’a pas de valeurs nutritionnelles sur Open Food Facts. Ajoutez-le avec « Autre aliment ».` }; rendre(); return; }
+      const portion = parseFloat(p.serving_quantity) > 0 ? parseFloat(p.serving_quantity) : null;
+      const paquet = parseFloat(p.product_quantity) > 0 ? parseFloat(p.product_quantity) : null;
+      S.scanCarnet = {
+        etat: 'trouve', code,
+        produit: { nom: String(p.product_name_fr || p.product_name || 'Produit ' + code).slice(0, 60), marque: String(p.brands || '').split(',')[0].trim(), image: p.image_front_small_url || null, ns: String(p.nutriscore_grade || '').toUpperCase(), quantite: p.quantity || '', portion, portionTxt: p.serving_size || '', paquet,
+          c100: { kcal, prot: v('proteins'), fibres: v('fiber'), sucres: v('sugars'), ags: v('saturated-fat'), sel: v('salt'), fl: v('fruits-vegetables-nuts-estimate-from-ingredients') || v('fruits-vegetables-nuts') } },
+        grammes: portion || (paquet && paquet <= 250 ? paquet : 100)
+      };
+    } catch (e) { S.scanCarnet = { etat: 'erreur', message: 'Recherche impossible pour le moment (connexion ?).' }; }
+    rendre();
+  }
+  async function scannerPhoto(fichier) {
+    if (!fichier) return;
+    S.scanCarnet = { etat: 'lecture', message: 'Lecture du code-barres…' }; rendre();
+    let codes = [];
+    try { codes = await window.CodeBarre.lirePhoto(fichier); } catch (e) { codes = []; }
+    if (!codes.length) { S.scanCarnet = { etat: 'erreur', message: 'Code-barres illisible : prenez-le de près, bien net et éclairé, ou tapez les chiffres sous le code.' }; rendre(); return; }
+    scannerProduit(codes[0]);
+  }
+  function blocScan() {
+    const sc = S.scanCarnet;
+    const barre = `<div class="row" style="gap:8px;align-items:flex-end">
+        <label class="btn btn-petit btn-plein choisir-photo">📷 Scanner un code-barres<input type="file" accept="image/*" capture="environment" data-a="carnet-scan" class="visuellement-cache"></label>
+        <label class="champ" style="max-width:170px"><span class="small">ou les chiffres</span><input type="text" inputmode="numeric" id="carnet-code" placeholder="3017620422003" maxlength="14"></label>
+        <button class="btn btn-petit" data-a="carnet-code">OK</button></div>`;
+    if (!sc) return barre;
+    if (sc.etat === 'lecture') return barre + `<p class="lecture small" role="status"><span class="rond-attente" aria-hidden="true"></span> ${esc(sc.message)}</p>`;
+    if (sc.etat === 'erreur') return barre + `<p class="lecture lecture-echec small" role="status">${esc(sc.message)}</p>`;
+    const p = sc.produit, g = sc.grammes, f = g / 100;
+    const choix = [[p.portion, `1 portion${p.portionTxt ? ` (${p.portionTxt})` : ` (${p.portion} g)`}`], [100, '100 g'], [p.paquet && p.paquet <= 2000 ? p.paquet : null, `tout le paquet (${p.quantite || p.paquet + ' g'})`]].filter(([v]) => v);
+    return barre + `<div class="produit-scanne" role="status">
+      <div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap">${p.image ? `<img src="${esc(p.image)}" alt="" referrerpolicy="no-referrer">` : '<span class="emoji-scan" aria-hidden="true">🏷️</span>'}
+        <div class="stack" style="gap:2px;min-width:0"><strong>${esc(p.nom)}</strong><span class="small muted">${esc([p.marque, p.quantite].filter(Boolean).join(' · '))}</span>
+          <span class="small">${Math.round(p.c100.kcal)} kcal pour 100 g${p.ns && 'ABCDE'.includes(p.ns) ? ` · <span class="ns-lettre ns-${p.ns}" aria-label="Nutri-Score ${p.ns}">${p.ns}</span>` : ''}</span></div></div>
+      <div class="row" style="gap:6px;align-items:center">${choix.map(([v, t]) => `<button class="chip" data-a="scan-qte" data-g="${v}" aria-pressed="${Math.abs(g - v) < 0.01}">${esc(t)}</button>`).join('')}
+        <label class="champ" style="max-width:110px"><span class="sr">Quantité en grammes</span><span class="saisie-euros"><input type="text" inputmode="decimal" id="scan-g" value="${nb(g)}" data-a="scan-g"><span aria-hidden="true">g</span></span></label></div>
+      <p class="small" style="margin:0" id="scan-resume">${resumeScan()}</p>
+      <div class="row" style="gap:8px"><button class="btn btn-plein btn-petit" data-a="scan-ajouter">Ajouter au carnet</button><button class="btn-lien small" data-a="scan-annuler">Annuler</button></div>
+    </div>`;
+  }
+  function resumeScan() {
+    const sc = S.scanCarnet; if (!sc || !sc.produit) return '';
+    const f = sc.grammes / 100, c = sc.produit.c100;
+    return `Pour ${nb(sc.grammes)} g : <strong>${Math.round(c.kcal * f)} kcal</strong> · sucres ${nb(Math.round(c.sucres * f * 10) / 10)} g · sel ${nb(Math.round(c.sel * f * 10) / 10)} g · protéines ${nb(Math.round(c.prot * f * 10) / 10)} g`;
+  }
   function blocCarnet() {
     const auj = ISO(new Date());
     const d = S.jourCarnet || auj;
@@ -1818,6 +1876,7 @@
         </ul></div>
       <div class="stack ajout-carnet" style="gap:8px"><h3>Ajouter un aliment</h3>
         <div class="row" role="radiogroup" style="gap:6px">${Object.entries(window.Aliments.MOMENTS).map(([k, v]) => `<button class="chip" role="radio" data-a="carnet-moment" data-k="${k}" aria-checked="${m === k}" aria-pressed="${m === k}">${v}</button>`).join('')}</div>
+        ${blocScan()}
         <label class="champ"><span class="sr">Chercher un aliment</span><input type="search" id="carnet-cherche" data-a="carnet-cherche" placeholder="Chercher : croissant, pomme, café au lait, pizza…" autocomplete="off"></label>
         <div id="carnet-resultats" class="row" style="gap:6px">${suggestions.map((a) => `<button class="chip puce-ajout" data-a="carnet-ajouter" data-id="${a.id}" title="${esc(a.portion)} · ${a.kcal} kcal">+ ${esc(a.nom)} <span class="small muted">${a.kcal} kcal</span></button>`).join('')}</div>
         <details><summary class="small"><strong>Autre aliment</strong> <span class="muted">· nom et calories à la main</span></summary>
@@ -2430,6 +2489,19 @@
         toast(`${nom.trim()} ajouté`);
         break;
       }
+      case 'carnet-scan': return;
+      case 'carnet-code': { const z = document.getElementById('carnet-code'); const c = (z ? z.value : '').replace(/\D/g, ''); if (c.length < 8) { toast('Tapez les 8 ou 13 chiffres du code-barres'); return; } scannerProduit(c); return; }
+      case 'scan-qte': S.scanCarnet.grammes = +el.dataset.g; break;
+      case 'scan-annuler': S.scanCarnet = null; break;
+      case 'scan-ajouter': {
+        const sc = S.scanCarnet; if (!sc || !sc.produit) return;
+        const f = sc.grammes / 100, c = sc.produit.c100, r1 = (v) => Math.round(v * f * 100) / 100;
+        S.ajouts = S.ajouts || [];
+        S.ajouts.push({ d: S.jourCarnet || ISO(new Date()), nom: sc.produit.nom + (sc.produit.marque ? ' (' + sc.produit.marque + ')' : ''), portion: nb(sc.grammes) + ' g', code: sc.code, n: 1, m: S.momentCarnet || 'collation', nut: { kcal: Math.round(c.kcal * f), prot: r1(c.prot), fibres: r1(c.fibres), sucres: r1(c.sucres), ags: r1(c.ags), sel: r1(c.sel), fl: r1(c.fl) } });
+        toast(`${sc.produit.nom} ajouté (${Math.round(c.kcal * f)} kcal)`);
+        S.scanCarnet = null;
+        break;
+      }
       case 'carnet-objectif': S.objectifKcal = +el.dataset.k; break;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
@@ -2622,6 +2694,11 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'scan-g' && S.scanCarnet) {
+      const g = parseFloat(String(el.value).replace(',', '.'));
+      if (g > 0 && g < 5000) { S.scanCarnet.grammes = g; const z = document.getElementById('scan-resume'); if (z) z.innerHTML = resumeScan(); document.querySelectorAll('[data-a=scan-qte]').forEach((b) => b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.g - g) < 0.01))); }
+      return;
+    }
     if (el.dataset.a === 'carnet-cherche') {
       const z = document.getElementById('carnet-resultats');
       const t = el.value.trim();
@@ -2720,6 +2797,7 @@
       toast(el.checked ? 'Ces habitudes serviront pour les prochaines semaines' : 'Les prochaines semaines repartiront de votre profil');
       sauver(); return;
     }
+    if (el.dataset.a === 'carnet-scan') { scannerPhoto(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
