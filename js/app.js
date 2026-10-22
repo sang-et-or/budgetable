@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {} };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {} });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -543,8 +543,21 @@
     return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
       <div class="meta"><span>${r.temps} min</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
-      ${raison ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
-      <div><button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button></div></div></div>`;
+      ${raison && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
+      ${blocMange(r, j, slot)}</div></div>`;
+  }
+  // « C'est mangé » : on déduit du placard, puis on note le plat pour apprendre les goûts
+  const AVIS = [[5, '😋', 'Adoré'], [4, '🙂', 'Bon'], [3, '😐', 'Moyen'], [1, '😕', 'Pas aimé']];
+  function blocMange(r, j, slot) {
+    const k = j + '-' + slot;
+    if (S.deduits[k] !== 'cuisine') {
+      return `<div class="row" style="gap:6px"><button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button></div>`;
+    }
+    const note = S.notes[r.id] || 0;
+    return `<div class="mange-ok stack" style="gap:6px">
+      <span class="small"><strong>✓ Mangé</strong> · placard mis à jour <button class="btn-lien small" data-a="mange-annuler" data-j="${j}" data-s="${slot}">annuler</button></span>
+      <div class="avis-rapide" role="radiogroup" aria-label="Votre avis sur ${esc(r.nom)}"><span class="small muted">Vous avez aimé ?</span>${AVIS.map(([n, e, t]) => `<button role="radio" aria-checked="${note === n}" class="${note === n ? 'on' : ''}" data-a="avis" data-r="${r.id}" data-n="${n}" title="${t}"><span aria-hidden="true">${e}</span><span class="small">${t}</span></button>`).join('')}</div>
+    </div>`;
   }
 
   function moyenneAssiette() {
@@ -1608,7 +1621,7 @@
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, m.portions)}</section>
-      ${!fiche.recette ? (S.deduits[fiche.jour + '-' + fiche.slot] === 'cuisine' ? '<p class="small pourquoi">Cuisiné : déduit de votre placard</p>' : `<div><button class="btn btn-petit" data-a="cuisine" data-j="${fiche.jour}" data-s="${fiche.slot}">✓ J’ai cuisiné ce plat (mettre à jour mon placard)</button></div>`) : ''}
+      ${!fiche.recette ? (S.deduits[fiche.jour + '-' + fiche.slot] === 'cuisine' ? '<p class="small pourquoi">Cuisiné : déduit de votre placard</p>' : `<div><button class="btn btn-petit" data-a="mange" data-j="${fiche.jour}" data-s="${fiche.slot}">✓ J’ai cuisiné ce plat (mettre à jour mon placard)</button></div>`) : ''}
       <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '♥ Un classique de la famille' : '♡ Ajouter à nos classiques'}</button></div>
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
         <p class="small muted">${note === 1 ? 'Cette recette ne sera plus proposée.' : note ? 'Merci : les recettes bien notées reviendront plus souvent.' : 'Une étoile : on ne la propose plus. Cinq : plus souvent.'}</p></div>
@@ -2015,6 +2028,37 @@
       case 'fiche': fiche = { jour: +el.dataset.j, slot: el.dataset.s }; break;
       case 'fiche-r': fiche = { recette: el.dataset.r }; break;
       case 'fermer': case 'fermer-fond': fiche = null; break;
+      case 'mange': {
+        const k = el.dataset.j + '-' + el.dataset.s;
+        const m = S.plan.jours[+el.dataset.j][el.dataset.s];
+        if (!m) return;
+        const avant = { ...(p.stock || {}) };
+        p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+        S.retraits = S.retraits || {};
+        S.retraits[k] = Object.keys(avant).map((id) => [id, avant[id] - ((p.stock || {})[id] || 0)]).filter(([, q]) => q > 0);
+        S.deduits[k] = 'cuisine';
+        toast('Bon appétit ! Placard mis à jour. Dites-nous si vous avez aimé');
+        break;
+      }
+      case 'mange-annuler': {
+        const k = el.dataset.j + '-' + el.dataset.s;
+        const m = S.plan.jours[+el.dataset.j][el.dataset.s];
+        if (m && S.deduits[k] === 'cuisine' && S.retraits && S.retraits[k]) p.stock = E.ajouterAuStock(p.stock, S.retraits[k]);
+        if (S.retraits) delete S.retraits[k];
+        delete S.deduits[k];
+        toast('Annulé : le placard est revenu comme avant');
+        break;
+      }
+      case 'avis': {
+        const n = +el.dataset.n, id = el.dataset.r;
+        const avant = S.notes[id];
+        S.notes[id] = n;
+        if (avant !== n) p.gouts = E.apprendre(p.gouts, id, n >= 5 ? 'adore' : n === 4 ? 'pourquoi' : n <= 2 ? 'non' : '');
+        if (n === 5 && !S.classiques.includes(id)) S.classiques.push(id);
+        if (n <= 2) S.classiques = S.classiques.filter((x) => x !== id);
+        toast(n >= 5 ? 'Noté ! Ce plat et ses saveurs reviendront plus souvent ♥' : n === 4 ? 'Noté : on garde ce genre de plat' : n === 3 ? 'Noté' : 'Noté : ce plat ne sera plus proposé, et on évite ce style');
+        break;
+      }
       case 'noter': {
         const n = +el.dataset.n;
         S.notes[el.dataset.r] = n;

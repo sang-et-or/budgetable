@@ -633,6 +633,14 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .plat-echange.avant .small { text-decoration: line-through; }
 .fleche-echange { font-size: 1.4rem; color: var(--poireau); font-weight: 800; }
 .plat-echange .titre-repas { border: 0; background: none; padding: 0; font-weight: 700; color: var(--encre); cursor: pointer; }
+
+/* ---------- c'est mangé et avis rapide ---------- */
+.btn-mange { border-color: var(--poireau); color: var(--poireau); }
+.mange-ok { padding: 8px 10px; border-radius: 12px; background: var(--poireau-pale); }
+.avis-rapide { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.avis-rapide button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
+.avis-rapide button span:first-child { font-size: 1.1rem; }
+.avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 </style>
 
 <div id="app"></div>
