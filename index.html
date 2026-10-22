@@ -641,6 +641,37 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .avis-rapide button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
 .avis-rapide button span:first-child { font-size: 1.1rem; }
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
+
+/* ---------- mes apports ---------- */
+@media (max-width: 899px) { .nav button[data-k="apports"] { display: none; } }
+.tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
+.tuile-apport strong { font: 800 1.5rem var(--f-titre); }
+.tuile-apport.rep-bas, .tuile-apport.rep-haut { border-color: var(--moutarde); }
+.etat-ok { color: var(--poireau); font-weight: 600; } .etat-bas { color: var(--moutarde); font-weight: 600; } .etat-haut { color: var(--tomate); font-weight: 600; }
+.grille-graphes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.graphe { margin: 0; }
+.graphe svg { width: 100%; height: auto; display: block; overflow: visible; }
+.graphe .grille { stroke: var(--trait); stroke-width: 1; }
+.graphe .axe { font: 500 9px var(--f-texte); fill: var(--encre-douce); }
+.graphe .objectif { stroke: var(--encre); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.graphe .objectif-txt { fill: var(--encre); font-weight: 700; }
+.graphe .plein { fill: var(--poireau); }
+.graphe .zone { fill: transparent; }
+.graphe .barre:hover .plein { opacity: .8; }
+.graphe .barre:hover .zone { fill: var(--poireau-pale); opacity: .5; }
+.legende-graphe { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.trait-objectif { width: 18px; border-top: 2px dashed var(--encre); }
+#bulle-graphe { position: fixed; z-index: 60; pointer-events: none; padding: 6px 10px; border-radius: 8px; background: var(--encre); color: var(--papier); font-size: .8rem; max-width: 260px; box-shadow: var(--ombre); }
+.hbarres { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hbarres li { display: grid; grid-template-columns: minmax(90px, 40%) 1fr auto; gap: 8px; align-items: center; }
+.hbarres .piste { height: 12px; border-radius: 99px; background: var(--trait); overflow: hidden; }
+.hbarres .piste i { display: block; height: 100%; border-radius: 99px; background: var(--poireau); }
+.liste-confirmer { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-confirmer li { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.journal { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .85rem; }
+.journal th, .journal td { padding: 6px 4px; border-bottom: 1px solid var(--trait); text-align: left; }
+.journal .num { text-align: right; }
 </style>
 
 <div id="app"></div>

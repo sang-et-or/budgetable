@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {} };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [] };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {} });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [] });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -143,6 +143,7 @@
     courses: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
     drives: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
     gourmand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12l-1.6 8.2a1 1 0 0 1-1 .8H8.6a1 1 0 0 1-1-.8z"/><path d="M5 12a3 3 0 0 1 2.2-2.9A4.8 4.8 0 0 1 12 5a4.8 4.8 0 0 1 4.8 4.1A3 3 0 0 1 19 12"/><path d="M12 5V3"/></svg>',
+    apports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
     profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>',
     recettes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/></svg>'
@@ -413,11 +414,11 @@
   }
 
   /* ---------- application ---------- */
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['apports', 'Apports'], ['profil', 'Profil']];
   function vueApp() {
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -1704,6 +1705,113 @@
     </div></div>`;
   }
 
+  /* ---------- « Mes apports » : suivi réel des repas mangés, avec graphiques ---------- */
+  const ISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const lundiDe = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };
+  // date réelle d'un jour du planning (la semaine du planning commence le lundi où il a été créé)
+  function dateDuJour(j) {
+    const base = lundiDe(S.planDu ? new Date(S.planDu + 'T12:00:00') : new Date());
+    const d = new Date(base); d.setDate(base.getDate() + j); return ISO(d);
+  }
+  function noterJournal(j, slot, recette, ajouter) {
+    S.journal = (S.journal || []).filter((x) => !(x.d === dateDuJour(j) && x.s === slot));
+    if (ajouter) S.journal.push({ d: dateDuJour(j), s: slot, r: recette });
+    if (S.journal.length > 1500) S.journal = S.journal.slice(-1500);
+  }
+  // valeurs d'une journée (portion adulte) à partir du journal
+  function apportsParJour(du, au) {
+    const jours = {};
+    for (let d = new Date(du + 'T12:00:00'); ISO(d) <= au; d.setDate(d.getDate() + 1)) jours[ISO(d)] = { kcal: 0, prot: 0, fibres: 0, sucres: 0, sel: 0, ags: 0, legumes: 0, repas: [] };
+    for (const x of S.journal || []) {
+      if (!jours[x.d] || !E.REC[x.r]) continue;
+      const n = nutri(E.REC[x.r]); if (!n) continue;
+      const jr = jours[x.d];
+      for (const k of ['kcal', 'prot', 'fibres', 'sucres', 'sel', 'ags']) jr[k] += n.parPortion[k];
+      jr.legumes += E.equilibre(E.REC[x.r]).grammesLegumes;
+      jr.repas.push({ ...x, n });
+    }
+    return jours;
+  }
+  const OBJ = { kcal: [null, null], prot: [40, null], fibres: [20, null], legumes: [300, null], sel: [null, 4], sucres: [null, 50], ags: [null, 16] };
+  const LIB = { kcal: ['Énergie', 'kcal'], prot: ['Protéines', 'g'], fibres: ['Fibres', 'g'], legumes: ['Légumes', 'g'], sel: ['Sel', 'g'], sucres: ['Sucres', 'g'], ags: ['Graisses saturées', 'g'] };
+  // graphique en barres (une seule série), ligne d'objectif, info-bulle au survol
+  function barres(donnees, cle, opts = {}) {
+    const W = 340, H = 150, g = 30, b = 22, t = 10;
+    const vals = donnees.map((d) => d.v);
+    const obj = OBJ[cle] ? (OBJ[cle][0] || OBJ[cle][1]) : null;
+    const max = Math.max(1, ...vals, obj || 0) * 1.15;
+    const pas = (W - g) / donnees.length, lb = Math.min(28, pas * 0.6);
+    const y = (v) => H - b - (v / max) * (H - b - t);
+    const graduations = [0, max / 2, max].map((v) => Math.round(v / (max > 50 ? 10 : 1)) * (max > 50 ? 10 : 1));
+    return `<figure class="graphe" aria-label="${esc(opts.titre || '')}">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+        ${graduations.map((v) => `<line x1="${g}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="grille"/><text x="${g - 4}" y="${y(v) + 3}" class="axe" text-anchor="end">${nb(v)}</text>`).join('')}
+        ${obj ? `<line x1="${g}" x2="${W}" y1="${y(obj)}" y2="${y(obj)}" class="objectif"/>` : ''}
+        ${donnees.map((d, i) => { const x = g + i * pas + (pas - lb) / 2, h = Math.max(0, H - b - y(d.v)); return `<g class="barre ${d.vide ? 'vide' : ''}" data-tip="${esc(d.tip)}"><rect x="${g + i * pas}" y="${t}" width="${pas}" height="${H - b - t}" class="zone"/>${h > 0 ? `<path d="M${x},${H - b} v${-Math.max(0, h - 4)} q0,-4 4,-4 h${lb - 8} q4,0 4,4 v${Math.max(0, h - 4)} z" class="plein"/>` : ''}${donnees.length <= 10 || i % 5 === 0 || i === donnees.length - 1 ? `<text x="${x + lb / 2}" y="${H - 6}" class="axe" text-anchor="middle">${esc(d.lab)}</text>` : ''}</g>`; }).join('')}
+      </svg>${obj ? `<figcaption class="legende-graphe small muted"><span class="trait-objectif" aria-hidden="true"></span> ${OBJ[cle][0] ? 'objectif' : 'maximum'} : ${nb(obj)} ${LIB[cle] ? LIB[cle][1] : ''}</figcaption>` : ''}</figure>`;
+  }
+  function barresHorizontales(lignes, unite) {
+    const max = Math.max(1, ...lignes.map((l) => l.v));
+    return `<ul class="hbarres">${lignes.map((l) => `<li><span class="small">${esc(l.lab)}</span><span class="piste"><i style="width:${(l.v / max) * 100}%;${l.couleur ? `background:${l.couleur}` : ''}"></i></span><span class="num small">${nb(Math.round(l.v))}${unite}</span></li>`).join('')}</ul>`;
+  }
+  function ongletApports() {
+    const periode = S.periodeApports || '7';
+    const auj = new Date(); auj.setHours(12, 0, 0, 0);
+    const debut = new Date(auj); debut.setDate(auj.getDate() - (+periode - 1));
+    const jours = apportsParJour(ISO(debut), ISO(auj));
+    const liste = Object.entries(jours);
+    const avecRepas = liste.filter(([, v]) => v.repas.length);
+    const nbRepas = avecRepas.reduce((t, [, v]) => t + v.repas.length, 0);
+    const moy = (k) => (avecRepas.length ? avecRepas.reduce((t, [, v]) => t + v[k], 0) / avecRepas.length : 0);
+    const etat = (k, v) => { const [mi, ma] = OBJ[k]; return mi != null && v < mi ? 'bas' : ma != null && v > ma ? 'haut' : 'ok'; };
+    const labJour = (d) => { const x = new Date(d + 'T12:00:00'); return periode === '7' ? E.JOURS[(x.getDay() + 6) % 7].slice(0, 3) : String(x.getDate()); };
+    const serie = (k) => liste.map(([d, v]) => ({ v: Math.round(v[k]), lab: labJour(d), vide: !v.repas.length, tip: `${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${v.repas.length ? `${nb(Math.round(v[k]))} ${LIB[k][1]} (${pluriel(v.repas.length, 'repas', 'repas')})` : 'aucun repas noté'}` }));
+    // repas de la semaine à confirmer
+    const t = aujourdhui(), h = new Date().getHours();
+    const aConfirmer = S.plan ? S.plan.jours.flatMap((jp, j) => E.SLOTS.map((sl) => ({ j, sl, m: jp[sl] }))).filter(({ j, sl, m }) => m && !S.deduits[j + '-' + sl] && (j < t || (j === t && (sl === 'dejeuner' ? h >= 12 : h >= 19)))) : [];
+    // sources de protéines et Nutri-Score des repas mangés
+    const sources = { 'Viande rouge': 0, Volaille: 0, Poisson: 0, 'Charcuterie': 0, 'Œufs et laitages': 0, 'Légumineuses et soja': 0, 'Céréales et autres': 0 };
+    const cat = (id) => (id === 'boeuf_hache' ? 'Viande rouge' : ['poulet_filet', 'cuisses_poulet'].includes(id) ? 'Volaille' : ['saumon', 'colin', 'thon'].includes(id) ? 'Poisson' : ['jambon', 'lardons', 'saucisse'].includes(id) ? 'Charcuterie' : ['oeufs', 'lait', 'yaourt', 'emmental', 'mozzarella', 'feta', 'creme'].includes(id) ? 'Œufs et laitages' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses', 'tofu'].includes(id) ? 'Légumineuses et soja' : 'Céréales et autres');
+    const ns = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    for (const [, v] of avecRepas) for (const x of v.repas) {
+      const rec = E.REC[x.r];
+      for (const [id, q] of rec.ing) { const tb = window.Nutrition.TABLE[id]; if (!tb || !E.ING[id] || E.ING[id].perso) continue; const gr = E.ING[id].unite === 'pièce' ? q * (tb[7] || 100) : q; sources[cat(id)] += tb[5] * gr / 100; }
+      if (x.n.lettre) ns[x.n.lettre]++;
+    }
+    // tendance sur 8 semaines
+    const semaines = [];
+    for (let k = 7; k >= 0; k--) {
+      const l = lundiDe(auj); l.setDate(l.getDate() - 7 * k);
+      const f = new Date(l); f.setDate(l.getDate() + 6);
+      const js = Object.values(apportsParJour(ISO(l), ISO(f))).filter((v) => v.repas.length);
+      const m = (key) => (js.length ? js.reduce((tt, v) => tt + v[key], 0) / js.length : 0);
+      semaines.push({ lab: `${l.getDate()}/${l.getMonth() + 1}`, jours: js.length, prot: m('prot'), fibres: m('fibres'), kcal: m('kcal') });
+    }
+    const tuile = (k) => { const v = moy(k), e = etat(k, v); return `<div class="tuile-apport rep-${avecRepas.length ? e : 'ok'}"><span class="small muted">${LIB[k][0]}</span><strong class="num">${avecRepas.length ? nb(Math.round(v * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1)) : '–'} <span class="small">${LIB[k][1]}</span></strong><span class="small muted">par jour</span>${avecRepas.length && e !== 'ok' ? `<span class="small etat-${e}">${e === 'bas' ? '↓ pas assez' : '↑ trop'}</span>` : avecRepas.length && OBJ[k][0] != null ? '<span class="small etat-ok">✓ objectif</span>' : ''}</div>`; };
+    return `<div><p class="eyebrow">Suivi</p><h1>Mes apports</h1></div>
+      <p class="muted">Ce que vous avez vraiment mangé, d’après les repas marqués « C’est mangé ». Pour un adulte, déjeuners et dîners, hors petit-déjeuner. Estimations, pas un avis médical.</p>
+      ${aConfirmer.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aConfirmer.length, 'repas', 'repas')} à confirmer</strong><span class="small muted">Touchez ceux que vous avez mangés : le suivi et le placard se mettent à jour.</span>
+        <ul class="liste-confirmer">${aConfirmer.slice(0, 10).map(({ j, sl, m }) => `<li><span class="small">${E.JOURS[j]} ${sl === 'diner' ? 'soir' : 'midi'} · ${esc(E.REC[m.recette].nom)}</span><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${sl}">✓ Mangé</button></li>`).join('')}</ul></section>` : ''}
+      <div class="row" role="radiogroup" aria-label="Période" style="gap:6px">${[['7', '7 derniers jours'], ['30', '30 derniers jours']].map(([k, v]) => `<button class="chip" role="radio" data-a="periode-apports" data-k="${k}" aria-checked="${periode === k}" aria-pressed="${periode === k}">${v}</button>`).join('')}</div>
+      ${!nbRepas ? `<section class="carte stack" style="gap:8px"><strong>Pas encore de repas noté sur cette période</strong><span class="small">Dans la semaine, touchez « ✓ C’est mangé » sous chaque plat. Vos graphiques se rempliront au fil des jours.</span></section>` : ''}
+      <section class="tuiles-apports">${['kcal', 'prot', 'fibres', 'legumes', 'sel', 'sucres'].map(tuile).join('')}</section>
+      <p class="small muted" style="margin:0">${pluriel(nbRepas, 'repas noté', 'repas notés')} sur ${pluriel(avecRepas.length, 'jour')}. Moyennes calculées sur les jours avec au moins un repas noté.</p>
+      <div class="grille-graphes">
+        <section class="carte stack" style="gap:4px"><h2>Énergie par jour</h2><span class="small muted">kcal, déjeuner et dîner</span>${barres(serie('kcal'), 'kcal', { titre: 'Énergie par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Protéines par jour</h2><span class="small muted">g · objectif 40 g et plus</span>${barres(serie('prot'), 'prot', { titre: 'Protéines par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Fibres par jour</h2><span class="small muted">g · objectif 20 g et plus</span>${barres(serie('fibres'), 'fibres', { titre: 'Fibres par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Légumes par jour</h2><span class="small muted">g · objectif 300 g et plus</span>${barres(serie('legumes'), 'legumes', { titre: 'Légumes par jour' })}</section>
+        <section class="carte stack" style="gap:8px"><h2>D’où viennent vos protéines</h2><span class="small muted">grammes sur la période</span>${barresHorizontales(Object.entries(sources).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]).map(([lab, v]) => ({ lab, v })), ' g') || '<p class="small muted">Rien encore.</p>'}</section>
+        <section class="carte stack" style="gap:8px"><h2>Nutri-Score des repas mangés</h2><span class="small muted">nombre de repas</span>${barresHorizontales(Object.entries(ns).map(([lab, v]) => ({ lab: 'Nutri-Score ' + lab, v, couleur: { A: '#038141', B: '#85bb2f', C: '#fecb02', D: '#ee8100', E: '#e63e11' }[lab] })), '')}</section>
+        <section class="carte stack" style="gap:4px"><h2>Protéines, semaine après semaine</h2><span class="small muted">moyenne par jour, 8 dernières semaines</span>${barres(semaines.map((s) => ({ v: Math.round(s.prot), lab: s.lab, vide: !s.jours, tip: `Semaine du ${s.lab} : ${s.jours ? `${Math.round(s.prot)} g par jour (${pluriel(s.jours, 'jour')} suivis)` : 'pas de suivi'}` })), 'prot', { titre: 'Protéines par semaine' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Fibres, semaine après semaine</h2><span class="small muted">moyenne par jour, 8 dernières semaines</span>${barres(semaines.map((s) => ({ v: Math.round(s.fibres), lab: s.lab, vide: !s.jours, tip: `Semaine du ${s.lab} : ${s.jours ? `${Math.round(s.fibres)} g par jour` : 'pas de suivi'}` })), 'fibres', { titre: 'Fibres par semaine' })}</section>
+      </div>
+      <details class="carte"><summary><strong>Journal des repas</strong> <span class="small muted">· le détail, jour par jour</span></summary>
+        <table class="journal"><thead><tr><th>Jour</th><th>Repas</th><th class="num">kcal</th><th class="num">Prot.</th><th class="num">Fibres</th><th>NS</th></tr></thead><tbody>
+        ${avecRepas.slice().reverse().flatMap(([d, v]) => v.repas.map((x) => `<tr><td>${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${x.s === 'diner' ? 'soir' : 'midi'}</td><td>${esc(E.REC[x.r].nom)}</td><td class="num">${x.n.kcal}</td><td class="num">${Math.round(x.n.parPortion.prot)} g</td><td class="num">${Math.round(x.n.parPortion.fibres)} g</td><td>${x.n.lettre ? `<span class="ns-lettre ns-${x.n.lettre}">${x.n.lettre}</span>` : ''}</td></tr>`)).join('') || '<tr><td colspan="6" class="small muted">Aucun repas noté.</td></tr>'}
+        </tbody></table></details>`;
+  }
+
   /* ---------- bilan nutritionnel de la semaine ---------- */
   function blocNutritionSemaine() {
     if (!S.plan || !window.Nutrition) return '';
@@ -1717,6 +1825,7 @@
       <div class="spread" style="align-items:center"><h2>Bilan nutritionnel</h2><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong> repères</span></div>
       <div class="chiffres-nutri"><div><span class="small muted">Énergie</span><strong class="num">${b.kcal} kcal</strong><span class="small muted">par jour</span></div>${b.reperes.filter((r) => ['prot', 'fibres', 'legumes'].includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span class="small muted">${esc(r.nom)}</span><strong class="num">${nb(r.valeur)} ${r.cle === 'legumes' ? 'g' : 'g'}</strong><span class="small muted">par jour</span></div>`).join('')}</div>
       ${aRevoir.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">À améliorer</span><ul class="liste-reperes">${aRevoir.map(ligne).join('')}</ul><div><button class="btn btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button> <span class="small muted">Le coach propose de changer quelques plats.</span></div></div>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints cette semaine. Bravo !</p>'}
+      <div><button class="btn btn-petit" data-a="onglet" data-k="apports">📈 Mon suivi des apports (graphiques)</button></div>
       <details><summary class="small"><strong>Voir tout le détail</strong></summary><ul class="liste-reperes" style="margin-top:8px">${b.reperes.map(ligne).join('')}</ul></details>
       <p class="small muted" style="margin:0">Pour un adulte, sur les déjeuners et dîners de la semaine${b.gourmand ? ' et les desserts ou goûters prévus' : ''}, hors petit-déjeuner. Estimation d’après les ingrédients et les repères de santé publique (PNNS), pas un avis médical.</p>
     </section>`;
@@ -1736,6 +1845,7 @@
       ${b.reperes.some((r) => r.etat !== 'ok') ? `<ul class="mini-reperes">${b.reperes.filter((r) => r.etat !== 'ok').map((r) => `<li class="rep-${r.etat}" title="${esc(r.conseil)}"><span class="fleche">${fl(r)}</span><span>${esc(r.nom)}</span><span class="num">${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur}</span></li>`).join('')}</ul>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints.</p>'}
       ${b.atteints < b.reperes.length ? '<button class="btn btn-petit btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button>' : ''}
       <button class="btn btn-petit" data-a="bilan-ouvrir">Détails et conseils</button>
+      <button class="btn btn-petit" data-a="onglet" data-k="apports">📈 Mon suivi des apports</button>
       <span class="small muted">Par adulte, déjeuners et dîners. Estimation.</span>
     </section>`;
   }
@@ -2037,7 +2147,8 @@
         S.retraits = S.retraits || {};
         S.retraits[k] = Object.keys(avant).map((id) => [id, avant[id] - ((p.stock || {})[id] || 0)]).filter(([, q]) => q > 0);
         S.deduits[k] = 'cuisine';
-        toast('Bon appétit ! Placard mis à jour. Dites-nous si vous avez aimé');
+        noterJournal(+el.dataset.j, el.dataset.s, m.recette, true);
+        toast('Bon appétit ! Placard et suivi mis à jour. Dites-nous si vous avez aimé');
         break;
       }
       case 'mange-annuler': {
@@ -2046,6 +2157,7 @@
         if (m && S.deduits[k] === 'cuisine' && S.retraits && S.retraits[k]) p.stock = E.ajouterAuStock(p.stock, S.retraits[k]);
         if (S.retraits) delete S.retraits[k];
         delete S.deduits[k];
+        noterJournal(+el.dataset.j, el.dataset.s, null, false);
         toast('Annulé : le placard est revenu comme avant');
         break;
       }
@@ -2218,6 +2330,7 @@
         if (a !== 'ameliorer-refuser') toast('Plat changé : menus et courses mis à jour');
         break;
       }
+      case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
       case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
       case 'presence-editer': S.presenceEdit = el.dataset.k; break;
@@ -2476,6 +2589,19 @@
       if (el.type === 'range') { const o = el.parentElement.querySelector('output'); if (o) o.textContent = el.value + ' km'; sauver(); return; }
     }
   });
+  // info-bulle des graphiques (survol ou toucher)
+  function bulle(ev) {
+    const g = ev.target.closest && ev.target.closest('[data-tip]');
+    let b = document.getElementById('bulle-graphe');
+    if (!g) { if (b) b.hidden = true; return; }
+    if (!b) { b = document.createElement('div'); b.id = 'bulle-graphe'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+    b.textContent = g.dataset.tip; b.hidden = false;
+    const r = g.getBoundingClientRect();
+    b.style.left = Math.min(window.innerWidth - b.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - b.offsetWidth / 2)) + 'px';
+    b.style.top = Math.max(8, r.top - b.offsetHeight - 6) + 'px';
+  }
+  document.addEventListener('pointerover', bulle);
+  document.addEventListener('pointerdown', bulle);
   document.addEventListener('change', (ev) => {
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
