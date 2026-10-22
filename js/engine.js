@@ -235,8 +235,71 @@
   }
 
   /* ---------- génération ---------- */
+  /* ---------- coachs alimentaires : minceur, sportif, femme de plus de 40 ans ---------- */
+  const NUTRI = () => (NODE ? require('./nutrition.js') : root.Nutrition);
+  const LAITAGES = new Set(['lait', 'yaourt', 'emmental', 'mozzarella', 'feta', 'tofu']);
+  const POISSONS = new Set(['saumon', 'colin', 'thon']);
+  const LEGUMINEUSES = new Set(['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses', 'tofu']);
+  function bonusCoach(rec, p) {
+    if (!p.coach) return 0;
+    const N = NUTRI();
+    const n = N && N.de(rec, ING);
+    if (!n) return 0;
+    const pp = n.parPortion, ids = rec.ing.map(([id]) => id);
+    if (p.coach === 'minceur') {
+      let s = n.kcal <= 550 ? 3 : n.kcal <= 620 ? 1 : -(n.kcal - 620) / 40;
+      s += equilibre(rec).grammesLegumes / 100;
+      s -= Math.max(0, pp.ags - 6) * 0.5;
+      if (n.lettre === 'A') s += 1;
+      if (pp.prot >= 25) s += 0.5;                    // les protéines rassasient
+      return s;
+    }
+    if (p.coach === 'sportif') {
+      let s = pp.prot >= 35 ? 4 : pp.prot >= 28 ? 2.5 : pp.prot >= 22 ? 0.5 : -2;
+      if (n.kcal < 450) s -= 1;
+      if (ids.some((id) => ING[id].groupe === 'F')) s += 0.5;   // féculents pour l'énergie
+      return s;
+    }
+    if (p.coach === 'femme40') {
+      let s = 0;
+      if (ids.some((id) => LAITAGES.has(id))) s += 1.5;          // calcium
+      if (ids.includes('saumon')) s += 3; else if (ids.some((id) => POISSONS.has(id))) s += 1;
+      if (ids.some((id) => LEGUMINEUSES.has(id))) s += 1.5;      // fibres, protéines végétales
+      if (pp.fibres >= 8) s += 1;
+      if (pp.prot >= 25) s += 1;                                 // garder ses muscles
+      if (pp.sel > 3) s -= 1;
+      if (pp.ags > 8) s -= 1;
+      if (n.kcal > 700) s -= 1.5;
+      return s;
+    }
+    return 0;
+  }
+  /** Bilan de la semaine pour le coach : moyennes par repas d'adulte. */
+  function bilanCoach(plan, p) {
+    const N = NUTRI();
+    if (!plan || !N) return null;
+    const repas = plan.jours.flatMap((jp) => SLOTS.map((sl) => jp[sl]).filter(Boolean)).map((m) => REC[m.recette]).filter(Boolean);
+    const ns = repas.map((r) => N.de(r, ING)).filter(Boolean);
+    if (!ns.length) return null;
+    const moy = (f) => ns.reduce((t, n) => t + f(n), 0) / ns.length;
+    const ids = (r) => r.ing.map(([id]) => id);
+    return {
+      repas: ns.length,
+      kcal: Math.round(moy((n) => n.kcal) / 10) * 10,
+      prot: Math.round(moy((n) => n.parPortion.prot)),
+      fibres: Math.round(moy((n) => n.parPortion.fibres)),
+      sel: Math.round(moy((n) => n.parPortion.sel) * 10) / 10,
+      nutriA: ns.filter((n) => n.lettre === 'A' || n.lettre === 'B').length,
+      poisson: repas.filter((r) => ids(r).some((id) => POISSONS.has(id))).length,
+      poissonGras: repas.filter((r) => ids(r).includes('saumon')).length,
+      laitages: repas.filter((r) => ids(r).some((id) => LAITAGES.has(id))).length,
+      legumineuses: repas.filter((r) => ids(r).some((id) => LEGUMINEUSES.has(id))).length,
+      legumes: Math.round(repas.reduce((t, r) => t + equilibre(r).grammesLegumes, 0) / repas.length)
+    };
+  }
   function score(rec, p, ctx, r) {
     let s = r() * 3;
+    s += bonusCoach(rec, p) * 1.6;
     if (p.cuisines.includes(rec.cuisine)) s += 1.5;
     if (p.foyer.enfants.length && p.enfantsMode === 'simple' && rec.tags.includes('enfants')) s += 2;
     if ((p.objectifs.includes('muscle') || p.seancesSport >= 2) && rec.tags.includes('proteines')) s += 2;
@@ -824,7 +887,7 @@
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
     profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
-    ajusterAuBudget, ceSoir, optimiserDrives, magasinsDemo, contientViande, coutRepas
+    ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Engine = api;

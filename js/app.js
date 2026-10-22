@@ -501,6 +501,7 @@
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
+      ${blocCoach()}
       ${blocBudget()}
       ${moyenneAssiette()}
       ${suggestionRituels()}
@@ -1478,6 +1479,9 @@
     const exportJson = JSON.stringify({ profil: S.profil, notes: S.notes, plan: S.plan }, null, 2);
     return `<div><p class="eyebrow">Profil</p><h1>Votre foyer et vos données</h1></div>
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
+      <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
+        <p class="small muted" style="margin:0">${S.profil.coach ? esc(COACHS[S.profil.coach].accroche) : 'Minceur, sportif, ou femme de 40 ans et plus : vos menus suivent votre objectif.'}</p>
+        <div><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button></div></section>
       <section class="carte stack"><div class="spread"><h2>Vos goûts</h2><div class="row"><button class="btn btn-petit btn-plein" data-a="test-go" data-depuis="app">Faire le test de goût</button><button class="btn btn-petit" data-a="gouts-effacer">Effacer mes goûts</button></div></div>
         ${blocGouts()}<p class="small muted">Vos notes de recettes affinent aussi vos goûts.</p></section>
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
@@ -1564,6 +1568,70 @@
     </div></div>`;
   }
 
+  /* ---------- coachs alimentaires ---------- */
+  const COACHS = {
+    minceur: {
+      nom: 'Coach minceur', emoji: '🥗', court: 'Minceur',
+      accroche: 'Une semaine de repas légers mais rassasiants, pour perdre du poids en douceur.',
+      pour: 'Repas autour de 450 à 600 kcal, beaucoup de légumes, des protéines à chaque repas, peu de graisses saturées.',
+      prudence: 'Perte de poids douce, sans régime restrictif. Pas pour les femmes enceintes ou qui allaitent, les moins de 18 ans, ni en cas de troubles du comportement alimentaire : parlez-en d’abord à votre médecin.',
+      astuces: ['Remplissez la moitié de l’assiette de légumes, un quart de féculents, un quart de protéines.', 'Servez-vous une fois, puis attendez 10 minutes avant de vous resservir.', 'Buvez de l’eau à volonté ; gardez les sodas et jus pour les grandes occasions.', 'Un fruit ou un yaourt nature en collation plutôt que des biscuits.', 'Les féculents restent dans l’assiette : ils calent et évitent les fringales.', 'Préférez la cuisson vapeur, au four ou à la poêle avec une cuillère d’huile seulement.'],
+      objectifs: (b) => [[`${b.kcal} kcal en moyenne par repas`, b.kcal >= 420 && b.kcal <= 600, 'objectif : 450 à 600'], [`${b.legumes} g de légumes par repas`, b.legumes >= 200, 'objectif : 200 g et plus'], [`${b.prot} g de protéines par repas`, b.prot >= 20, 'pour être rassasié']]
+    },
+    sportif: {
+      nom: 'Coach sportif', emoji: '💪', court: 'Sportif',
+      accroche: 'Des repas riches en protéines pour récupérer et construire du muscle.',
+      pour: 'Environ 30 g de protéines et plus par repas, des féculents pour l’énergie, des légumes pour le reste.',
+      prudence: 'Les besoins varient selon le sport, l’intensité et le poids (souvent 1,2 à 2 g de protéines par kilo et par jour pour les sportifs réguliers). Pour un objectif précis, demandez conseil à un diététicien du sport.',
+      astuces: ['Un repas avec protéines et féculents dans les 2 heures après l’entraînement.', 'Hydratez-vous avant, pendant et après l’effort.', 'Collations faciles : yaourt nature, œufs durs, poignée d’amandes, banane.', 'Variez les protéines : volaille, poisson, œufs, légumineuses, tofu.', 'Les jours sans entraînement, gardez les protéines et réduisez un peu les féculents.', 'Le sommeil compte autant que l’assiette pour récupérer.'],
+      objectifs: (b) => [[`${b.prot} g de protéines par repas`, b.prot >= 30, 'objectif : 30 g et plus'], [`${b.kcal} kcal en moyenne par repas`, b.kcal >= 550, 'assez d’énergie'], [`${b.poisson} repas de poisson`, b.poisson >= 1, 'au moins 1 par semaine']]
+    },
+    femme40: {
+      nom: 'Coach femme 40 ans et +', emoji: '🌸', court: 'Femme 40 +',
+      accroche: 'Une alimentation pensée pour la quarantaine et la ménopause : os, muscles, cœur et énergie.',
+      pour: 'Du calcium (laitages, fromage, tofu), des protéines pour garder ses muscles, du poisson gras, des légumineuses et des fibres, moins de sel et de sucres.',
+      prudence: 'Ces conseils généraux ne remplacent pas l’avis de votre médecin, en particulier en cas d’ostéoporose, de traitement hormonal, de maladie ou de bouffées de chaleur gênantes.',
+      astuces: ['Visez 2 à 3 produits laitiers par jour pour le calcium (yaourt, fromage, lait).', 'Un poisson gras par semaine (saumon, sardines, maquereau) pour le cœur et la vitamine D.', 'Des légumineuses 2 à 3 fois par semaine : fibres, protéines et soja pour les bouffées de chaleur.', 'Des protéines à chaque repas pour garder vos muscles, avec 30 minutes de marche par jour.', 'Limitez le sel (pas de salière à table) et les sucres ajoutés.', 'Prenez l’air chaque jour : la lumière aide à fabriquer la vitamine D.'],
+      objectifs: (b) => [[`${b.laitages} repas avec laitages ou tofu`, b.laitages >= 5, 'pour le calcium'], [`${b.poissonGras} repas de poisson gras`, b.poissonGras >= 1, 'au moins 1 par semaine'], [`${b.legumineuses} repas avec légumineuses`, b.legumineuses >= 3, 'objectif : 3 et plus'], [`${b.fibres} g de fibres par repas`, b.fibres >= 8, 'objectif : 8 g et plus']]
+    }
+  };
+  function blocCoach() {
+    const c = COACHS[S.profil.coach];
+    if (!c) {
+      return `<section class="carte stack invite-coach" style="gap:8px"><strong>🎯 Un coach pour vos menus ?</strong>
+        <span class="small muted">Budgétable prépare votre semaine selon votre objectif.</span>
+        <div class="row" style="gap:6px">${Object.entries(COACHS).map(([k, x]) => `<button class="chip" data-a="coach-voir" data-k="${k}">${x.emoji} ${esc(x.court)}</button>`).join('')}</div></section>`;
+    }
+    const b = E.bilanCoach(S.plan, S.profil);
+    const semaine = Math.floor(Date.now() / 6048e5);
+    const astuces = [0, 1].map((k) => c.astuces[(semaine * 2 + k) % c.astuces.length]);
+    return `<section class="carte stack coach-actif" style="gap:10px">
+      <div class="spread"><strong>${c.emoji} ${esc(c.nom)}</strong><button class="btn-lien small" data-a="coach-voir" data-k="${S.profil.coach}">Changer</button></div>
+      ${b ? `<ul class="objectifs-coach">${c.objectifs(b).map(([txt, ok, cible]) => `<li class="${ok ? 'ok' : 'a-voir'}"><span aria-hidden="true">${ok ? '✓' : '•'}</span><span><strong>${esc(txt)}</strong> <span class="small muted">${esc(cible)}</span></span></li>`).join('')}</ul>` : ''}
+      <div class="stack" style="gap:4px"><span class="eyebrow">Les conseils de la semaine</span>${astuces.map((a) => `<span class="small">💡 ${esc(a)}</span>`).join('')}</div>
+      <span class="small muted">Estimations par portion adulte, déjeuners et dîners.${S.profil.foyer.enfants.length ? ' Les menus restent bons pour toute la famille : adaptez seulement vos portions.' : ''}</span>
+    </section>`;
+  }
+  function vueCoach() {
+    if (!S.coachVoir) return '';
+    const k = S.coachVoir, c = COACHS[k];
+    const actif = S.profil.coach === k;
+    return `<div class="voile" data-a="coach-fond"><div class="fiche fenetre-coach" role="dialog" aria-modal="true" aria-labelledby="coach-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Coach alimentaire</span><h2 id="coach-titre">Choisir un coach</h2></div>
+        <button class="btn btn-petit" data-a="coach-fermer">Fermer</button></div>
+      <div class="row" role="tablist" style="gap:6px">${Object.entries(COACHS).map(([kk, x]) => `<button class="chip" role="tab" data-a="coach-voir" data-k="${kk}" aria-selected="${kk === k}" aria-pressed="${kk === k}">${x.emoji} ${esc(x.court)}</button>`).join('')}</div>
+      <div class="stack coach-detail" style="gap:10px">
+        <h3>${c.emoji} ${esc(c.nom)}</h3>
+        <p style="margin:0">${esc(c.accroche)}</p>
+        <p class="small" style="margin:0"><strong>Dans vos menus :</strong> ${esc(c.pour)}</p>
+        <ul class="small astuces-coach">${c.astuces.slice(0, 4).map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+        <p class="small prudence-coach">${esc(c.prudence)}</p>
+      </div>
+      ${actif ? `<div class="row" style="gap:8px"><button class="btn btn-plein" data-a="coach-semaine" data-k="${k}">Refaire une semaine ${esc(c.court.toLowerCase())}</button><button class="btn" data-a="coach-arreter">Arrêter le coach</button></div>`
+        : `<button class="btn btn-plein btn-grand" data-a="coach-semaine" data-k="${k}">Préparer ma semaine avec le ${esc(c.nom.toLowerCase())}</button>`}
+    </div></div>`;
+  }
+
   /* ---------- grignotages gourmands ---------- */
   function definirGourmand() {
     if (!window.Gourmand) return;
@@ -1633,7 +1701,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1685,7 +1753,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -1883,6 +1951,18 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'coach-voir': S.coachVoir = el.dataset.k; break;
+      case 'coach-fermer': case 'coach-fond': S.coachVoir = null; break;
+      case 'coach-semaine': {
+        p.coach = el.dataset.k;
+        S.coachVoir = null;
+        nouvellePlanification();
+        S.onglet = 'semaine';
+        window.scrollTo(0, 0);
+        toast(`${COACHS[p.coach].emoji} Votre semaine avec le ${COACHS[p.coach].nom.toLowerCase()} est prête`);
+        break;
+      }
+      case 'coach-arreter': p.coach = null; S.coachVoir = null; toast('Coach arrêté : vos prochaines semaines redeviennent classiques'); break;
       case 'fiche-g': fiche = { recette: el.dataset.r, parts: el.dataset.n ? +el.dataset.n : null }; break;
       case 'gourmand-filtre': S.filtreGourmand = el.dataset.k; break;
       case 'gourmand-ajouter': {
