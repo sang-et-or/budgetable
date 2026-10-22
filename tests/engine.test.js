@@ -268,3 +268,47 @@ test('pourquoi ce plat : 1 à 3 raisons courtes, en français', () => {
   }));
   assert.ok(total >= 14, 'trop peu de raisons : ' + total);
 });
+
+test('mes recettes : proposées dans les menus, jamais à une personne allergique, ingrédients hors catalogue sans prix', () => {
+  const S = require('../js/saisie.js');
+  const g = S.devinerIngredients('Wok de crevettes');
+  const crevettes = g.extras.find((x) => x.nom === 'crevettes');
+  assert.ok(crevettes && crevettes.tags.includes('crustaces'));
+  E.definirPerso([
+    { id: 'p-wok', nom: 'Wok de crevettes', ing: g.coches, extras: g.extras },
+    { id: 'p-cache', nom: 'Gâteau secret', ing: [['farine', 40], ['oeufs', 1]], extras: ['sucre'], proposer: false }
+  ]);
+  const p = E.profilParDefaut();
+  let vu = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const plan = E.genererSemaine(p, { seed });
+    const ids = plan.jours.flatMap((jp) => E.SLOTS.map((s) => jp[s] && jp[s].recette));
+    if (ids.includes('p-wok')) vu++;
+    assert.ok(!ids.includes('p-cache'), 'recette non proposée mise au menu');
+  }
+  assert.ok(vu >= 6, 'recette de la bibliothèque trop rarement proposée : ' + vu + '/12');
+  const allergique = Object.assign(E.profilParDefaut(), { allergies: ['crustaces'] });
+  for (let seed = 1; seed <= 12; seed++) {
+    const plan = E.genererSemaine(allergique, { seed });
+    assert.ok(!plan.jours.some((jp) => E.SLOTS.some((s) => jp[s] && jp[s].recette === 'p-wok')), 'crevettes proposées à un allergique');
+  }
+  assert.equal(E.rechercherPlats(allergique, 'wok crevettes').resultats.includes('p-wok'), false);
+  assert.equal(E.rechercherPlats(p, 'gateau secret').resultats[0], 'p-cache');
+  const plan = E.placerRecette(E.genererSemaine(p, { seed: 1 }), 0, 'diner', 'p-wok');
+  const art = E.listeCourses(plan, p).articles.find((a) => a.nom === 'Crevettes');
+  assert.ok(art && art.sansPrix && art.cout === 0);
+  E.definirPerso([]);
+  assert.equal(E.REC['p-wok'], undefined);
+});
+
+test('saisie : ingrédients proposés d’après le nom, en respectant le profil', () => {
+  const S = require('../js/saisie.js');
+  const ids = (g) => g.coches.map(([id]) => id);
+  assert.ok(['pates', 'boeuf_hache', 'tomates_concassees'].every((x) => ids(S.devinerIngredients('Lasagnes de mamie')).includes(x)));
+  assert.ok(!ids(S.devinerIngredients('Chili sin carne végétarien')).includes('boeuf_hache'));
+  assert.ok(!ids(S.devinerIngredients('Lasagnes', Object.assign(E.profilParDefaut(), { allergies: ['gluten'] }))).includes('pates'));
+  assert.ok(ids(S.devinerIngredients('Velouté de potiron')).includes('courge'));
+  assert.ok(!ids(S.devinerIngredients('Velouté de potiron')).includes('poireau'));
+  assert.deepEqual(S.devinerIngredients('Gâteau au chocolat').suggestions, []);
+  assert.ok(S.chercherIngredients('champ').includes('champignon'));
+});

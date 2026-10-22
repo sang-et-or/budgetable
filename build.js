@@ -26,7 +26,7 @@ ${reste.slice(finStyle).trim()}
 </html>
 `;
 fs.writeFileSync(path.join(dist, 'index.html'), html);
-for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
+for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
 console.log('dist/ prêt');

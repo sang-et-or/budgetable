@@ -123,7 +123,7 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 
 /* ---------- application ---------- */
 .entete { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--trait); display: grid; grid-template-columns: repeat(5, 1fr);
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--trait); display: grid; grid-template-columns: repeat(6, 1fr);
   padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
 .nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: .72rem; font-weight: 600; color: var(--encre-douce); border-radius: 10px; min-height: 52px; }
 .nav button svg { width: 22px; height: 22px; }
@@ -353,6 +353,26 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .liste-absents { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .liste-absents li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--trait); padding: 4px 0; }
 .panier-drive details summary { cursor: pointer; color: var(--encre-douce); }
+
+/* ---------- recherche de plats, saisie de recettes, bibliothèque ---------- */
+.recherche-plat input[type=search], .fenetre-edition input[type=search] { width: 100%; }
+.resultats { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.resultat { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; background: var(--surface); border: 1px solid var(--trait); border-radius: 12px; padding: 6px 10px; cursor: pointer; font: inherit; color: var(--encre); }
+.resultat:hover, .resultat:focus-visible { border-color: var(--poireau); }
+.resultat > span:last-child { display: flex; flex-direction: column; }
+.resultat .vignette { width: 40px; height: 40px; flex: none; }
+.fiche.fenetre-edition { max-width: 640px; }
+.fenetre-edition .champ input, .fenetre-edition .champ select { width: 100%; }
+.ing-cocher { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 14px; }
+.ing-cocher .case { align-items: flex-start; padding: 4px 0; }
+.alerte-ing { color: var(--tomate); font-weight: 700; }
+.vide-recettes { border-style: dashed; }
+.grille-au-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.jour-au-menu { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; border: 1px solid var(--trait); border-radius: 12px; padding: 8px 10px; }
+.jour-au-menu strong { flex: 1 0 100%; font-size: .95rem; }
+.carte-recette .meta a { color: var(--poireau); font-weight: 600; text-underline-offset: 3px; }
+.lien-recette { text-decoration: none; align-self: flex-start; color: #fff; }
+@media (max-width: 420px) { .nav button { font-size: .66rem; } }
 </style>
 
 <div id="app"></div>
@@ -361,6 +381,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/data.js"></script>
 <script src="js/modeles.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>
 <script src="js/magasins.js"></script>

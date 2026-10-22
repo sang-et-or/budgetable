@@ -78,7 +78,41 @@
   DATA.recettes.forEach((r) => { r.modele = r.modele || 'maison'; r.prot = r.prot || (r.ing.find(([id]) => ING[id].groupe === 'P') || [])[0]; });
   const RECETTES = DATA.recettes.concat(genererRecettes());
   const REC = idx(RECETTES);
-  const MODELES = Object.fromEntries(MOD.modeles.map((m) => [m.id, { libelle: m.libelle, forme: m.forme }]).concat([['maison', { libelle: 'Recettes maison', forme: 'assiette' }]]));
+  const MODELES = Object.fromEntries(MOD.modeles.map((m) => [m.id, { libelle: m.libelle, forme: m.forme }]).concat([['maison', { libelle: 'Recettes maison', forme: 'assiette' }], ['perso', { libelle: 'Mes recettes', forme: 'assiette' }]]));
+
+  /* ---------- recettes personnelles (bibliothèque de l'utilisateur) ----------
+   * Une recette perso : { id: 'p-…', nom, lien?, repas[], temps?, ing: [[id, qté par portion adulte]], extras: [nom] }
+   * « extras » = ingrédients hors catalogue (texte libre) : ajoutés à la liste de courses, sans prix connu. */
+  let PERSO = [];
+  let versionPerso = 0;
+  const slug = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  function idExtra(nom) { return 'x-' + slug(nom); }
+  function definirPerso(liste) {
+    for (const r of PERSO) delete REC[r.id];
+    PERSO = (liste || []).filter((r) => r && r.id && r.nom).map((r) => {
+      // extras : texte libre ou { nom, tags } (tags = allergènes et régimes connus, pour la sécurité)
+      const extras = (r.extras || []).map((x) => (typeof x === 'string' ? { nom: x, tags: [] } : x)).map((x) => ({ nom: String(x.nom || '').trim().slice(0, 40), tags: Array.isArray(x.tags) ? x.tags.map(String) : [] })).filter((x) => x.nom).slice(0, 30);
+      for (const x of extras) {
+        const id = idExtra(x.nom);
+        if (!ING[id] || ING[id].perso) ING[id] = { id, nom: x.nom.charAt(0).toUpperCase() + x.nom.slice(1), rayon: 'Autres', unite: 'pièce', cond: 1, condLabel: 'selon la recette', prixDemo: 0, groupe: 'A', tags: [...new Set([...(ING[id] ? ING[id].tags : []), ...x.tags])], perso: true };
+      }
+      const ing = (r.ing || []).filter(([id, q]) => ING[id] && q > 0).concat(extras.map((x) => [idExtra(x.nom), 1]));
+      const rec = {
+        id: r.id, nom: String(r.nom).slice(0, 90), repas: r.repas && r.repas.length ? r.repas : ['dejeuner', 'diner'],
+        temps: r.temps > 0 ? r.temps : 30, niveau: 1, equip: [], cuisine: 'francaise', tags: r.enfants ? ['enfants'] : [],
+        ing, etapes: r.lien ? ['Suivez la recette sur le site d’origine (lien ci-dessus).'] : ['Votre recette : préparez-la comme d’habitude.'],
+        modele: 'perso', perso: true, lien: r.lien || null, extras, proposer: r.proposer !== false
+      };
+      rec.prot = (rec.ing.find(([id]) => ING[id].groupe === 'P') || [])[0];
+      rec.sig = rec.id;
+      return rec;
+    });
+    for (const r of PERSO) REC[r.id] = r;
+    versionPerso++;
+    cacheCompat.clear();
+    for (const r of PERSO) cacheCout.delete(r.id);
+    return PERSO;
+  }
 
   /* ---------- profil ---------- */
   function profilParDefaut() {
@@ -149,10 +183,10 @@
 
   const cacheCompat = new Map();
   function recettesCompatibles(p) {
-    const cle = JSON.stringify([p.allergies, p.regime, p.refus, p.equipement, p.niveau]);
+    const cle = JSON.stringify([p.allergies, p.regime, p.refus, p.equipement, p.niveau, versionPerso]);
     if (!cacheCompat.has(cle)) {
       if (cacheCompat.size > 50) cacheCompat.clear();
-      cacheCompat.set(cle, RECETTES.filter((r) => recetteCompatible(r, p).ok));
+      cacheCompat.set(cle, PERSO.concat(RECETTES).filter((r) => recetteCompatible(r, p).ok));
     }
     return cacheCompat.get(cle);
   }
@@ -195,17 +229,18 @@
     s += Math.min(reprises, 2) * (p.objectifs.includes('economies') ? 1.5 : 0.8);
     if (ctx.sigs[rec.sig || rec.id]) s -= 8; // même plat avec une autre épice ou un autre féculent
     s -= (ctx.utilisations[rec.id] || 0) * 6;
-    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' ? 0.3 : 1.8);
+    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' || rec.modele === 'perso' ? 0.3 : 1.8);
     s -= Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 1.2;
     if (ctx.hier && ctx.hier.includes(rec.id)) s -= 3;
     s += scoreGout(rec, p.gouts);
+    if (rec.perso) s += 3; // recettes de la bibliothèque : l'utilisateur les a choisies
     // « nos classiques » : 2 par semaine environ (valeurs sûres), sans les répéter
     if (ctx.classiques.includes(rec.id) && !ctx.utilisations[rec.id] && ctx.nbClassiques < ctx.cibleClassiques) s += 6;
     return s;
   }
 
   function candidats(p, jour, slot, ctx, exclure = []) {
-    const base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && ctx.notes[r.id] !== 1);
+    const base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && ctx.notes[r.id] !== 1 && r.proposer !== false);
     const flexi = p.regime === 'flexitarien' && ctx.repasViande >= 3;
     let liste = base.filter((r) => r.temps <= tempsMax(p, jour) && !(flexi && contientViande(r)));
     if (!liste.length) liste = base.filter((r) => r.temps <= tempsMax(p, jour) + 15 && !(flexi && contientViande(r)));
@@ -352,6 +387,28 @@
     return choix.map((rec) => rec.id);
   }
 
+  const norm = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/œ/g, 'oe');
+  const motsDe = (t) => norm(t).split(/[^a-z0-9]+/).filter((m) => m.length > 1 && !['de', 'du', 'des', 'la', 'le', 'les', 'au', 'aux', 'et', 'a', 'en', 'un', 'une', 'avec', 'sauce'].includes(m)).map((m) => m.replace(/(s|x)$/, ''));
+  /**
+   * Cherche des plats par leur nom parmi les recettes compatibles avec le profil (allergies, régime…).
+   * Renvoie { resultats: [ids], masques: nombre de plats correspondants écartés par le profil }.
+   */
+  function rechercherPlats(p, texte, opts = {}) {
+    const mots = motsDe(texte);
+    if (!mots.length) return { resultats: [], masques: 0 };
+    const correspond = (r) => { const n = motsDe(r.nom); return mots.every((m) => n.some((x) => x.startsWith(m))); };
+    const compat = recettesCompatibles(p).filter((r) => (!opts.slot || r.repas.includes(opts.slot)) && correspond(r));
+    const rang = (r) => (r.perso ? 0 : r.modele === 'maison' ? 1 : 2) + r.nom.length / 1000;
+    const resultats = compat.sort((a, b) => rang(a) - rang(b));
+    // un seul exemple par plat généré « même plat, autre épice »
+    const vus = new Set();
+    const uniques = resultats.filter((r) => { const k = r.sig || r.id; if (vus.has(k)) return false; vus.add(k); return true; });
+    const tous = PERSO.concat(RECETTES).filter(correspond).length;
+    return { resultats: uniques.slice(0, opts.n || 8).map((r) => r.id), masques: Math.max(0, tous - compat.length) };
+  }
+  /** Met une recette quelconque (recherche, bibliothèque) à la place du plat prévu. */
+  function placerRecette(plan, jour, slot, recetteId) { return choisirRepas(plan, jour, slot, recetteId); }
+
   /** Met le plat choisi à la place du plat prévu (choix parmi les propositions : ne compte pas comme un remplacement). */
   function choisirRepas(plan, jour, slot, recetteId) {
     const actuel = plan.jours[jour][slot];
@@ -371,6 +428,7 @@
     const m = plan.jours[jour] && plan.jours[jour][slot];
     const th = m && m.theme && THEMES[m.theme];
     if (th && m.theme !== 'enfants' && th.ok(rec, { classiques })) raisons.push(`${th.libelle} du ${JOURS[jour].toLowerCase()}`);
+    if (rec.perso) raisons.push('Dans votre bibliothèque');
     if (classiques.includes(rec.id)) raisons.push('Un classique de la famille');
     const note = (opts.notes || {})[rec.id];
     if (note >= 4) raisons.push(`Vous l’avez noté ${note} ★`);
@@ -411,6 +469,9 @@
     const stock = stockIds(p);
     const articles = Object.entries(besoins).map(([id, q]) => {
       const ing = ING[id];
+      if (ing.perso) { // ingrédient hors catalogue : quantité selon la recette, prix inconnu
+        return { id, nom: ing.nom, rayon: ing.rayon, unite: ing.unite, quantite: 0, conditionnements: 1, condLabel: ing.condLabel, cout: 0, enStock: stock.has(id), reste: 0, sansPrix: true };
+      }
       const conditionnements = Math.ceil(q / ing.cond - 1e-9);
       const cout = round2(conditionnements * ing.prixDemo);
       return {
@@ -652,6 +713,7 @@
     JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, RECETTES, MODELES,
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
+    definirPerso, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     profilParDefaut, portions, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, optimiserDrives, magasinsDemo, contientViande, coutRepas

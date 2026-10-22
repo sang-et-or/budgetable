@@ -68,7 +68,7 @@ with sync_playwright() as p:
     for interdit in ["lardons", "jambon", "Saucisses", "champignons", "Crêpes", "Croque"]:
         assert interdit.lower() not in page.inner_text("main").lower(), f"recette interdite : {interdit}"
     # changer un repas
-    page.get_by_role("button", name="3 idées pour ce repas").first.click()
+    page.get_by_role("button", name="Changer ce plat").first.click()
     page.locator(".choix-carte").nth(1).get_by_role("button", name="Je choisis ce plat").click()
     # fiche recette + note
     page.locator(".titre-repas").first.click()
