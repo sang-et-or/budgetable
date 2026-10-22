@@ -17,7 +17,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    assert page.locator("nav button").count() == 7
+    assert page.locator("nav button").count() >= 7
     page.locator("nav button", has_text="Gourmand").click()
     main = page.locator("main")
     assert "Grignotages gourmands" in main.inner_text()

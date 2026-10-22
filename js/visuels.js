@@ -12,6 +12,7 @@
     courgette: '#4f8a3c', carotte: '#f08c2b', poivron: '#d7372f', poireau: '#a5c96d', champignon: '#cdb79c', brocoli: '#2f7d32', epinards: '#2e5e2a',
     haricots_verts: '#4c8a3f', petits_pois: '#79b342', aubergine: '#5b2a5e', courge: '#f4a340', tomate: '#e04b3a', mais: '#f6d34a', salade: '#8cc152',
     oignon: '#e9d8c4', concombre: '#7fb069', citron: '#f7e05e', persil: '#3e8e41',
+    chataignes: '#8a5a33', poire: '#d9d36c', navet: '#efe6f0', panais: '#eedfb9', celeri_rave: '#e9dfc2', chou_fleur: '#f3eedb', endives: '#eef0c4', betterave: '#8e1f3f', reblochon: '#f3e2b0', boeuf_braiser: '#6e2c22', patate_douce: '#e8853f', chou: '#c9d99a',
     riz: '#fbf7ec', pates: '#f2cf72', semoule: '#efd59c', quinoa: '#e7d8b8', pomme_de_terre: '#e8c167', tortillas: '#e9cf9f', pain: '#d39b52', pain_mie: '#f1dcb0', farine: '#f5ecd8'
   };
   const SAUCE = { curry: '#e2a03f', mijote: '#c4512f', veloute: null, pates: '#d9573f', wok: '#8a5a2b' };

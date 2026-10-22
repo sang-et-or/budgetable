@@ -113,6 +113,29 @@
     return GOURMAND;
   }
   const gourmandises = () => GOURMAND.slice();
+  /* ---------- idées de saison : recettes du catalogue, proposées dans les menus quand on les garde ---------- */
+  let SAISON = [], SAISON_ACTIF = [];
+  function definirSaison(ingredients, recettes) {
+    for (const i of ingredients || []) if (i && i.id && !ING[i.id]) { ING[i.id] = { ...i }; DATA.ingredients.push(ING[i.id]); }
+    for (const r of SAISON) delete REC[r.id];
+    SAISON = (recettes || []).filter((r) => r && r.id && r.nom && r.ing.every(([id]) => ING[id])).map((r) => {
+      const rec = { ...r, tags: (r.tags || []).slice(), equip: r.equip || [], niveau: r.niveau || 1, saison: true, sig: r.id };
+      rec.prot = (rec.ing.find(([id]) => ING[id].groupe === 'P') || rec.ing.find(([id]) => ['oeufs', 'pois_chiches', 'lentilles_corail', 'lentilles_vertes', 'tofu'].includes(id)) || [])[0];
+      return rec;
+    });
+    for (const r of SAISON) { REC[r.id] = r; cacheCout.delete(r.id); }
+    SAISON_ACTIF = SAISON.filter((r) => SAISON_ACTIF.some((x) => x.id === r.id));
+    versionPerso++; cacheCompat.clear();
+    return SAISON;
+  }
+  /** Les idées de saison gardées par l'utilisateur entrent dans les menus proposés. */
+  function saisonActives(ids) {
+    const set = new Set(ids || []);
+    SAISON_ACTIF = SAISON.filter((r) => set.has(r.id));
+    versionPerso++; cacheCompat.clear();
+  }
+  /** Idées de saison pour un mois (1-12), compatibles ou non avec le profil. */
+  function ideesSaison(mois) { return SAISON.filter((r) => !mois || r.mois.includes(mois)); }
   function definirPerso(liste) {
     for (const r of PERSO) delete REC[r.id];
     PERSO = (liste || []).filter((r) => r && r.id && r.nom).map((r) => {
@@ -312,7 +335,7 @@
     const cle = JSON.stringify([p.allergies, p.regime, p.refus, p.equipement, p.niveau, versionPerso]);
     if (!cacheCompat.has(cle)) {
       if (cacheCompat.size > 50) cacheCompat.clear();
-      cacheCompat.set(cle, PERSO.concat(RECETTES).filter((r) => recetteCompatible(r, p).ok));
+      cacheCompat.set(cle, PERSO.concat(SAISON_ACTIF, RECETTES).filter((r) => recetteCompatible(r, p).ok));
     }
     return cacheCompat.get(cle);
   }
@@ -610,13 +633,13 @@
     const mots = motsDe(texte);
     if (!mots.length) return { resultats: [], masques: 0 };
     const correspond = (r) => { const n = motsDe(r.nom); return mots.every((m) => n.some((x) => x.startsWith(m))); };
-    const compat = recettesCompatibles(p).filter((r) => (!opts.slot || r.repas.includes(opts.slot)) && correspond(r));
-    const rang = (r) => (r.perso ? 0 : r.modele === 'maison' ? 1 : 2) + r.nom.length / 1000;
+    const compat = recettesCompatibles(p).concat(SAISON.filter((r) => !SAISON_ACTIF.includes(r) && recetteCompatible(r, p).ok)).filter((r) => (!opts.slot || r.repas.includes(opts.slot)) && correspond(r));
+    const rang = (r) => (r.perso ? 0 : r.saison ? 0.5 : r.modele === 'maison' ? 1 : 2) + r.nom.length / 1000;
     const resultats = compat.sort((a, b) => rang(a) - rang(b));
     // un seul exemple par plat généré « même plat, autre épice »
     const vus = new Set();
     const uniques = resultats.filter((r) => { const k = r.sig || r.id; if (vus.has(k)) return false; vus.add(k); return true; });
-    const tous = PERSO.concat(RECETTES).filter(correspond).length;
+    const tous = PERSO.concat(SAISON, RECETTES).filter(correspond).length;
     return { resultats: uniques.slice(0, opts.n || 8).map((r) => r.id), masques: Math.max(0, tous - compat.length) };
   }
   /** Met une recette quelconque (recherche, bibliothèque) à la place du plat prévu. */
@@ -1094,7 +1117,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, portions, organiserRestes, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, portions, organiserRestes, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

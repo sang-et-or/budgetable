@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [] };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [] });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -1425,6 +1425,37 @@
       </section>`;
   }
 
+  /* ---------- idées de saison (bibliothèque) ---------- */
+  const MOIS_NOMS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const saisonDu = (m) => ([12, 1, 2].includes(m) ? 'hiver' : [3, 4, 5].includes(m) ? 'printemps' : [6, 7, 8].includes(m) ? 'été' : 'automne');
+  const FILTRES_SAISON = [['tout', 'Toutes'], ['rapide', '30 min ou moins'], ['enfants', 'Pour les enfants'], ['vege', 'Sans viande ni poisson'], ['gamelle', 'Pour les gamelles'], ['gardees', '♥ Gardées']];
+  function blocSaison() {
+    if (!E.ideesSaison) return '';
+    const mois = new Date().getMonth() + 1;
+    const toutes = E.ideesSaison(mois);
+    if (!toutes.length) return '';
+    const gardees = S.saisonGardees || [];
+    const f = S.filtreSaison || 'tout';
+    const compat = toutes.filter((r) => E.recetteCompatible(r, S.profil).ok);
+    const sansViande = (r) => !r.ing.some(([id]) => E.ING[id].tags.includes('viande') || E.ING[id].tags.includes('poisson'));
+    const test = { tout: () => true, rapide: (r) => r.temps <= 30, enfants: (r) => r.tags.includes('enfants'), vege: sansViande, gamelle: (r) => ['salade', 'bowl', 'quiche', 'mijote', 'curry', 'gratin', 'pates'].includes(r.modele), gardees: (r) => gardees.includes(r.id) };
+    const nbF = (k) => compat.filter(test[k]).length;
+    const liste = compat.filter(test[f]).sort((a, b) => (gardees.includes(b.id) - gardees.includes(a.id)) || E.coutPortion(a) - E.coutPortion(b));
+    const leg = [...new Set(toutes.flatMap((r) => r.ing.map(([id]) => id)).filter((id) => E.ING[id].groupe === 'L' && !['oignon', 'ail', 'persil', 'citron', 'tomates_concassees'].includes(id)))].slice(0, 7).map((id) => E.ING[id].nom.toLowerCase());
+    return `<section class="stack saison" style="gap:12px" aria-labelledby="titre-saison">
+      <div class="entete-saison"><p class="eyebrow">🍂 De saison en ${MOIS_NOMS[mois - 1]}</p><h2 id="titre-saison">Idées de recettes d’${saisonDu(mois) === 'automne' ? 'automne' : saisonDu(mois) === 'hiver' ? 'hiver' : saisonDu(mois) === 'été' ? 'été' : 'printemps'}</h2>
+        <p class="small muted" style="margin:0">Les légumes du moment sont moins chers et meilleurs : ${esc(leg.join(', '))}… Gardez celles qui vous plaisent : elles seront proposées dans vos menus.</p></div>
+      <div class="row" role="group" aria-label="Filtrer les idées" style="gap:6px">${FILTRES_SAISON.filter(([k]) => k === 'tout' || nbF(k)).map(([k, v]) => `<button class="chip" data-a="saison-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbF(k)}</span></button>`).join('')}</div>
+      ${liste.length ? `<div class="jours">${liste.map((r) => { const g = gardees.includes(r.id); return `<article class="jour carte-recette carte-saison"><div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps">
+          <button class="titre-repas" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button>
+          ${r.accroche ? `<span class="small accroche">${esc(r.accroche)}</span>` : ''}
+          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
+          <div class="row" style="gap:6px">${S.plan ? `<button class="btn btn-petit btn-plein" data-a="au-menu" data-r="${r.id}">Mettre au menu</button>` : ''}<button class="btn btn-petit ${g ? 'garde' : ''}" data-a="saison-garder" data-r="${r.id}" aria-pressed="${g}">${g ? '♥ Gardée' : '♡ Garder'}</button></div>
+          ${g ? '<span class="pourquoi small">Proposée dans vos menus</span>' : ''}</div></div></article>`; }).join('')}</div>` : '<p class="small">Aucune idée avec ce filtre.</p>'}
+      ${toutes.length > compat.length ? `<p class="small muted" style="margin:0">${pluriel(toutes.length - compat.length, 'idée masquée', 'idées masquées')} : elles ne respectent pas votre profil (allergies, régime ou équipement).</p>` : ''}
+    </section>`;
+  }
+
   /* ---------- onglet « Mes recettes » ---------- */
   const domaine = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   function ongletRecettes() {
@@ -1444,7 +1475,8 @@
       }).join('')}</div>
       ${recs.some((r) => r.ing.some(([id]) => E.ING[id].perso)) ? '<p class="small muted">* Sans les ingrédients hors catalogue, dont le prix n’est pas connu.</p>' : ''}`
       : `<div class="carte stack vide-recettes"><strong>Votre bibliothèque est vide</strong><p class="small">Exemples : « Lasagnes de mamie », « Wok de crevettes », « Gâteau au chocolat ». Collez le lien de la recette si vous en avez un, Budgétable s’occupe des ingrédients.</p>
-          <div><button class="btn btn-plein" data-a="ed-nouveau">Ajouter ma première recette</button></div></div>`}`;
+          <div><button class="btn btn-plein" data-a="ed-nouveau">Ajouter ma première recette</button></div></div>`}
+      ${blocSaison()}`;
   }
   function vueAuMenu() {
     if (!auMenu || !S.plan) return '';
@@ -2434,6 +2466,11 @@
   function definirGourmand() {
     if (!window.Gourmand) return;
     E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat((S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
+    if (window.Saison && E.definirSaison) {
+      if (window.Nutrition) for (const [k, v] of Object.entries(window.Saison.NUTRITION)) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
+      E.definirSaison(window.Saison.INGREDIENTS, window.Saison.RECETTES);
+      E.saisonActives(S.saisonGardees);
+    }
   }
   const nbFoyer = () => Math.max(1, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length);
   function carteGourmande(r) {
@@ -2766,6 +2803,8 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'saison-filtre': S.filtreSaison = el.dataset.k; break;
+      case 'saison-garder': { const id = el.dataset.r, l = S.saisonGardees || []; S.saisonGardees = l.includes(id) ? l.filter((x) => x !== id) : l.concat(id); E.saisonActives(S.saisonGardees); toast(S.saisonGardees.includes(id) ? 'Gardée : elle sera proposée dans vos menus' : 'Retirée de vos idées gardées'); break; }
       case 'gamelles-ouvrir': if (!S.profil.gamelles || !S.profil.gamelles.n) { S.profil.gamelles = { n: 1, jours: [0, 1, 2, 3, 4], mode: 'restes' }; majGamelles(); } S.gamellesOuvert = true; fiche = null; break;
       case 'gamelles-fermer': S.gamellesOuvert = false; break;
       case 'gamelles-fond': if (ev.target === el) S.gamellesOuvert = false; else return; break;
