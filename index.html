@@ -744,6 +744,11 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .entete-saison { background: linear-gradient(135deg, #3a2a18, #33261a); color: #f3e3cc; } :root:not([data-theme="light"]) .entete-saison .muted { color: #cdb592; } }
 :root[data-theme="dark"] .entete-saison { background: linear-gradient(135deg, #3a2a18, #33261a); color: #f3e3cc; }
 :root[data-theme="dark"] .entete-saison .muted { color: #cdb592; }
+
+/* repas pris dehors */
+.repas-dehors .vignette, .repas-dehors .titre-repas, .repas-dehors .meta { opacity: .5; }
+.repas-dehors .titre-repas { text-decoration: line-through; text-decoration-thickness: 1px; }
+.dehors-ok { background: var(--moutarde-pale); border-radius: 10px; padding: 8px 10px; }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

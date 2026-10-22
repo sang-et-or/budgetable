@@ -549,7 +549,7 @@
     }
     const raison = E.pourquoi(r.id, S.plan, j, slot, S.profil, optsMoteur()).find((x) => !th || !x.startsWith(th.libelle));
     const classique = S.classiques.includes(r.id);
-    return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
+    return `<div class="repas repas-illu ${m.dehors ? 'repas-dehors' : ''}"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
       <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
@@ -559,9 +559,13 @@
   const AVIS = [[5, '😋', 'Adoré'], [4, '🙂', 'Bon'], [3, '😐', 'Moyen'], [1, '😕', 'Pas aimé']];
   function blocMange(r, j, slot) {
     const k = j + '-' + slot;
+    if (S.deduits[k] === 'dehors') {
+      return `<div class="mange-ok dehors-ok stack" style="gap:6px"><span class="small"><strong>🍽 Mangé dehors</strong> · ce plat ne compte pas : ni placard, ni courses, ni suivi <button class="btn-lien small" data-a="dehors-annuler" data-j="${j}" data-s="${slot}">annuler</button></span>
+        <div><button class="btn btn-petit" data-a="dehors-noter" data-j="${j}" data-s="${slot}">Noter ce que j’ai mangé</button></div></div>`;
+    }
     if (S.deduits[k] !== 'cuisine') {
       const restes = S.plan && S.plan.jours[j][slot] && S.plan.jours[j][slot].deRestes;
-      return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button></div>`;
+      return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button><button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button></div>`;
     }
     const note = S.notes[r.id] || 0;
     return `<div class="mange-ok stack" style="gap:6px">
@@ -2672,6 +2676,24 @@
         toast('Bon appétit ! Placard et suivi mis à jour. Dites-nous si vous avez aimé');
         break;
       }
+      case 'dehors': {
+        const j = +el.dataset.j, sl = el.dataset.s, k = j + '-' + sl;
+        const m = S.plan.jours[j][sl];
+        if (!m) return;
+        m.dehors = true; S.deduits[k] = 'dehors';
+        noterJournal(j, sl, null, false);
+        toast('Noté : ce plat ne compte pas (placard, courses et suivi)');
+        break;
+      }
+      case 'dehors-annuler': {
+        const j = +el.dataset.j, sl = el.dataset.s;
+        const m = S.plan.jours[j][sl];
+        if (m) delete m.dehors;
+        delete S.deduits[j + '-' + sl];
+        toast('Annulé : le plat compte de nouveau');
+        break;
+      }
+      case 'dehors-noter': S.onglet = 'apports'; S.jourCarnet = dateDuJour(+el.dataset.j); S.momentCarnet = 'dehors'; window.scrollTo(0, 0); setTimeout(() => { const c = document.querySelector('.ajout-carnet'); if (c) c.scrollIntoView({ block: 'center' }); }, 60); break;
       case 'mange-annuler': {
         const k = el.dataset.j + '-' + el.dataset.s;
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
@@ -3416,6 +3438,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   /* ---------- démarrage ---------- */
   charger();
+  // une semaine déjà enregistrée peut contenir deux fois le même plat : on remplace le second
+  if (S.plan && E.dedoublonner) {
+    try {
+      const d = E.dedoublonner(S.plan, S.profil, { ...optsMoteur(), verrous: Object.keys(S.deduits || {}) });
+      if (d.changes.length) { S.plan = d.plan; setTimeout(() => toast(d.changes.length > 1 ? `${d.changes.length} plats en double remplacés dans votre semaine` : `Plat en double remplacé : ${E.REC[d.changes[0].apres].nom}`), 600); }
+    } catch (e) { /* on garde la semaine telle quelle */ }
+  }
   detecterIA();
   if (S.vue === 'app' && !S.plan) S.vue = 'accueil';
   rendre();

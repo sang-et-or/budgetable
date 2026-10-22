@@ -126,7 +126,7 @@
       if (ids.some((id) => LAITAGES.has(id))) n.laitages++;
     };
     for (const jp of plan.jours) {
-      for (const sl of ['dejeuner', 'diner']) if (jp[sl] && REC[jp[sl].recette]) ajouter(REC[jp[sl].recette], false);
+      for (const sl of ['dejeuner', 'diner']) if (jp[sl] && !jp[sl].dehors && REC[jp[sl].recette]) ajouter(REC[jp[sl].recette], false);
       for (const x of jp.gourmand || []) if (REC[x.recette]) ajouter(REC[x.recette], true);
     }
     if (!n.repas) return null;

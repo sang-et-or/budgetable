@@ -126,7 +126,7 @@
     for (const i of ingredients || []) if (i && i.id && !ING[i.id]) { ING[i.id] = { ...i }; DATA.ingredients.push(ING[i.id]); }
     for (const r of SAISON) delete REC[r.id];
     SAISON = (recettes || []).filter((r) => r && r.id && r.nom && r.ing.every(([id]) => ING[id])).map((r) => {
-      const rec = { ...r, tags: (r.tags || []).slice(), equip: r.equip || [], niveau: r.niveau || 1, saison: true, sig: r.id };
+      const rec = { ...r, tags: (r.tags || []).slice(), equip: r.equip || [], niveau: r.niveau || 1, saison: true, sig: r.sig || r.id };
       rec.prot = (rec.ing.find(([id]) => ING[id].groupe === 'P') || rec.ing.find(([id]) => ['oeufs', 'pois_chiches', 'lentilles_corail', 'lentilles_vertes', 'tofu'].includes(id)) || [])[0];
       return rec;
     });
@@ -253,7 +253,7 @@
       .sort((a, b) => b.s - a.s).map((x) => x.r);
   }
   /** Portions à cuisiner pour un repas : à table + restes prévus (gamelles, lendemain, congélateur). Un repas « restes » ne se cuisine pas. */
-  function aCuisiner(m) { return !m || m.deRestes ? 0 : m.portions + (m.plus || 0); }
+  function aCuisiner(m) { return !m || m.deRestes || m.dehors ? 0 : m.portions + (m.plus || 0); }
   /**
    * Organise gamelles et restes de la semaine (à rappeler après chaque changement du planning).
    * Remplit, sans rien perdre de ce que l'utilisateur a choisi :
@@ -271,7 +271,7 @@
       const l = jp.dejeuner;
       if (!l) return;
       const src = j > 0 ? J[j - 1].diner : null;
-      const veut = src && REC[src.recette] && src.restes && src.restes.vers === 'dejeuner';
+      const veut = src && REC[src.recette] && !src.dehors && src.restes && src.restes.vers === 'dejeuner';
       if (veut) {
         if (!l.deRestes) l.recetteAvant = l.recette;
         l.deRestes = { jour: j - 1, slot: 'diner' };
@@ -288,20 +288,20 @@
       const voulu = jp.gamelleMode || (p.gamelles.mode === 'plat' ? 'plat' : 'restes');
       if (voulu === 'non') { jp.gamelles = { n: 0, mode: 'non' }; return; }
       const src = j > 0 ? J[j - 1].diner : null;
-      if (voulu === 'restes' && src && REC[src.recette] && !src.deRestes) {
+      if (voulu === 'restes' && src && REC[src.recette] && !src.deRestes && !src.dehors) {
         jp.gamelles = { n, mode: 'restes', source: j - 1, recette: src.recette, portions: Math.round(n * fa * 10) / 10 };
         return;
       }
       // plat préparé à part (lundi, ou pas de dîner la veille, ou choisi)
       let rec = jp.gamelleRecette && REC[jp.gamelleRecette] ? jp.gamelleRecette : null;
-      if (!rec) { const l = platsGamelle(p, pris); rec = l.length ? l[0].id : null; if (rec) jp.gamelleRecette = rec; }
+      if (!rec) { const sigs = new Set(J.flatMap((x) => SLOTS.map((sl) => x[sl] && REC[x[sl].recette] && (REC[x[sl].recette].sig || x[sl].recette))).filter(Boolean)); const l = platsGamelle(p, pris).filter((x) => !sigs.has(x.sig || x.id)); rec = l.length ? l[0].id : null; if (rec) jp.gamelleRecette = rec; }
       if (rec) pris.push(rec);
       jp.gamelles = rec ? { n, mode: 'plat', recette: rec, portions: Math.round(n * fa * 10) / 10, force: voulu === 'restes' } : { n: 0, mode: 'non' };
     });
     // quantités en plus sur les dîners qui servent de restes
     J.forEach((jp, j) => {
       const m = jp.diner;
-      if (!m || !REC[m.recette] || m.deRestes) return;
+      if (!m || !REC[m.recette] || m.deRestes || m.dehors) return;
       const ex = { gamelles: 0, demain: 0, congel: 0 };
       const suiv = J[j + 1];
       if (suiv && suiv.gamelles && suiv.gamelles.mode === 'restes' && suiv.gamelles.source === j) ex.gamelles = suiv.gamelles.portions;
@@ -488,7 +488,43 @@
     let liste = base.filter((r) => r.temps <= tempsMax(p, jour) && !(flexi && contientViande(r)));
     if (!liste.length) liste = base.filter((r) => r.temps <= tempsMax(p, jour) + 15 && !(flexi && contientViande(r)));
     if (!liste.length) liste = base;
-    return liste;
+    // jamais deux fois le même plat dans la semaine (même avec un autre féculent ou une autre épice)
+    const neufs = liste.filter((r) => !ctx.sigs[r.sig || r.id] && !ctx.utilisations[r.id]);
+    return neufs.length >= 3 ? neufs : liste;
+  }
+  /** Même plat (identique, ou seulement le féculent ou l'épice qui change). */
+  const memePlat = (a, b) => !!(a && b && (a.id === b.id || (a.sig || a.id) === (b.sig || b.id)));
+  /**
+   * Remplace les plats en double dans la semaine (le premier reste, les suivants changent).
+   * verrous : clés « jour-slot » à ne pas toucher (déjà mangés, choisis à la main…). → { plan, changes: [{ jour, slot, avant, apres }] }
+   */
+  function dedoublonner(plan, p, opts = {}) {
+    if (!plan || !plan.jours) return { plan, changes: [] };
+    const verrous = new Set(opts.verrous || []);
+    const r = rng((plan.seed || 1) * 31 + 7);
+    const vus = [];
+    const changes = [];
+    const jours = plan.jours.map((jp) => ({ ...jp }));
+    // d'abord les repas verrouillés ou choisis : ils gardent leur plat
+    const ordre = [];
+    jours.forEach((jp, j) => SLOTS.forEach((sl) => { const m = jp[sl]; if (m && REC[m.recette] && !m.deRestes) ordre.push([j, sl, verrous.has(j + '-' + sl) || m.choisi || m.aChoisir ? 0 : 1]); }));
+    ordre.sort((a, b) => a[2] - b[2] || a[0] - b[0]);
+    for (const [j, sl, libre] of ordre) {
+      const m = jours[j][sl];
+      const rec = REC[m.recette];
+      if (!vus.some((x) => memePlat(x, rec)) || !libre) { vus.push(rec); continue; }
+      const ctx = contexteDepuisPlan({ ...plan, jours }, opts.notes, { jour: j, slot: sl }, opts.classiques);
+      const autre = SLOTS.map((s2) => s2 !== sl && jours[j][s2] && jours[j][s2].recette).filter(Boolean);
+      const liste = filtreTheme(candidats(p, j, sl, ctx, [m.recette, ...autre]), m.theme, ctx).filter((x) => !vus.some((v) => memePlat(v, x)));
+      if (!liste.length) { vus.push(rec); continue; }
+      let best = null, bestS = -Infinity;
+      for (const x of liste) { const sc = score(x, p, ctx, r); if (sc > bestS) { bestS = sc; best = x; } }
+      jours[j][sl] = { ...m, recette: best.id };
+      delete jours[j][sl].recetteAvant;
+      changes.push({ jour: j, slot: sl, avant: rec.id, apres: best.id });
+      vus.push(best);
+    }
+    return { plan: changes.length ? { ...plan, jours } : plan, changes };
   }
 
   function ajouterAuContexte(ctx, rec, nb) {
@@ -711,7 +747,8 @@
       let meilleur = null;
       for (const cible of manques.slice(0, 2)) {
         const f = AIDE[cible.cle] || (() => 0);
-        const pool = compat.filter((r) => !dansSemaine.has(r.id)).map((r) => ({ r, v: f(N.de(r, ING), r) + scoreGout(r, p.gouts) * 0.3 })).sort((a, b) => b.v - a.v).slice(0, 50).map((x) => x.r);
+        const sigsSemaine = new Set([...dansSemaine].map((id) => REC[id] && (REC[id].sig || id)));
+        const pool = compat.filter((r) => !dansSemaine.has(r.id) && !sigsSemaine.has(r.sig || r.id)).map((r) => ({ r, v: f(N.de(r, ING), r) + scoreGout(r, p.gouts) * 0.3 })).sort((a, b) => b.v - a.v).slice(0, 50).map((x) => x.r);
         courant.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
           const m = jp[slot];
           if (!m || m.aChoisir || touches.has(j + '-' + slot) || (opts.classiques || []).includes(m.recette)) return;
@@ -933,7 +970,7 @@
   /** Ce qu'un repas consomme : recette × portions (ingrédients du catalogue). */
   function consommationRepas(m) {
     if (!m || !REC[m.recette]) return [];
-    const n = m.deRestes ? 0 : m.portions + (m.plus || 0);
+    const n = m.deRestes || m.dehors ? 0 : m.portions + (m.plus || 0);
     if (!n) return [];
     return REC[m.recette].ing.filter(([id]) => !ING[id].perso).map(([id, q]) => [id, q * n]);
   }
@@ -1124,7 +1161,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, dedoublonner, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

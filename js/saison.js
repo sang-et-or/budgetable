@@ -186,5 +186,9 @@
       [['panais', 120], ['patate_douce', 150], ['creme', 35], ['lait', 40], ['emmental', 20], ['ail', 3], ['salade', 0.2]],
       ['Préchauffez le four à 180 °C.', 'Épluchez les légumes, coupez-les en fines rondelles et alternez-les dans un plat frotté à l’ail.', 'Versez lait et crème, salez, poivrez, parsemez de fromage.', 'Cuisez 45 min. Servez avec une salade.'])
   ];
+  // même plat qu'une recette du catalogue : jamais les deux dans la même semaine
+  const MEME_PLAT = { 'quiche-poireaux': 'quiche_poireaux', 'risotto-champignons': 'risotto', 'potee-chou': 'potee_chou', 'lentilles-saucisses': 'saucisses_lentilles',
+    'parmentier-patate-douce': 'parmentier', 'veloute-potiron-chataignes': 'veloute_butternut', 'gratin-butternut': 'gratin_courge_pdt', 'cassoulet-express': 'haricots_saucisse', 'poulet-panais': 'poulet_roti' };
+  RECETTES.forEach((r) => { const m = MEME_PLAT[r.id.slice(2)]; if (m) r.sig = m; });
   root.Saison = { INGREDIENTS, NUTRITION, RECETTES };
 })(typeof window !== 'undefined' ? window : globalThis);
