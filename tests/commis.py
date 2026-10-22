@@ -2,16 +2,21 @@
 import sys, re
 from playwright.sync_api import sync_playwright
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
-SIMU = """window.claude = { use: async (nom) => nom === 'sample' ? { json: async (msgs, opts) => {
-  window.__envois = (window.__envois || []).concat([msgs]);
-  await new Promise(r => setTimeout(r, 300));
-  return { reponse: 'Pas de crème ? Mettez 2 cuillères de lait et une noisette de beurre.' };
-} } : null };"""
+import json
+ENVOIS = []
+def lecteur(route):
+    u = route.request.url
+    if u.endswith("/ia/etat"):
+        return route.fulfill(status=200, content_type="application/json", body='{"disponible":true,"vision":true}', headers={"Access-Control-Allow-Origin": "*"})
+    if u.endswith("/ia"):
+        ENVOIS.append(json.loads(route.request.post_data)["messages"])
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps({"reponse": "Pas de crème ? Mettez 2 cuillères de lait et une noisette de beurre."}), headers={"Access-Control-Allow-Origin": "*"})
+    route.abort()
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
     page = nav.new_page(viewport={"width": 390, "height": 844})
-    page.add_init_script(SIMU)
+    page.route("https://budgetable-recettes.onrender.com/**", lecteur)
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.goto("http://localhost:8766/index.html")
     page.evaluate("localStorage.clear()"); page.reload()
@@ -30,7 +35,7 @@ with sync_playwright() as p:
     page.wait_for_function("document.querySelector('.commis') && document.querySelector('.commis').innerText.includes('Pas de crème')")
     page.fill("#chef-texte", "Et pour le dessert ?"); page.press("#chef-texte", "Enter")
     page.wait_for_function("document.querySelectorAll('.commis .bulle-chat').length >= 4")
-    envois = page.evaluate("window.__envois")
+    envois = ENVOIS
     consigne = envois[0][0]["content"]
     assert "commis de cuisine" in consigne and "Ingrédients :" in consigne and "Étapes :" in consigne
     assert "allergie Arachide" in consigne, consigne[:600]

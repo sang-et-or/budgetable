@@ -38,6 +38,9 @@ services:
     envVars:
       - key: ORIGINES
         value: https://budgetable.onrender.com
-      # reconnaissance des produits sur une photo du placard : clé d'API Anthropic (facultative, à saisir dans Render)
+      # assistant IA du site (commis, goûts, photo du placard) : UNE clé, à saisir dans Render.
+      # Mistral AI (français, serveurs en Europe) de préférence, ou Anthropic.
+      - key: MISTRAL_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false

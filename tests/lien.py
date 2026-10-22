@@ -38,7 +38,8 @@ with sync_playwright() as p:
     page.wait_for_selector(".lecture-ok", timeout=8000)
     ed = page.locator(".fenetre-edition")
     assert page.locator("#ed-nom").input_value() == "Quiche lorraine"
-    assert "marmiton.org" in appels[0] and "url=https%3A%2F%2Fwww.marmiton.org" in appels[0]
+    lus = [a for a in appels if "/recette?" in a]
+    assert "url=https%3A%2F%2Fwww.marmiton.org" in lus[0], appels
     dans = ed.locator(".dans-recette").inner_text()
     for x in ["Lardons", "Œufs", "Crème fraîche", "Lait demi-écrémé", "Emmental râpé", "Pâte à tarte"]:
         assert x.lower() in dans.lower(), (x, dans)

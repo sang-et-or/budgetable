@@ -318,7 +318,7 @@
 
   function blocIA() {
     if (iaDispo === null) return '<p class="small muted">Recherche de l’assistant IA…</p>';
-    if (!iaDispo) return `<div class="bandeau bandeau-info small"><span>L’assistant IA fonctionne dans la version en ligne de Budgétable, ouverte depuis Claude. Ici, le test de goût et vos notes suffisent à apprendre vos goûts.</span></div>`;
+    if (!iaDispo) return `<div class="bandeau bandeau-info small"><span>L’assistant IA n’est pas disponible pour le moment. Le test de goût et vos notes suffisent à apprendre vos goûts.</span></div>`;
     const tours = S.ia.tours;
     return `<div class="chat" aria-live="polite">${tours.length ? tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! Racontez-moi ce que vous aimez manger, ce que vous n’aimez pas, vos plats préférés d’enfance… Je traduis tout ça en préférences pour vos menus.</p>'}
         ${S.ia.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
@@ -1458,7 +1458,7 @@
   const QUESTIONS_CHEF = ['Il me manque un ingrédient', 'Comment savoir si c’est cuit ?', 'Une version que les enfants aimeront', 'Que faire des restes ?'];
   function blocChef(r, portions) {
     if (iaDispo === null) return '<p class="small muted">Recherche de l’assistant IA…</p>';
-    if (!iaDispo) return '<p class="small muted">Dans la version en ligne de Budgétable, ouverte depuis Claude, un commis IA répond ici à vos questions pendant que vous cuisinez : ingrédient manquant, cuisson, version pour les enfants, restes…</p>';
+    if (!iaDispo) return '<p class="small muted">Le commis IA n’est pas disponible pour le moment. Il répondra bientôt ici à vos questions pendant que vous cuisinez : ingrédient manquant, cuisson, version pour les enfants, restes…</p>';
     const c = chef && chef.cle === cleFiche() ? chef : { tours: [], attente: false, message: '' };
     return `<div class="chat" aria-live="polite">${c.tours.length ? c.tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : `<p class="bulle-chat">Je suis là pendant que vous cuisinez ${esc(r.nom.charAt(0).toLowerCase() + r.nom.slice(1))} pour ${nb(portions)} portion${portions > 1 ? 's' : ''}. Une question ?</p>`}
         ${c.attente ? '<p class="bulle-chat"><span class="muted">Je regarde la recette…</span></p>' : ''}</div>
@@ -1969,8 +1969,8 @@ Réponds uniquement avec un objet JSON de cette forme :
     } catch (e) {
       const code = e && e.code;
       if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) { iaDispo = false; S.ia.message = ''; }
-      else if (code === 'rate_limited') S.ia.message = 'L’assistant est très sollicité : réessayez dans quelques minutes.';
-      else if (code === 'session_expired') S.ia.message = 'Reconnectez-vous à Claude, puis réessayez.';
+      else if (code === 'rate_limited') S.ia.message = e.message || 'L’assistant est très sollicité : réessayez dans quelques minutes.';
+      else if (code === 'reseau') S.ia.message = 'Pas de connexion : réessayez.';
       else if (code !== 'cancelled') S.ia.message = 'L’assistant n’a pas pu répondre. Réessayez.';
       S.ia.tours.pop();
     }
@@ -2013,8 +2013,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     } catch (e) {
       const code = e && e.code;
       if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) iaDispo = false;
-      else if (code === 'rate_limited') moi.message = 'Le commis est très sollicité : réessayez dans quelques minutes.';
-      else if (code === 'session_expired') moi.message = 'Reconnectez-vous à Claude, puis réessayez.';
+      else if (code === 'rate_limited') moi.message = e.message || 'Le commis est très sollicité : réessayez dans quelques minutes.';
+      else if (code === 'reseau') moi.message = 'Pas de connexion : réessayez.';
       else if (code !== 'cancelled') moi.message = 'Le commis n’a pas pu répondre. Réessayez.';
       moi.tours.pop();
     }
@@ -2022,9 +2022,25 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (chef === moi) rendre();
   }
 
+  // l'assistant IA est celui du site (lecteur Budgétable sur Render) : aucun compte à créer pour les visiteurs
+  const assistantSite = {
+    async json(messages) {
+      let rep;
+      try {
+        rep = await fetch(`${LECTEUR}/ia`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ messages }), signal: AbortSignal.timeout ? AbortSignal.timeout(70000) : undefined });
+      } catch (e) { throw Object.assign(new Error('reseau'), { code: 'reseau' }); }
+      const j = await rep.json().catch(() => ({}));
+      if (rep.status === 503) throw Object.assign(new Error('non configuré'), { code: 'not_granted' });
+      if (rep.status === 429) throw Object.assign(new Error(j.erreur || ''), { code: 'rate_limited', message: j.erreur });
+      if (!rep.ok) throw Object.assign(new Error(j.erreur || ''), { code: 'erreur' });
+      return j;
+    }
+  };
   async function detecterIA() {
     try {
-      iaDispo = window.claude && typeof window.claude.use === 'function' ? (await window.claude.use('sample')) || false : false;
+      const r = await fetch(`${LECTEUR}/ia/etat`, { signal: AbortSignal.timeout ? AbortSignal.timeout(70000) : undefined });
+      const j = await r.json();
+      iaDispo = j && j.disponible ? assistantSite : false;
     } catch (e) { iaDispo = false; }
     if (fiche || S.vue === 'test' || (S.vue === 'app' && S.onglet === 'profil')) rendre();
   }

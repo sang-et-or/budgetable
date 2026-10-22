@@ -15,9 +15,15 @@ const net = require('net');
 const { extraireRecette } = require('./extraire.js');
 
 const PORT = process.env.PORT || 10000;
-// reconnaissance des produits sur une photo (placard, frigo) : seulement si une clé d'API est configurée sur Render
-const CLE_API = process.env.ANTHROPIC_API_KEY || '';
-const MODELE_VISION = process.env.MODELE_VISION || 'claude-haiku-5-5';
+// intelligence artificielle de Budgétable (commis de cuisine, goûts, photo du placard) : hébergée ici,
+// avec la clé d'API du site. Les visiteurs n'ont besoin d'aucun compte. Fournisseur au choix :
+// Mistral AI (français, serveurs en Europe) avec MISTRAL_API_KEY, ou Anthropic avec ANTHROPIC_API_KEY.
+const FOURNISSEUR = process.env.MISTRAL_API_KEY ? 'mistral' : process.env.ANTHROPIC_API_KEY ? 'anthropic' : '';
+const CLE_API = process.env.MISTRAL_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+const MODELE_TEXTE = process.env.MODELE_TEXTE || (FOURNISSEUR === 'mistral' ? 'mistral-small-latest' : 'claude-haiku-5-5');
+const MODELE_VISION = process.env.MODELE_VISION || (FOURNISSEUR === 'mistral' ? 'mistral-small-latest' : 'claude-haiku-5-5');
+const MAX_IA_JOUR = +(process.env.MAX_IA_JOUR || 2000);
+const MAX_IA_HEURE_IP = +(process.env.MAX_IA_HEURE_IP || 60);
 const MAX_PHOTOS_JOUR = +(process.env.MAX_PHOTOS_JOUR || 300);
 const MAX_PHOTOS_HEURE_IP = +(process.env.MAX_PHOTOS_HEURE_IP || 12);
 let CATALOGUE = [];
@@ -107,6 +113,19 @@ function quotaPhotos(ip) {
   if (photosIP.size > 5000) photosIP.clear();
   return null;
 }
+const iaIP = new Map();
+let iaJour = { jour: '', n: 0 };
+function quotaIA(ip) {
+  const j = new Date().toISOString().slice(0, 10);
+  if (iaJour.jour !== j) iaJour = { jour: j, n: 0 };
+  if (iaJour.n >= MAX_IA_JOUR) return 'L’assistant a beaucoup travaillé aujourd’hui : réessayez demain';
+  const t = Date.now();
+  const l = (iaIP.get(ip) || []).filter((x) => t - x < 3600000);
+  if (l.length >= MAX_IA_HEURE_IP) return 'Beaucoup de questions cette heure-ci : réessayez un peu plus tard';
+  l.push(t); iaIP.set(ip, l); iaJour.n++;
+  if (iaIP.size > 5000) iaIP.clear();
+  return null;
+}
 function lireCorps(req, max) {
   return new Promise((ok, ko) => {
     const morceaux = []; let total = 0;
@@ -114,6 +133,44 @@ function lireCorps(req, max) {
     req.on('end', () => ok(Buffer.concat(morceaux).toString('utf8')));
     req.on('error', ko);
   });
+}
+// un appel au modèle : messages [{ role, content }], image facultative (base64 JPEG) → texte de la réponse
+async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, max = 800, json = true } = {}) {
+  let url, entetes, corps;
+  if (FOURNISSEUR === 'mistral') {
+    const msgs = messages.map((m, k) => (image && k === messages.length - 1)
+      ? { role: m.role, content: [{ type: 'image_url', image_url: 'data:image/jpeg;base64,' + image }, { type: 'text', text: m.content }] }
+      : { role: m.role, content: m.content });
+    url = 'https://api.mistral.ai/v1/chat/completions';
+    entetes = { 'content-type': 'application/json', authorization: 'Bearer ' + CLE_API };
+    corps = { model: modele, max_tokens: max, temperature: 0.4, messages: msgs, ...(json ? { response_format: { type: 'json_object' } } : {}) };
+  } else {
+    const msgs = messages.map((m, k) => (image && k === messages.length - 1)
+      ? { role: m.role, content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: m.content }] }
+      : { role: m.role, content: m.content });
+    url = 'https://api.anthropic.com/v1/messages';
+    entetes = { 'content-type': 'application/json', 'x-api-key': CLE_API, 'anthropic-version': '2023-06-01' };
+    corps = { model: modele, max_tokens: max, messages: msgs };
+  }
+  const rep = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(45000), headers: entetes, body: JSON.stringify(corps) });
+  if (rep.status === 429) throw Object.assign(new Error('L’assistant est très sollicité : réessayez dans quelques minutes'), { code: 429 });
+  if (!rep.ok) throw Object.assign(new Error('L’assistant ne répond pas pour le moment'), { code: 502 });
+  const j = await rep.json();
+  return FOURNISSEUR === 'mistral' ? String(((j.choices || [])[0] || {}).message?.content || '') : (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
+}
+const extraireJSON = (texte) => { const m = /\{[\s\S]*\}/.exec(texte || ''); if (!m) return null; try { return JSON.parse(m[0]); } catch (e) { return null; } };
+// conversations : les deux rôles alternent, en commençant par la personne (exigence des fournisseurs)
+function nettoyerMessages(liste) {
+  const res = [];
+  for (const m of (Array.isArray(liste) ? liste : []).slice(-12)) {
+    const role = m && m.role === 'assistant' ? 'assistant' : 'user';
+    const content = String((m && m.content) || '').slice(0, 6000);
+    if (!content) continue;
+    if (res.length && res[res.length - 1].role === role) res[res.length - 1].content += '\n\n' + content;
+    else res.push({ role, content });
+  }
+  while (res.length && res[0].role !== 'user') res.shift();
+  return res.reduce((t, m) => t + m.content.length, 0) > 24000 ? null : res;
 }
 async function reconnaitre(base64) {
   const liste = CATALOGUE.map((i) => `${i.id} = ${i.nom} (${i.unite === 'pièce' ? 'pièces' : i.unite}, paquet ${i.cond})`).join('\n');
@@ -124,17 +181,8 @@ Ne devine pas ce qui est caché. Réponds UNIQUEMENT en JSON, sans texte autour 
 {"produits":[{"id":"<id du catalogue>","quantite":<nombre>,"confiance":<0 à 1>}],"autres":["<aliment hors catalogue>"]}
 Catalogue :
 ${liste}`;
-  const rep = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST', signal: AbortSignal.timeout(45000),
-    headers: { 'content-type': 'application/json', 'x-api-key': CLE_API, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODELE_VISION, max_tokens: 1200, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } }, { type: 'text', text: consigne }] }] })
-  });
-  if (!rep.ok) throw Object.assign(new Error('Le service de reconnaissance ne répond pas'), { code: 502 });
-  const j = await rep.json();
-  const texte = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
-  const m = /\{[\s\S]*\}/.exec(texte);
-  if (!m) return { produits: [], autres: [] };
-  let o; try { o = JSON.parse(m[0]); } catch (e) { return { produits: [], autres: [] }; }
+  const o = extraireJSON(await appelerModele([{ role: 'user', content: consigne }], { image: base64, modele: MODELE_VISION, max: 1200 }));
+  if (!o) return { produits: [], autres: [] };
   const ids = new Map(CATALOGUE.map((i) => [i.id, i]));
   const vus = new Set();
   const produits = (Array.isArray(o.produits) ? o.produits : []).filter((x) => x && ids.has(x.id) && !vus.has(x.id) && vus.add(x.id)).map((x) => {
@@ -166,6 +214,24 @@ const serveur = http.createServer(async (req, res) => {
   const origine = req.headers.origin;
   const u = new URL(req.url, 'http://x');
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGINES.includes(origine) ? origine : ORIGINES[0], 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' }); return res.end(); }
+  if (u.pathname === '/ia/etat') return repondre(res, 200, { disponible: !!CLE_API, vision: !!CLE_API && CATALOGUE.length > 0 }, origine);
+  if (u.pathname === '/ia') {
+    if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
+    if (!CLE_API) return repondre(res, 503, { erreur: 'non_configure' }, origine);
+    if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    try {
+      const msgs = nettoyerMessages(JSON.parse(await lireCorps(req, 64 * 1024)).messages);
+      if (!msgs || !msgs.length) return repondre(res, 400, { erreur: 'Question illisible' }, origine);
+      const refus = quotaIA(ip);
+      if (refus) return repondre(res, 429, { erreur: refus }, origine);
+      const o = extraireJSON(await appelerModele(msgs, { max: 700 }));
+      return repondre(res, 200, o || { reponse: '' }, origine);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
+      return repondre(res, code, { erreur: e.code ? e.message : 'L’assistant n’a pas pu répondre' }, origine);
+    }
+  }
   if (u.pathname === '/vision') {
     if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
     if (!CLE_API || !CATALOGUE.length) return repondre(res, 503, { erreur: 'non_configure' }, origine);

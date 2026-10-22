@@ -32,8 +32,12 @@ const empreinte = crypto.createHash('sha1');
 for (const f of fs.readdirSync(path.join(__dirname, 'js')).sort().filter((f) => f.endsWith('.js'))) empreinte.update(fs.readFileSync(path.join(__dirname, 'js', f)));
 empreinte.update(corps);
 const version = empreinte.digest('hex').slice(0, 10);
-fs.writeFileSync(path.join(dist, 'index.html'), html.replace(/<script src="(js\/[^"?]+)"><\/script>/g, `<script src="$1?v=${version}"></script>`));
+// noms de fichiers versionnés (app.4dcd1ea624.js) : un serveur encore sur l'ancienne version répond « introuvable »
+// au lieu de servir l'ancien fichier, qui resterait ensuite en cache une journée
+const versionnes = [];
+fs.writeFileSync(path.join(dist, 'index.html'), html.replace(/<script src="(js\/[^"?]+)\.js"><\/script>/g, (m, base) => { versionnes.push(base); return `<script src="${base}.${version}.js"></script>`; }));
 for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 'js/cuisine3d.js', 'js/codebarre.js', 'js/vendor/three-r160.min.js', 'js/vendor/three-LICENSE.txt', 'js/visuels.js', 'js/photos.js', 'js/magasins.js', 'js/app.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-maskable.svg', 'mentions-legales.html', 'confidentialite.html', 'conditions.html', 'extension.html', 'telechargements/budgetable-extension.zip']) {
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
+for (const base of versionnes) fs.copyFileSync(path.join(__dirname, base + '.js'), path.join(dist, `${base}.${version}.js`));
 console.log('dist/ prêt');

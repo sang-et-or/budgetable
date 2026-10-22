@@ -57,7 +57,7 @@ with sync_playwright() as p:
         cliquer(page, ["J’adore", "Pourquoi pas", "Pas pour moi"][k % 3])
     texte = page.inner_text("body")
     assert "vous aimez" in texte.lower(), "résumé des goûts absent"
-    assert "version en ligne" in texte, "message IA hors ligne absent"
+    assert "pas disponible pour le moment" in texte, "message IA hors ligne absent"
     page.screenshot(path=f"{OUT}/4c-palais.png", full_page=True)
     cliquer(page, "Créer ma semaine avec ces goûts")
     texte = page.inner_text("body")
