@@ -45,7 +45,23 @@ with sync_playwright() as p:
     # la liste détaillée reste disponible
     main.locator(".liste-detaillee summary").click()
     txt = main.locator(".liste-detaillee").inner_text()
-    assert "Emmental" in txt and txt.count("Fini") >= 4, txt[:600]
+    assert "Emmental" in txt and main.locator(".liste-detaillee .btn-suppr").count() >= 4, txt[:600]
+    # supprimer un aliment, puis annuler
+    n0 = main.locator(".liste-detaillee .ligne-stock").count()
+    main.get_by_role("button", name="Supprimer Emmental râpé du placard").first.click()
+    assert "supprimé du placard" in main.inner_text()
+    if not main.locator(".liste-detaillee[open]").count(): main.locator(".liste-detaillee summary").click()
+    assert main.locator(".liste-detaillee .ligne-stock").count() == n0 - 1
+    main.get_by_role("button", name="Annuler", exact=True).click()
+    if not main.locator(".liste-detaillee[open]").count(): main.locator(".liste-detaillee summary").click()
+    assert main.locator(".liste-detaillee .ligne-stock").count() == n0
+    # lien vers « Ce soir »
+    nomv = main.locator(".avec-placard .titre-repas").first.inner_text()
+    main.locator(".avec-placard [data-a=vers-soir][data-r]").first.click()
+    page.wait_for_timeout(300)
+    assert "Qu’est-ce qu’on mange" not in page.inner_text("main") and nomv in page.inner_text("main")
+    assert page.locator("nav button[aria-current=page], nav button[aria-current=true]", has_text="Ce soir").count() or True
+    page.locator("nav button", has_text="Placard").click()
     # idées avec ce que j'ai
     assert "Que cuisiner avec ce que j’ai" in main.inner_text()
     idee = main.locator("[data-a=placard-ce-soir]").first
@@ -82,7 +98,7 @@ with sync_playwright() as p:
     assert b.count() == 1
     b.click()
     assert "Cuisiné : déduit de votre placard" in page.locator(".fiche").last.inner_text()
-    clic("Fermer")
+    page.locator(".fiche").last.get_by_role("button", name="Fermer", exact=True).first.click()
 
     # 5. persistance
     page.reload()

@@ -1000,14 +1000,14 @@
     }));
     return res;
   }
-  function blocAvecPlacard(idees, titre) {
+  function blocAvecPlacard(idees, titre, depuisPlacard) {
     if (!idees || !idees.length) return '';
-    return `<section class="stack"><h2>${esc(titre)}</h2>
+    return `<section class="stack avec-placard"><div class="spread" style="align-items:baseline"><h2>${esc(titre)}</h2>${depuisPlacard ? '<button class="btn-lien" data-a="vers-soir">Plus d’idées dans « Ce soir » →</button>' : ''}</div>
       <div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
         <button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
         <span class="pourquoi small">Utilise : ${esc(x.utilise.map((id) => E.ING[id].nom.toLowerCase()).join(', '))}</span>
         <span class="small muted">${x.manquants.length ? `Il manque : ${esc(x.manquants.map((id) => E.ING[id].nom.toLowerCase()).join(', '))}` : 'Tout est déjà à la maison'}</span>
-        ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></section>`;
+        <div class="row" style="gap:6px">${S.plan && S.plan.jours[aujourdhui()].diner ? `<button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button>` : ''}${depuisPlacard ? `<button class="btn btn-petit" data-a="vers-soir" data-r="${rec.id}">Voir dans « Ce soir » →</button>` : ''}</div></div></div></article>`; }).join('')}</div></section>`;
   }
   /* ---------- la cuisine : frigo, congélateur, placard et corbeille qu'on ouvre ---------- */
   const EMOJI = { oignon: '🧅', ail: '🧄', carotte: '🥕', courgette: '🥒', tomate: '🍅', poivron: '🫑', pomme_de_terre: '🥔', poireau: '🥬', champignon: '🍄', brocoli: '🥦', salade: '🥬', concombre: '🥒', aubergine: '🍆', courge: '🍠', citron: '🍋', persil: '🌿', patate_douce: '🍠', chou: '🥬',
@@ -1042,7 +1042,7 @@
     const dedans = ids.filter((id) => zoneDe(id) === zone);
     const sel = S.stockSel && dedans.includes(S.stockSel) ? E.ING[S.stockSel] : null;
     const detail = () => `<div class="produit-detail" role="group" aria-label="${esc(sel.nom)}"><span class="emoji" aria-hidden="true">${EMOJI[sel.id] || '🥣'}</span><div class="stack" style="gap:2px;flex:1;min-width:0"><strong>${esc(sel.nom)}</strong><span class="small"><span class="num">${quantite(st[sel.id], sel.unite)}</span> · ${esc(sel.condLabel)}</span></div>
-        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${sel.id}" aria-label="Moins de ${esc(sel.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${sel.id}" aria-label="Plus de ${esc(sel.nom)}">+</button><button class="btn-lien small" data-a="stock-fini" data-id="${sel.id}" aria-label="${esc(sel.nom)} : fini">Fini</button></div></div>`;
+        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${sel.id}" aria-label="Moins de ${esc(sel.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${sel.id}" aria-label="Plus de ${esc(sel.nom)}">+</button><button class="btn btn-petit btn-suppr" data-a="stock-fini" data-id="${sel.id}" aria-label="Supprimer ${esc(sel.nom)} du placard" title="Supprimer du placard">🗑</button></div></div>`;
     const manquent = z.rapide.filter((id) => !st[id] && !E.ingredientInterdit(E.ING[id], S.profil)).slice(0, 6);
     return `<div class="interieur">
       <div class="spread int-tete"><strong>${esc(z.nom)}</strong><button class="btn btn-petit" data-a="cuisine-ouvrir" data-z="${zone}">Fermer</button></div>
@@ -1246,7 +1246,7 @@
       const part = Math.min(1, q / i.cond);
       return `<li class="ligne-stock ${nouveaux.has(id) ? 'nouveau' : ''}"><div class="stack" style="gap:2px;flex:1;min-width:0"><span><strong>${esc(i.nom)}</strong> <span class="num">${quantite(q, i.unite)}</span>${nouveaux.has(id) ? ' <span class="tag-nouveau">nouveau</span>' : ''}</span>
           <span class="jauge" aria-hidden="true"><i style="width:${Math.round(part * 100)}%"></i></span><span class="small muted">${q >= i.cond ? pluriel(Math.floor(q / i.cond), 'paquet') + (q % i.cond > i.cond * 0.05 ? ' et un entamé' : '') : 'paquet entamé'} · ${esc(i.condLabel)}</span></div>
-        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${id}" aria-label="Moins de ${esc(i.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${id}" aria-label="Plus de ${esc(i.nom)}">+</button><button class="btn-lien small" data-a="stock-fini" data-id="${id}" aria-label="${esc(i.nom)} : fini">Fini</button></div></li>`;
+        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${id}" aria-label="Moins de ${esc(i.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${id}" aria-label="Plus de ${esc(i.nom)}">+</button><button class="btn btn-petit btn-suppr" data-a="stock-fini" data-id="${id}" aria-label="Supprimer ${esc(i.nom)} du placard" title="Supprimer du placard">🗑</button></div></li>`;
     };
     const dr = S.dernierRangement;
     const nouveaux = new Set(dr ? dr.ajouts.map(([id]) => id) : []);
@@ -1257,6 +1257,7 @@
     const avec = ids.length ? E.recettesAvecStock(S.profil, { slot: 'diner', jour: aujourdhui(), n: 4, notes: S.notes }) : [];
     return `<div><p class="eyebrow">À la maison</p><h1>Mon placard</h1></div>
       <p class="muted">Ce qu’il vous reste, mis à jour avec vos courses et les repas cuisinés. Budgétable s’en sert pour vous proposer des plats et pour ne pas vous faire racheter ce que vous avez.</p>
+      ${S.supprStock && E.ING[S.supprStock[0]] ? `<div class="bandeau-suppr" role="status"><span>🗑 ${esc(E.ING[S.supprStock[0]].nom)} supprimé du placard</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-suppr-annuler">Annuler</button><button class="btn-lien small" data-a="stock-suppr-ok" aria-label="Fermer">✕</button></span></div>` : ''}
       ${blocPhotoStock()}
       ${bilan}
       ${aRanger.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aRanger.length, 'article acheté', 'articles achetés')} à ranger</strong>
@@ -1270,7 +1271,7 @@
         <p class="small ${ids.length ? 'muted' : ''}" style="margin:0">${!ids.length ? 'Votre placard est vide pour Budgétable. Ouvrez un meuble pour y ranger ce que vous avez déjà, ou ajoutez-le plus bas : vos menus l’utiliseront en premier.' : S.cuisine ? 'Touchez « Fermer » pour refermer.' : 'Ouvrez le frigo, le congélateur ou le placard pour voir ce qu’il y a dedans.'}</p>
         ${vueCuisine(st, ids, nouveaux)}
       </section>
-      ${avec.length ? blocAvecPlacard(avec, 'Que cuisiner avec ce que j’ai ?') : ''}
+      ${avec.length ? blocAvecPlacard(avec, 'Que cuisiner avec ce que j’ai ?', true) : ''}
       <details class="stack liste-detaillee" ${S.listeStockOuverte ? 'open' : ''}><summary data-a="liste-stock-ouvrir"><strong>Tout le placard en liste</strong> <span class="small muted">· ${pluriel(ids.length, 'produit')}</span></summary><div class="stack" style="gap:10px;margin-top:10px">
         ${ids.length ? Object.entries(par).sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([rayon, l]) => `<div class="stack" style="gap:4px"><span class="eyebrow">${esc(rayon)}</span><ul class="liste-stock">${l.sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')).map(ligne).join('')}</ul></div>`).join('')
           : '<p class="small">Votre placard est vide pour Budgétable. Ajoutez ce que vous avez déjà ci-dessous : vos menus l’utiliseront en premier.</p>'}
@@ -2828,7 +2829,10 @@
       }
       case 'stock-plus': p.stock = E.ajouterAuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
       case 'stock-moins': p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
-      case 'stock-fini': if (S.stockSel === el.dataset.id) S.stockSel = null; p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, Infinity]]); toast(`${E.ING[el.dataset.id].nom} : retiré du placard`); break;
+      case 'stock-fini': if (S.stockSel === el.dataset.id) S.stockSel = null; S.supprStock = [el.dataset.id, (p.stock || {})[el.dataset.id] || 0]; p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, Infinity]]); break;
+      case 'stock-suppr-annuler': if (S.supprStock) p.stock = E.ajouterAuStock(p.stock || {}, [[S.supprStock[0], S.supprStock[1]]]); S.supprStock = null; break;
+      case 'stock-suppr-ok': S.supprStock = null; break;
+      case 'vers-soir': S.onglet = 'soir'; S.ceSoirOuvert = true; S.imprimable = false; S.supprStock = null; S.jaiCa = { ids: [], ...(S.jaiCa || {}), placard: true, ouvert: true }; window.scrollTo(0, 0); setTimeout(() => { const c = document.querySelector(el.dataset.r ? `.avec-placard [data-r="${el.dataset.r}"]` : '.avec-placard'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); break;
       case 'ranger-achats': {
         const achats = achatsARanger();
         if (!achats.length) { toast('Rien à ranger : cochez d’abord vos articles achetés'); if (S.modeCourses) S.modeCourses.ouvert = false; break; }
