@@ -11,7 +11,7 @@ OFFRES = {"offres": [
 ,
   {"id": "aldi-1", "enseigne": "Aldi", "nom": "Filets de poulet", "prix": 4.99, "prixAvant": 6.49, "remise": "-23 %", "lidlPlus": False, "cond": "600 g", "prixKg": "", "debut": None, "fin": (now + 2 * 86400) * 1000, "quand": "", "lien": "https://www.aldi.fr/p", "image": None, "rayon": "Viande et volaille · Volaille"},
   {"id": "lidl-4", "enseigne": "Lidl", "nom": "FAVORINA Boules crème", "prix": 7.49, "prixAvant": None, "remise": "OFFRE FLASH", "lidlPlus": False, "cond": "1 kg", "prixKg": "", "debut": None, "fin": None, "quand": "", "lien": "https://www.lidl.fr/p/w", "image": None, "rayon": "Surgelés · Glaces"}
-], "sources": [{"enseigne": "Lidl", "pages": 12}], "maj": now * 1000}
+], "prospectus": [{"enseigne": "Aldi", "titre": "Prospectus de la semaine · du mar. 20/10 au lun. 26/10", "lien": "https://catalogues.aldi.fr/kw432026/", "integrable": True, "pages": 47}, {"enseigne": "Lidl", "titre": "Les promos de la semaine · du 22/10 au 28/10", "lien": "https://www.lidl.fr/l/catalogue-de-la-semaine/x/ar/0", "integrable": False}], "sources": [{"enseigne": "Lidl", "pages": 12}], "maj": now * 1000}
 with sync_playwright() as p:
     nav = p.chromium.launch()
     ctx = nav.new_context(viewport={"width": 390, "height": 844})
@@ -36,6 +36,14 @@ with sync_playwright() as p:
     assert "Promos du moment" in t and "Toutes les promos alimentaires" in t
     assert "crépinettes" in t
     page.screenshot(path=f"{OUT}/pr1.png", full_page=True)
+    # prospectus : Aldi se feuillette dans Budgétable, Lidl s'ouvre sur son site
+    assert "Prospectus de la semaine" in t
+    page.get_by_role("button", name="Feuilleter").click()
+    assert page.locator(".fenetre-prospectus iframe").get_attribute("src") == "https://catalogues.aldi.fr/kw432026/"
+    page.screenshot(path=f"{OUT}/prosp.png")
+    page.keyboard.press("Escape"); assert page.locator(".fenetre-prospectus").count() == 0
+    assert page.locator(".carte-prospectus a[href*='lidl.fr/l/']").count() == 1
+    page.locator(".prospectus-liste").screenshot(path=f"{OUT}/prosp2.png")
     # pas de faux rapprochement : des boules glacées ne sont pas de la crème fraîche
     assert page.evaluate("(() => [...document.querySelectorAll('.promos-moi .liste-promos')].map((u) => u.previousElementSibling.innerText + ' → ' + u.innerText).filter((t) => /Crème fraîche/.test(t) && /Boules/.test(t)).length)()") == 0
     # recherche

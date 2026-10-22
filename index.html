@@ -865,6 +865,18 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .chip-magasin i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--m); margin-right: 2px; }
 .titre-magasin { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .titre-magasin .badge-magasin { font-size: .85rem; padding: 3px 10px; }
+
+/* ---------- prospectus ---------- */
+.prospectus-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 10px; }
+.carte-prospectus { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--trait); border-top: 4px solid var(--m); }
+.couverture-prospectus { flex: none; display: grid; place-items: center; width: 52px; height: 66px; border-radius: 8px; background: color-mix(in srgb, var(--m) 12%, var(--papier)); font-size: 1.6rem; box-shadow: 2px 2px 0 color-mix(in srgb, var(--m) 25%, transparent); }
+a.btn-plein, a.btn-plein:visited { color: #fff; }
+.voile-prospectus { padding: 0; }
+.fenetre-prospectus { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--papier); }
+@media (min-width: 900px) { .fenetre-prospectus { inset: 24px; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgb(0 0 0 / .35); } }
+.barre-prospectus { padding: 10px 12px; border-bottom: 1px solid var(--trait); background: var(--surface); gap: 10px; }
+.titre-prospectus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fenetre-prospectus iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }

@@ -1840,7 +1840,7 @@
   /* ---------- promotions du moment (lues par le serveur Budgétable sur les pages publiques des enseignes) ---------- */
   const CLE_PROMOS = 'budgetable.promos';
   let promos = (() => { try { const x = JSON.parse(localStorage.getItem(CLE_PROMOS) || 'null'); return x && Date.now() - x.t < 6 * 3600000 ? { ...x.r, etat: 'ok' } : null; } catch (e) { return null; } })();
-  const AUTRES_PROMOS = [['Carrefour', 'https://www.carrefour.fr/catalogue'], ['Intermarché', 'https://www.intermarche.com/catalogues'], ['Netto', 'https://www.netto.fr/prospectus'], ['Lidl (catalogues)', 'https://www.lidl.fr/c/catalogues-en-ligne/s10017753']];
+  const AUTRES_PROMOS = [['Lidl', 'https://www.lidl.fr/c/catalogues-en-ligne/s10017753'], ['Aldi', 'https://www.aldi.fr/catalogues.html'], ['Carrefour', 'https://www.carrefour.fr/catalogue'], ['Intermarché', 'https://www.intermarche.com/catalogues'], ['Netto', 'https://www.netto.fr/prospectus']];
   async function chargerPromos(forcer) {
     if (promos && promos.etat === 'charge') return;
     if (promos && promos.etat === 'ok' && !forcer) return;
@@ -1859,7 +1859,7 @@
   const ingPromo = new Map();
   const RAYON_COMPATIBLE = { 'Fruits et légumes': /fruit|légume|legume|salade|herbe/i, 'Viandes et poissons': /viande|volaille|poisson|charcut|boucher|traiteur|porc|boeuf|bœuf|mer/i, 'Crèmerie et frais': /laitier|lait|fromage|crème|creme|beurre|œuf|oeuf|frais|crèmerie|cremerie|yaourt|dessert|traiteur|pâte|pate/i,
     'Boulangerie': /pain|boulang|viennois|pâtisserie|patisserie/i, 'Épicerie': /épicerie|epicerie|conserve|pâtes|pates|riz|sauce|condiment|huile|petit-déj|céréale|cereale|apéritif|aperitif|café|cafe|monde|bio|féculent|feculent|légumineuse/i, 'Épicerie sucrée': /sucr|biscuit|chocolat|confiserie|petit-déj|céréale|cereale|gâteau|gateau|dessert/i, 'Surgelés': /surgel/i };
-  const MAGASINS = { Lidl: '#0050aa', Aldi: '#00005f', Carrefour: '#1e5bc6', 'E.Leclerc': '#0066b3', Auchan: '#e2001a', Intermarché: '#d90f2a', U: '#e30613' };
+  const MAGASINS = { Lidl: '#0050aa', Aldi: '#00005f', Carrefour: '#1e5bc6', 'E.Leclerc': '#0066b3', Auchan: '#e2001a', Intermarché: '#d90f2a', U: '#e30613', Netto: '#e2001a' };
   const badgeMagasin = (n) => `<span class="badge-magasin" style="--m:${MAGASINS[n] || '#5b6b62'}">${esc(n)}</span>`;
   function ingredientDePromo(o) {
     if (ingPromo.has(o.id)) return ingPromo.get(o.id);
@@ -1904,6 +1904,7 @@
     const groupes = tri === 'magasin' ? magasins.map(([n]) => [n, visibles.filter((o) => o.enseigne === n)]).filter(([, l]) => l.length) : [[null, visibles]];
     return `<div class="spread"><div><p class="eyebrow">Bons plans</p><h1>Promos du moment</h1></div><button class="btn btn-petit" data-a="promos-maj" ${charge ? 'disabled' : ''}>${charge ? 'Recherche…' : '↻ Actualiser'}</button></div>
       <p class="muted" style="margin:0">Les promotions alimentaires de la semaine, comparées à votre liste de courses.${maj ? ` Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      ${blocProspectus()}
       ${offres.length ? `<section class="barre-promos" aria-label="Chercher et trier les promotions">
         <label class="recherche-promo"><span aria-hidden="true">🔍</span><span class="sr">Chercher une promotion</span><input type="text" enterkeyhint="search" id="promo-cherche" value="${esc(S.cherchePromo || '')}" placeholder="Chercher un produit : poulet, fromage, pâtes…" autocomplete="off">${q ? '<button class="btn-lien small" data-a="promo-effacer" aria-label="Effacer la recherche">✕</button>' : ''}</label>
         <div class="spread" style="gap:10px;align-items:center">
@@ -1923,11 +1924,26 @@
         <div class="row" role="group" aria-label="Rayon" style="gap:6px"><button class="chip" data-a="promo-filtre" data-k="tout" aria-pressed="${f === 'tout'}">Tout <span class="small muted">${dispo.length}</span></button>${RAYONS_PROMO.filter(([k]) => nbR(k)).map(([k, v]) => `<button class="chip" data-a="promo-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbR(k)}</span></button>`).join('')}</div>
         ${groupes.map(([n, l]) => `${n ? `<h3 class="titre-magasin">${badgeMagasin(n)} <span class="small muted">${pluriel(l.length, 'promo')}</span></h3>` : ''}<ul class="liste-promos">${l.slice(0, 120).map((o) => lignePromo(o, true)).join('')}</ul>`).join('') || '<p class="small muted">Aucune promo ne correspond. Essayez un autre mot ou un autre rayon.</p>'}
       </section>` : ''}
-      <section class="carte stack" style="gap:8px"><h2>Chez les autres enseignes</h2>
-        <p class="small muted" style="margin:0">Budgétable lit automatiquement les offres de Lidl et le prospectus de la semaine d’Aldi. Les autres enseignes bloquent ou interdisent cette lecture : retrouvez leurs prospectus ici.</p>
-        <div class="row" style="gap:6px">${AUTRES_PROMOS.map(([n, u]) => `<a class="btn btn-petit" href="${u}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>
-        <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p></section>`;
+      <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p>`;
   }
+  function blocProspectus() {
+    const lus = (promos && promos.prospectus) || [];
+    const cartes = lus.map((p) => `<article class="carte-prospectus" style="--m:${MAGASINS[p.enseigne] || '#5b6b62'}"><div class="couverture-prospectus" aria-hidden="true">📰</div><div class="stack" style="gap:4px;min-width:0">${badgeMagasin(p.enseigne)}<strong>${esc(p.titre)}</strong>${p.pages ? `<span class="small muted">${p.pages} pages</span>` : ''}
+        <div class="row" style="gap:6px">${p.integrable ? `<button class="btn btn-petit btn-plein" data-a="prospectus-ouvrir" data-u="${esc(p.lien)}" data-k="${esc(p.enseigne)}" data-t="${esc(p.titre)}">Feuilleter</button>` : ''}<a class="btn btn-petit ${p.integrable ? '' : 'btn-plein'}" href="${esc(p.lien)}" target="_blank" rel="noopener">${p.integrable ? '↗' : 'Ouvrir le prospectus ↗'}</a></div></div></article>`).join('');
+    const autres = AUTRES_PROMOS.filter(([n]) => !lus.some((p) => n.startsWith(p.enseigne))).map(([n, u]) => `<article class="carte-prospectus" style="--m:${MAGASINS[n.split(' ')[0]] || '#5b6b62'}"><div class="couverture-prospectus" aria-hidden="true">📰</div><div class="stack" style="gap:4px;min-width:0">${badgeMagasin(n.replace(/ \(.*\)/, ''))}<strong>Prospectus en cours</strong><span class="small muted">sur le site de l’enseigne</span><div><a class="btn btn-petit" href="${u}" target="_blank" rel="noopener">Ouvrir ↗</a></div></div></article>`).join('');
+    return `<section class="stack" style="gap:10px"><div class="spread" style="align-items:baseline"><h2>📰 Prospectus de la semaine</h2><span class="small muted">à feuilleter avant les courses</span></div>
+      <div class="prospectus-liste">${cartes}${autres}</div></section>`;
+  }
+  function vueProspectus() {
+    if (!S.prospectusOuvert) return '';
+    const p = S.prospectusOuvert;
+    return `<div class="voile voile-prospectus" data-a="prospectus-fond"><div class="fenetre-prospectus" role="dialog" aria-modal="true" aria-label="Prospectus ${esc(p.enseigne)}">
+      <div class="spread barre-prospectus" style="flex-wrap:nowrap;align-items:center"><div class="row" style="gap:8px;align-items:center;min-width:0">${badgeMagasin(p.enseigne)}<strong class="titre-prospectus">${esc(p.titre)}</strong></div>
+        <div class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn btn-petit" href="${esc(p.lien)}" target="_blank" rel="noopener">Plein écran ↗</a><button class="btn btn-petit btn-plein" data-a="prospectus-fermer">Fermer</button></div></div>
+      <iframe src="${esc(p.lien)}" title="Prospectus ${esc(p.enseigne)}" loading="lazy" referrerpolicy="no-referrer" allow="fullscreen"></iframe>
+    </div></div>`;
+  }
+
   /* ---------- envoyer la liste ou le menu (mail, SMS, WhatsApp, partage, lien à ouvrir sur un autre téléphone) ---------- */
   function menuTexte() {
     if (!S.plan) return '';
@@ -2893,7 +2909,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -3202,6 +3218,9 @@
       case 'envoi-lien': copier(lienPartage(), null); return;
       case 'envoi-partager': { const q = S.envoiQuoi || 'liste'; const d = { title: 'Budgétable', text: texteEnvoi(q) }; if (q !== 'menu') d.url = lienPartage(); navigator.share(d).catch(() => {}); return; }
       case 'promos-maj': chargerPromos(true); return;
+      case 'prospectus-ouvrir': if (!/^https:\/\/catalogues\.aldi\.fr\//.test(el.dataset.u)) return; S.prospectusOuvert = { lien: el.dataset.u, enseigne: el.dataset.k, titre: el.dataset.t }; break;
+      case 'prospectus-fermer': S.prospectusOuvert = null; break;
+      case 'prospectus-fond': if (ev.target === el) S.prospectusOuvert = null; else return; break;
       case 'promo-filtre': S.filtrePromo = el.dataset.k; break;
       case 'promo-magasin': S.magasinPromo = el.dataset.k; break;
       case 'promo-effacer': S.cherchePromo = ''; S.magasinPromo = 'tout'; S.filtrePromo = 'tout'; break;
@@ -3677,6 +3696,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.prospectusOuvert) { S.prospectusOuvert = null; rendre(); return; }
     if (ev.key === 'Escape' && compte.vue) { compte.vue = null; rendre(); return; }
     if (ev.key === 'Escape' && S.envoiOuvert) { S.envoiOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.gamellesOuvert) { S.gamellesOuvert = false; rendre(); return; }

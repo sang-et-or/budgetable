@@ -142,11 +142,29 @@ function textesPages(html) {
   if (!m) return [];
   try { return JSON.parse(m[1]).map(String); } catch (e) { return []; }
 }
+const lienAldi = (page) => (/"link":"(https:\/\/catalogues\.aldi\.fr\/[^"\\]+)/.exec(page) || [])[1];
 async function promosAldi() {
   const page = await lireUrl(ALDI + '/catalogues/cette-semaine.html');
-  const lien = (/"link":"(https:\/\/catalogues\.aldi\.fr\/[^"\\]+)/.exec(page) || [])[1];
-  if (!lien) return [];
-  return offresProspectus(textesPages(await lireUrl(lien)), { enseigne: 'Aldi', lien });
+  const lien = lienAldi(page);
+  if (!lien) return { offres: [], prospectus: [] };
+  const html = await lireUrl(lien);
+  const pages = textesPages(html);
+  const titre = ((/"dates?":"([^"]{4,40})"/.exec(html) || /Du (?:[a-z]+\.? )?\d{1,2}\/\d{1,2} au (?:[a-z]+\.? )?\d{1,2}\/\d{1,2}/i.exec(pages[0] || '') || [])[0] || 'Catalogue de la semaine');
+  const prospectus = [{ enseigne: 'Aldi', titre: 'Prospectus de la semaine' + (/^Du /.test(titre) ? ' · ' + titre.replace(/^Du /, 'du ') : ''), lien, integrable: true, pages: pages.length }];
+  try { const suivant = lienAldi(await lireUrl(ALDI + '/catalogues/semaine-prochaine.html')); if (suivant && suivant !== lien) prospectus.push({ enseigne: 'Aldi', titre: 'Prospectus de la semaine prochaine', lien: suivant, integrable: true }); } catch (e) { /* pas encore publié */ }
+  return { offres: offresProspectus(pages, { enseigne: 'Aldi', lien }), prospectus };
+}
+/** Catalogues Lidl en ligne (s'ouvrent sur lidl.fr : leur visionneuse ne s'affiche pas dans un autre site). */
+async function prospectusLidl() {
+  const h = await lire('/c/catalogues-en-ligne/s10017753');
+  const vus = new Set(), out = [];
+  for (const m of h.matchAll(/href="(\/l\/catalogue-de-la-semaine\/([a-z0-9-]+)\/ar\/0[^"]*)"/g)) {
+    if (vus.has(m[2])) continue; vus.add(m[2]);
+    const d = /du-(\d{2})-(\d{2})-au-(\d{2})-(\d{2})-(.*)/.exec(m[2]);
+    const titre = d ? `${d[5].replace(/-/g, ' ').replace(/^les /, 'Les ')} · du ${d[1]}/${d[2]} au ${d[3]}/${d[4]}` : m[2].replace(/-/g, ' ');
+    out.push({ enseigne: 'Lidl', titre: titre.charAt(0).toUpperCase() + titre.slice(1), lien: BASE + decoder(m[1]), integrable: false });
+  }
+  return out.slice(0, 4);
 }
 
 async function lire(chemin) {
@@ -179,9 +197,10 @@ async function promosDuMoment() {
       try { for (const g of grilles(await lire(chemin))) { const o = offre(g); if (o && !offres.has(o.id)) offres.set(o.id, o); } lues++; } catch (e) { /* page suivante */ }
       await pause(250);
     }
-    let aldi = [];
-    try { aldi = await promosAldi(); } catch (e) { aldi = []; }
-    const r = { offres: [...offres.values(), ...aldi], sources: [{ enseigne: 'Lidl', pages: lues, lien: BASE }, { enseigne: 'Aldi', offres: aldi.length, lien: ALDI + '/catalogues.html' }], maj: Date.now() };
+    let aldi = { offres: [], prospectus: [] }, lidlCat = [];
+    try { aldi = await promosAldi(); } catch (e) { /* prospectus indisponible */ }
+    try { lidlCat = await prospectusLidl(); } catch (e) { /* catalogues indisponibles */ }
+    const r = { offres: [...offres.values(), ...aldi.offres], prospectus: [...aldi.prospectus, ...lidlCat], sources: [{ enseigne: 'Lidl', pages: lues, lien: BASE }, { enseigne: 'Aldi', offres: aldi.offres.length, lien: ALDI + '/catalogues.html' }], maj: Date.now() };
     if (r.offres.length || !cache) cache = { t: Date.now(), r };
     return r;
   })();
