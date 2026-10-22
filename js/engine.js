@@ -239,6 +239,9 @@
   const NUTRI = () => (NODE ? require('./nutrition.js') : root.Nutrition);
   const LAITAGES = new Set(['lait', 'yaourt', 'emmental', 'mozzarella', 'feta', 'tofu']);
   const POISSONS = new Set(['saumon', 'colin', 'thon']);
+  const EPICES_FORTES = new Set(['curry', 'cumin', 'paprika']);
+  const BOUDES = new Set(['chou', 'champignon', 'aubergine', 'poireau', 'epinards', 'brocoli']);
+  const DOUDOUS = new Set(['pates', 'riz', 'pomme_de_terre', 'emmental', 'mozzarella', 'jambon', 'poulet_filet', 'oeufs', 'tortillas', 'pain_mie']);
   const LEGUMINEUSES = new Set(['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses', 'tofu']);
   function bonusCoach(rec, p) {
     if (!p.coach) return 0;
@@ -258,6 +261,16 @@
       let s = pp.prot >= 35 ? 4 : pp.prot >= 28 ? 2.5 : pp.prot >= 22 ? 0.5 : -2;
       if (n.kcal < 450) s -= 1;
       if (ids.some((id) => ING[id].groupe === 'F')) s += 0.5;   // féculents pour l'énergie
+      return s;
+    }
+    if (p.coach === 'famille') {
+      let s = rec.tags.includes('enfants') ? 4 : 0;                // plats que les enfants aiment
+      const epices = ids.filter((id) => EPICES_FORTES.has(id)).length;
+      s -= epices * 1.5;
+      s -= ids.filter((id) => BOUDES.has(id)).length * 0.8;      // légumes souvent boudés
+      if (ids.some((id) => DOUDOUS.has(id))) s += 1;             // pâtes, riz, pommes de terre, fromage…
+      if (rec.temps <= 35) s += 0.5;
+      if (equilibre(rec).grammesLegumes >= 100) s += 0.5;         // des légumes quand même
       return s;
     }
     if (p.coach === 'femme40') {
@@ -294,7 +307,10 @@
       poissonGras: repas.filter((r) => ids(r).includes('saumon')).length,
       laitages: repas.filter((r) => ids(r).some((id) => LAITAGES.has(id))).length,
       legumineuses: repas.filter((r) => ids(r).some((id) => LEGUMINEUSES.has(id))).length,
-      legumes: Math.round(repas.reduce((t, r) => t + equilibre(r).grammesLegumes, 0) / repas.length)
+      legumes: Math.round(repas.reduce((t, r) => t + equilibre(r).grammesLegumes, 0) / repas.length),
+      enfants: repas.filter((r) => r.tags.includes('enfants')).length,
+      doux: repas.filter((r) => !ids(r).some((id) => EPICES_FORTES.has(id))).length,
+      temps: Math.round(repas.reduce((t, r) => t + r.temps, 0) / repas.length)
     };
   }
   function score(rec, p, ctx, r) {

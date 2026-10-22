@@ -1648,6 +1648,14 @@
       astuces: ['Un repas avec protéines et féculents dans les 2 heures après l’entraînement.', 'Hydratez-vous avant, pendant et après l’effort.', 'Collations faciles : yaourt nature, œufs durs, poignée d’amandes, banane.', 'Variez les protéines : volaille, poisson, œufs, légumineuses, tofu.', 'Les jours sans entraînement, gardez les protéines et réduisez un peu les féculents.', 'Le sommeil compte autant que l’assiette pour récupérer.'],
       objectifs: (b) => [[`${b.prot} g de protéines par repas`, b.prot >= 30, 'objectif : 30 g et plus'], [`${b.kcal} kcal en moyenne par repas`, b.kcal >= 550, 'assez d’énergie'], [`${b.poisson} repas de poisson`, b.poisson >= 1, 'au moins 1 par semaine']]
     },
+    famille: {
+      nom: 'Coach famille', emoji: '👨‍👩‍👧', court: 'Famille',
+      accroche: 'Des plats qui plaisent aux enfants, et aux parents : fini les assiettes boudées.',
+      pour: 'Les grands classiques des enfants (pâtes, gratins, poulet, omelettes, wraps…), des épices douces, des légumes glissés dans les plats, des recettes rapides.',
+      prudence: 'Pour les tout-petits (moins de 3 ans), coupez finement, évitez les morceaux durs et le sel en plus, et suivez les conseils de votre pédiatre.',
+      astuces: ['Faites goûter un nouveau légume plusieurs fois : il faut souvent 8 à 10 essais avant de l’aimer.', 'Laissez les enfants participer : laver, mélanger, saupoudrer le fromage, dresser.', 'Servez la sauce et les épices à part, chacun se sert.', 'Cachez les légumes dans les sauces, les gratins et les galettes.', 'Pas de plat spécial pour un seul enfant : une petite portion de tout, sans forcer.', 'Le repas en famille, sans écran, compte autant que ce qu’il y a dans l’assiette.'],
+      objectifs: (b) => [[`${b.enfants} plats préférés des enfants`, b.enfants >= 6, 'objectif : 6 et plus'], [`${b.doux} repas aux épices douces`, b.doux >= 12, 'sur 14'], [`${b.legumes} g de légumes par repas`, b.legumes >= 150, 'glissés dans les plats'], [`${b.temps} min de préparation en moyenne`, b.temps <= 35, 'rapide en semaine']]
+    },
     femme40: {
       nom: 'Coach femme 40 ans et +', emoji: '🌸', court: 'Femme 40 +',
       accroche: 'Une alimentation pensée pour la quarantaine et la ménopause : os, muscles, cœur et énergie.',

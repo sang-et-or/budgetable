@@ -41,6 +41,14 @@ with sync_playwright() as p:
     page.locator(".fenetre-coach").get_by_role("button", name=re.compile("Préparer ma semaine avec le coach sportif")).click()
     t = main.locator(".coach-actif").inner_text()
     prot = int(re.search(r"(\d+) g de protéines par repas", t).group(1)); assert prot >= 30, t
+    # coach famille : les plats des enfants
+    main.locator(".coach-actif").get_by_role("button", name="Changer").click()
+    page.locator(".fenetre-coach [data-k=famille]").click()
+    assert "enfants" in page.locator(".fenetre-coach").inner_text()
+    page.locator(".fenetre-coach").get_by_role("button", name=re.compile("Préparer ma semaine avec le coach famille")).click()
+    t = main.locator(".coach-actif").inner_text()
+    nb = int(re.search(r"(\d+) plats préférés des enfants", t).group(1)); assert nb >= 6, t
+    page.screenshot(path=f"{OUT}/co3-famille.png")
     # profil : arrêter
     page.locator("nav button", has_text="Profil").click()
     assert "Coach alimentaire" in main.inner_text()
