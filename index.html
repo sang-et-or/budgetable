@@ -792,7 +792,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .nav-groupe, .nav-sep, .nav-badge { display: none; }
 .nav-ic { display: contents; }
 @media (min-width: 900px) {
-  .nav { gap: 2px; padding: 10px; border-radius: 20px; background: var(--surface); border: 1px solid var(--trait); box-shadow: var(--ombre); }
+  .nav { gap: 2px; padding: 0 0 0 6px; border: 0; background: none; box-shadow: none; }
   .nav-groupe { display: block; padding: 12px 12px 4px; font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--encre-douce); }
   .nav-groupe:first-child { padding-top: 4px; }
   .nav-sep { display: block; height: 1px; margin: 8px 10px; background: var(--trait); }
@@ -803,7 +803,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
   .nav button:hover .nav-ic { transform: none; background: color-mix(in srgb, var(--c) 20%, transparent); }
   .nav button[aria-current="page"] { background: color-mix(in srgb, var(--c) 11%, transparent); color: var(--encre); }
   .nav button[aria-current="page"] .nav-ic { background: var(--c); color: #fff; box-shadow: 0 3px 10px color-mix(in srgb, var(--c) 40%, transparent); }
-  .nav button[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); }
+  .nav button[aria-current="page"]::before { content: ""; position: absolute; left: -6px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); }
   .nav-badge { display: inline-block; margin-left: auto; font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--tomate-pale); color: var(--tomate); }
   .cote { scrollbar-gutter: stable; }
   .cote::-webkit-scrollbar { width: 6px; }
