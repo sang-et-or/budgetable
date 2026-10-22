@@ -672,6 +672,25 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .journal { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .85rem; }
 .journal th, .journal td { padding: 6px 4px; border-bottom: 1px solid var(--trait); text-align: left; }
 .journal .num { text-align: right; }
+
+/* ---------- carnet du jour ---------- */
+.carnet { border-top: 5px solid var(--poireau); }
+.humeur-jour { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--papier); }
+.gros-smiley { font-size: 2.6rem; line-height: 1; }
+.compteurs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.compteur { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); }
+.compteur .smiley { font-size: 1.6rem; line-height: 1; }
+.compteur > .stack { flex: 1; }
+.compteur.c-rouge { border-color: var(--tomate); background: var(--tomate-pale); }
+.compteur.c-neutre { border-color: var(--moutarde); }
+.piste-c { display: block; height: 8px; border-radius: 99px; background: var(--trait); overflow: hidden; }
+.piste-c i { display: block; height: 100%; border-radius: 99px; background: var(--poireau); }
+.c-neutre .piste-c i { background: var(--moutarde); }
+.c-rouge .piste-c i { background: var(--tomate); }
+.liste-carnet { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-carnet li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
+.ajout-carnet .chip[aria-pressed="true"], .carnet .chip[aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.ajout-carnet .chip[aria-pressed="true"] .muted { color: rgb(255 255 255 / .8); }
 </style>
 
 <div id="app"></div>
@@ -685,6 +704,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 <script src="js/gourmand.js"></script>
 <script src="js/nutrition.js"></script>
 <script src="js/commis.js"></script>
+<script src="js/aliments.js"></script>
 <script src="js/saisie.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>

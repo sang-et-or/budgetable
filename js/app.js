@@ -96,7 +96,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [] };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null };
     try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -106,7 +106,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null });
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); }
@@ -1721,7 +1721,14 @@
   // valeurs d'une journée (portion adulte) à partir du journal
   function apportsParJour(du, au) {
     const jours = {};
-    for (let d = new Date(du + 'T12:00:00'); ISO(d) <= au; d.setDate(d.getDate() + 1)) jours[ISO(d)] = { kcal: 0, prot: 0, fibres: 0, sucres: 0, sel: 0, ags: 0, legumes: 0, repas: [] };
+    for (let d = new Date(du + 'T12:00:00'); ISO(d) <= au; d.setDate(d.getDate() + 1)) jours[ISO(d)] = { kcal: 0, prot: 0, fibres: 0, sucres: 0, sel: 0, ags: 0, legumes: 0, repas: [], ajouts: [] };
+    (S.ajouts || []).forEach((x, i) => {
+      const jr = jours[x.d]; if (!jr) return;
+      const al = alimentDe(x); if (!al) return;
+      for (const k of ['kcal', 'prot', 'fibres', 'sucres', 'sel', 'ags']) jr[k] += (al[k] || 0) * x.n;
+      jr.legumes += (al.fl || 0) * x.n;
+      jr.ajouts.push({ ...x, i });
+    });
     for (const x of S.journal || []) {
       if (!jours[x.d] || !E.REC[x.r]) continue;
       const n = nutri(E.REC[x.r]); if (!n) continue;
@@ -1732,8 +1739,8 @@
     }
     return jours;
   }
-  const OBJ = { kcal: [null, null], prot: [40, null], fibres: [20, null], legumes: [300, null], sel: [null, 4], sucres: [null, 50], ags: [null, 16] };
-  const LIB = { kcal: ['Énergie', 'kcal'], prot: ['Protéines', 'g'], fibres: ['Fibres', 'g'], legumes: ['Légumes', 'g'], sel: ['Sel', 'g'], sucres: ['Sucres', 'g'], ags: ['Graisses saturées', 'g'] };
+  const OBJ = {};
+  const LIB = { kcal: ['Énergie', 'kcal'], prot: ['Protéines', 'g'], fibres: ['Fibres', 'g'], legumes: ['Fruits et légumes', 'g'], sel: ['Sel', 'g'], sucres: ['Sucres', 'g'], ags: ['Graisses saturées', 'g'] };
   // graphique en barres (une seule série), ligne d'objectif, info-bulle au survol
   function barres(donnees, cle, opts = {}) {
     const W = 340, H = 150, g = 30, b = 22, t = 10;
@@ -1754,18 +1761,87 @@
     const max = Math.max(1, ...lignes.map((l) => l.v));
     return `<ul class="hbarres">${lignes.map((l) => `<li><span class="small">${esc(l.lab)}</span><span class="piste"><i style="width:${(l.v / max) * 100}%;${l.couleur ? `background:${l.couleur}` : ''}"></i></span><span class="num small">${nb(Math.round(l.v))}${unite}</span></li>`).join('')}</ul>`;
   }
+  /* ---------- carnet du jour : aliments ajoutés, limites et smileys ---------- */
+  function objectifsJour() {
+    const kcal = S.objectifKcal || 2000;
+    return { kcal: [null, kcal], prot: [60, null], fibres: [30, null], legumes: [400, null], sel: [null, 5], sucres: [null, 100], ags: [null, 22] };
+  }
+  const SMILEY = { vert: ['😊', 'Très bien'], neutre: ['😐', 'À surveiller'], rouge: ['😟', 'Dépassé'] };
+  // état d'un compteur : les limites (sel, sucres…) passent au rouge si dépassées ; les objectifs (protéines…) ne sont jamais « rouges » en cours de journée
+  function etatCompteur(cle, v, journeeFinie) {
+    const [mi, ma] = OBJ[cle];
+    if (ma != null) {
+      if (cle === 'kcal' && journeeFinie && v > 0 && v < ma * 0.5) return 'neutre';
+      return v <= ma * 0.9 ? 'vert' : v <= ma ? 'neutre' : 'rouge';
+    }
+    if (v >= mi) return 'vert';
+    return journeeFinie && v < mi * 0.5 ? 'rouge' : 'neutre';
+  }
+  const alimentDe = (x) => (x.a ? (window.Aliments.ALIMENTS.find((y) => y.id === x.a) || null) : { nom: x.nom, portion: 'portion', kcal: x.kcal || 0, prot: 0, fibres: 0, sucres: 0, ags: 0, sel: 0, fl: 0 });
+  function blocCarnet() {
+    const auj = ISO(new Date());
+    const d = S.jourCarnet || auj;
+    const jours = apportsParJour(d, d);
+    const j = jours[d];
+    const finie = d < auj || new Date().getHours() >= 21;
+    const titre = d === auj ? 'Aujourd’hui' : new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const cles = ['kcal', 'sucres', 'sel', 'ags', 'prot', 'fibres', 'legumes'];
+    const etats = cles.map((k) => [k, etatCompteur(k, j[k], finie)]);
+    const rouges = etats.filter(([, e]) => e === 'rouge').map(([k]) => LIB[k][0].toLowerCase());
+    const neutres = etats.filter(([, e]) => e === 'neutre');
+    const rien = !j.repas.length && !j.ajouts.length;
+    const humeur = rien ? ['🍽️', 'Rien de noté pour l’instant', 'Ajoutez votre petit-déjeuner, vos collations et vos boissons : les repas du planning s’ajoutent avec « C’est mangé ».']
+      : rouges.length ? ['😟', `Attention : ${rouges.join(', ')}`, 'Pas de panique : une journée ne fait pas une semaine. Compensez tranquillement demain.']
+      : neutres.length ? ['😐', 'Journée correcte', finie ? 'Quelques repères à surveiller, rien de grave.' : 'La journée n’est pas finie : les objectifs en cours se rempliront au fil des repas.']
+      : ['😊', 'Belle journée !', 'Tous vos repères sont au vert.'];
+    const compteur = ([k, e]) => {
+      const [mi, ma] = OBJ[k], ref = ma != null ? ma : mi, v = j[k];
+      const txt = k === 'sel' ? nb(Math.round(v * 10) / 10) : nb(Math.round(v));
+      const reste = ma != null ? (v <= ma ? `reste ${nb(Math.round((ma - v) * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1))} ${LIB[k][1]}` : `dépassé de ${nb(Math.round((v - ma) * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1))} ${LIB[k][1]}`) : (v >= mi ? 'objectif atteint' : `encore ${nb(Math.round(mi - v))} ${LIB[k][1]}`);
+      return `<li class="compteur c-${e}"><span class="smiley" role="img" aria-label="${SMILEY[e][1]}">${SMILEY[e][0]}</span>
+        <span class="stack" style="gap:2px;min-width:0"><span class="spread" style="gap:6px"><strong class="small">${LIB[k][0]}</strong><span class="small num">${txt} / ${nb(ref)} ${LIB[k][1]}${ma != null ? ' max' : ''}</span></span>
+        <span class="piste-c"><i style="width:${Math.min(100, (v / ref) * 100)}%"></i></span><span class="small muted">${reste}</span></span></li>`;
+    };
+    const m = S.momentCarnet || 'petitdej';
+    const suggestions = window.Aliments.ALIMENTS.filter((a) => a.moment === m);
+    const parMoment = {};
+    j.ajouts.forEach((x) => { (parMoment[x.m] = parMoment[x.m] || []).push(x); });
+    return `<section class="carte stack carnet" style="gap:12px" aria-label="Carnet du jour">
+      <div class="spread" style="align-items:center;flex-wrap:nowrap"><button class="btn btn-petit" data-a="carnet-jour" data-n="-1" aria-label="Jour précédent">◀</button><h2 style="text-align:center;margin:0">${esc(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2><button class="btn btn-petit" data-a="carnet-jour" data-n="1" aria-label="Jour suivant" ${d >= auj ? 'disabled' : ''}>▶</button></div>
+      <div class="humeur-jour"><span class="gros-smiley" aria-hidden="true">${humeur[0]}</span><div class="stack" style="gap:2px"><strong>${esc(humeur[1])}</strong><span class="small">${esc(humeur[2])}</span></div></div>
+      <ul class="compteurs">${etats.map(compteur).join('')}</ul>
+      <div class="stack" style="gap:6px"><h3>Mangé ${d === auj ? 'aujourd’hui' : 'ce jour-là'}</h3>
+        <ul class="liste-carnet">
+          ${j.repas.map((x) => `<li><span>🍽️ ${x.s === 'diner' ? 'Dîner' : 'Déjeuner'} : ${esc(E.REC[x.r].nom)}</span><span class="small num">${x.n.kcal} kcal</span></li>`).join('')}
+          ${Object.entries(parMoment).map(([mo, l]) => l.map((x) => { const al = alimentDe(x); return al ? `<li><span>${esc(al.nom)} <span class="small muted">· ${x.n > 1 ? x.n + ' × ' : ''}${esc(al.portion)}</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;align-items:center"><span class="small num">${Math.round(al.kcal * x.n)} kcal</span><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="-1" aria-label="Une portion de moins">−</button><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="1" aria-label="Une portion de plus">+</button><button class="btn-lien small" data-a="carnet-suppr" data-i="${x.i}" aria-label="Retirer ${esc(al.nom)}">✕</button></span></li>` : ''; }).join('')).join('')}
+          ${rien ? '<li class="small muted">Rien pour l’instant.</li>' : ''}
+        </ul></div>
+      <div class="stack ajout-carnet" style="gap:8px"><h3>Ajouter un aliment</h3>
+        <div class="row" role="radiogroup" style="gap:6px">${Object.entries(window.Aliments.MOMENTS).map(([k, v]) => `<button class="chip" role="radio" data-a="carnet-moment" data-k="${k}" aria-checked="${m === k}" aria-pressed="${m === k}">${v}</button>`).join('')}</div>
+        <label class="champ"><span class="sr">Chercher un aliment</span><input type="search" id="carnet-cherche" data-a="carnet-cherche" placeholder="Chercher : croissant, pomme, café au lait, pizza…" autocomplete="off"></label>
+        <div id="carnet-resultats" class="row" style="gap:6px">${suggestions.map((a) => `<button class="chip puce-ajout" data-a="carnet-ajouter" data-id="${a.id}" title="${esc(a.portion)} · ${a.kcal} kcal">+ ${esc(a.nom)} <span class="small muted">${a.kcal} kcal</span></button>`).join('')}</div>
+        <details><summary class="small"><strong>Autre aliment</strong> <span class="muted">· nom et calories à la main</span></summary>
+          <div class="row" style="gap:8px;align-items:flex-end;margin-top:8px"><label class="champ" style="flex:1;min-width:140px"><span>Nom</span><input type="text" id="carnet-perso-nom" maxlength="50" placeholder="Ex. : crêpe au sucre"></label><label class="champ" style="max-width:110px"><span>Calories</span><input type="text" inputmode="numeric" id="carnet-perso-kcal" placeholder="250"></label><button class="btn btn-petit btn-plein" data-a="carnet-perso">Ajouter</button></div></details>
+      </div>
+      <div class="row" style="gap:6px;align-items:center"><span class="small">Mon repère de calories :</span>${[1800, 2000, 2200, 2500].map((k) => `<button class="chip" data-a="carnet-objectif" data-k="${k}" aria-pressed="${(S.objectifKcal || 2000) === k}">${nb(k)}</button>`).join('')}</div>
+      <p class="small muted" style="margin:0">Repères pour un adulte : environ 2 000 kcal (à ajuster selon l’âge, le sexe et l’activité), 60 g de protéines, 30 g de fibres, 400 g de fruits et légumes, moins de 100 g de sucres, 22 g de graisses saturées et 5 g de sel par jour. Ce sont des repères, pas des règles : inutile d’être parfait chaque jour.</p>
+    </section>`;
+  }
+
   function ongletApports() {
+    Object.assign(OBJ, objectifsJour());
     const periode = S.periodeApports || '7';
     const auj = new Date(); auj.setHours(12, 0, 0, 0);
     const debut = new Date(auj); debut.setDate(auj.getDate() - (+periode - 1));
     const jours = apportsParJour(ISO(debut), ISO(auj));
     const liste = Object.entries(jours);
-    const avecRepas = liste.filter(([, v]) => v.repas.length);
+    const avecRepas = liste.filter(([, v]) => v.repas.length || v.ajouts.length);
     const nbRepas = avecRepas.reduce((t, [, v]) => t + v.repas.length, 0);
     const moy = (k) => (avecRepas.length ? avecRepas.reduce((t, [, v]) => t + v[k], 0) / avecRepas.length : 0);
     const etat = (k, v) => { const [mi, ma] = OBJ[k]; return mi != null && v < mi ? 'bas' : ma != null && v > ma ? 'haut' : 'ok'; };
+    const carnet = blocCarnet();
     const labJour = (d) => { const x = new Date(d + 'T12:00:00'); return periode === '7' ? E.JOURS[(x.getDay() + 6) % 7].slice(0, 3) : String(x.getDate()); };
-    const serie = (k) => liste.map(([d, v]) => ({ v: Math.round(v[k]), lab: labJour(d), vide: !v.repas.length, tip: `${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${v.repas.length ? `${nb(Math.round(v[k]))} ${LIB[k][1]} (${pluriel(v.repas.length, 'repas', 'repas')})` : 'aucun repas noté'}` }));
+    const serie = (k) => liste.map(([d, v]) => ({ v: Math.round(v[k]), lab: labJour(d), vide: !v.repas.length && !v.ajouts.length, tip: `${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${v.repas.length || v.ajouts.length ? `${nb(Math.round(v[k]))} ${LIB[k][1]} (${pluriel(v.repas.length, 'repas', 'repas')}${v.ajouts.length ? `, ${pluriel(v.ajouts.length, 'ajout')}` : ''})` : 'rien de noté'}` }));
     // repas de la semaine à confirmer
     const t = aujourdhui(), h = new Date().getHours();
     const aConfirmer = S.plan ? S.plan.jours.flatMap((jp, j) => E.SLOTS.map((sl) => ({ j, sl, m: jp[sl] }))).filter(({ j, sl, m }) => m && !S.deduits[j + '-' + sl] && (j < t || (j === t && (sl === 'dejeuner' ? h >= 12 : h >= 19)))) : [];
@@ -1783,24 +1859,26 @@
     for (let k = 7; k >= 0; k--) {
       const l = lundiDe(auj); l.setDate(l.getDate() - 7 * k);
       const f = new Date(l); f.setDate(l.getDate() + 6);
-      const js = Object.values(apportsParJour(ISO(l), ISO(f))).filter((v) => v.repas.length);
+      const js = Object.values(apportsParJour(ISO(l), ISO(f))).filter((v) => v.repas.length || v.ajouts.length);
       const m = (key) => (js.length ? js.reduce((tt, v) => tt + v[key], 0) / js.length : 0);
       semaines.push({ lab: `${l.getDate()}/${l.getMonth() + 1}`, jours: js.length, prot: m('prot'), fibres: m('fibres'), kcal: m('kcal') });
     }
     const tuile = (k) => { const v = moy(k), e = etat(k, v); return `<div class="tuile-apport rep-${avecRepas.length ? e : 'ok'}"><span class="small muted">${LIB[k][0]}</span><strong class="num">${avecRepas.length ? nb(Math.round(v * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1)) : '–'} <span class="small">${LIB[k][1]}</span></strong><span class="small muted">par jour</span>${avecRepas.length && e !== 'ok' ? `<span class="small etat-${e}">${e === 'bas' ? '↓ pas assez' : '↑ trop'}</span>` : avecRepas.length && OBJ[k][0] != null ? '<span class="small etat-ok">✓ objectif</span>' : ''}</div>`; };
     return `<div><p class="eyebrow">Suivi</p><h1>Mes apports</h1></div>
-      <p class="muted">Ce que vous avez vraiment mangé, d’après les repas marqués « C’est mangé ». Pour un adulte, déjeuners et dîners, hors petit-déjeuner. Estimations, pas un avis médical.</p>
+      <p class="muted">Ce que vous avez vraiment mangé : les repas du planning marqués « C’est mangé » et les aliments ajoutés au carnet (petit-déjeuner, collations, boissons, repas dehors). Pour un adulte. Estimations, pas un avis médical.</p>
+      ${carnet}
       ${aConfirmer.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aConfirmer.length, 'repas', 'repas')} à confirmer</strong><span class="small muted">Touchez ceux que vous avez mangés : le suivi et le placard se mettent à jour.</span>
         <ul class="liste-confirmer">${aConfirmer.slice(0, 10).map(({ j, sl, m }) => `<li><span class="small">${E.JOURS[j]} ${sl === 'diner' ? 'soir' : 'midi'} · ${esc(E.REC[m.recette].nom)}</span><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${sl}">✓ Mangé</button></li>`).join('')}</ul></section>` : ''}
       <div class="row" role="radiogroup" aria-label="Période" style="gap:6px">${[['7', '7 derniers jours'], ['30', '30 derniers jours']].map(([k, v]) => `<button class="chip" role="radio" data-a="periode-apports" data-k="${k}" aria-checked="${periode === k}" aria-pressed="${periode === k}">${v}</button>`).join('')}</div>
       ${!nbRepas ? `<section class="carte stack" style="gap:8px"><strong>Pas encore de repas noté sur cette période</strong><span class="small">Dans la semaine, touchez « ✓ C’est mangé » sous chaque plat. Vos graphiques se rempliront au fil des jours.</span></section>` : ''}
       <section class="tuiles-apports">${['kcal', 'prot', 'fibres', 'legumes', 'sel', 'sucres'].map(tuile).join('')}</section>
-      <p class="small muted" style="margin:0">${pluriel(nbRepas, 'repas noté', 'repas notés')} sur ${pluriel(avecRepas.length, 'jour')}. Moyennes calculées sur les jours avec au moins un repas noté.</p>
+      <h2>Sur la période</h2>
+      <p class="small muted" style="margin:0">${pluriel(nbRepas, 'repas noté', 'repas notés')} sur ${pluriel(avecRepas.length, 'jour')}. Moyennes calculées sur les jours où quelque chose est noté.</p>
       <div class="grille-graphes">
-        <section class="carte stack" style="gap:4px"><h2>Énergie par jour</h2><span class="small muted">kcal, déjeuner et dîner</span>${barres(serie('kcal'), 'kcal', { titre: 'Énergie par jour' })}</section>
-        <section class="carte stack" style="gap:4px"><h2>Protéines par jour</h2><span class="small muted">g · objectif 40 g et plus</span>${barres(serie('prot'), 'prot', { titre: 'Protéines par jour' })}</section>
-        <section class="carte stack" style="gap:4px"><h2>Fibres par jour</h2><span class="small muted">g · objectif 20 g et plus</span>${barres(serie('fibres'), 'fibres', { titre: 'Fibres par jour' })}</section>
-        <section class="carte stack" style="gap:4px"><h2>Légumes par jour</h2><span class="small muted">g · objectif 300 g et plus</span>${barres(serie('legumes'), 'legumes', { titre: 'Légumes par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Énergie par jour</h2><span class="small muted">kcal · repère ${nb(OBJ.kcal[1])} kcal</span>${barres(serie('kcal'), 'kcal', { titre: 'Énergie par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Protéines par jour</h2><span class="small muted">g · objectif 60 g et plus</span>${barres(serie('prot'), 'prot', { titre: 'Protéines par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Fibres par jour</h2><span class="small muted">g · objectif 30 g et plus</span>${barres(serie('fibres'), 'fibres', { titre: 'Fibres par jour' })}</section>
+        <section class="carte stack" style="gap:4px"><h2>Fruits et légumes par jour</h2><span class="small muted">g · objectif 400 g et plus</span>${barres(serie('legumes'), 'legumes', { titre: 'Légumes par jour' })}</section>
         <section class="carte stack" style="gap:8px"><h2>D’où viennent vos protéines</h2><span class="small muted">grammes sur la période</span>${barresHorizontales(Object.entries(sources).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]).map(([lab, v]) => ({ lab, v })), ' g') || '<p class="small muted">Rien encore.</p>'}</section>
         <section class="carte stack" style="gap:8px"><h2>Nutri-Score des repas mangés</h2><span class="small muted">nombre de repas</span>${barresHorizontales(Object.entries(ns).map(([lab, v]) => ({ lab: 'Nutri-Score ' + lab, v, couleur: { A: '#038141', B: '#85bb2f', C: '#fecb02', D: '#ee8100', E: '#e63e11' }[lab] })), '')}</section>
         <section class="carte stack" style="gap:4px"><h2>Protéines, semaine après semaine</h2><span class="small muted">moyenne par jour, 8 dernières semaines</span>${barres(semaines.map((s) => ({ v: Math.round(s.prot), lab: s.lab, vide: !s.jours, tip: `Semaine du ${s.lab} : ${s.jours ? `${Math.round(s.prot)} g par jour (${pluriel(s.jours, 'jour')} suivis)` : 'pas de suivi'}` })), 'prot', { titre: 'Protéines par semaine' })}</section>
@@ -2330,6 +2408,29 @@
         if (a !== 'ameliorer-refuser') toast('Plat changé : menus et courses mis à jour');
         break;
       }
+      case 'carnet-jour': { const x = new Date((S.jourCarnet || ISO(new Date())) + 'T12:00:00'); x.setDate(x.getDate() + +el.dataset.n); const v = ISO(x); S.jourCarnet = v > ISO(new Date()) ? ISO(new Date()) : v; break; }
+      case 'carnet-moment': S.momentCarnet = el.dataset.k; break;
+      case 'carnet-ajouter': {
+        const d = S.jourCarnet || ISO(new Date()), al = window.Aliments.ALIMENTS.find((y) => y.id === el.dataset.id);
+        if (!al) return;
+        S.ajouts = S.ajouts || [];
+        const ex = S.ajouts.find((x) => x.d === d && x.a === al.id);
+        if (ex) ex.n++; else S.ajouts.push({ d, a: al.id, n: 1, m: al.moment });
+        toast(`${al.nom} ajouté (${al.kcal} kcal)`);
+        break;
+      }
+      case 'carnet-qte': { const x = S.ajouts[+el.dataset.i]; if (!x) return; x.n = Math.max(0, x.n + +el.dataset.n); if (!x.n) S.ajouts.splice(+el.dataset.i, 1); break; }
+      case 'carnet-suppr': S.ajouts.splice(+el.dataset.i, 1); break;
+      case 'carnet-perso': {
+        const nom = (document.getElementById('carnet-perso-nom') || {}).value || '';
+        const kcal = parseInt((document.getElementById('carnet-perso-kcal') || {}).value, 10);
+        if (nom.trim().length < 2 || !(kcal >= 0 && kcal < 5000)) { toast('Indiquez un nom et des calories'); return; }
+        S.ajouts = S.ajouts || [];
+        S.ajouts.push({ d: S.jourCarnet || ISO(new Date()), nom: nom.trim().slice(0, 50), kcal, n: 1, m: S.momentCarnet || 'collation' });
+        toast(`${nom.trim()} ajouté`);
+        break;
+      }
+      case 'carnet-objectif': S.objectifKcal = +el.dataset.k; break;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
       case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
@@ -2521,6 +2622,13 @@
 
   document.addEventListener('input', (ev) => {
     const el = ev.target;
+    if (el.dataset.a === 'carnet-cherche') {
+      const z = document.getElementById('carnet-resultats');
+      const t = el.value.trim();
+      const liste = t.length < 2 ? window.Aliments.ALIMENTS.filter((a) => a.moment === (S.momentCarnet || 'petitdej')) : window.Aliments.chercher(t, 10);
+      if (z) z.innerHTML = liste.map((a) => `<button class="chip puce-ajout" data-a="carnet-ajouter" data-id="${a.id}" title="${esc(a.portion)} · ${a.kcal} kcal">+ ${esc(a.nom)} <span class="small muted">${a.kcal} kcal</span></button>`).join('') || '<span class="small muted">Pas trouvé : utilisez « Autre aliment » ci-dessous.</span>';
+      return;
+    }
     if (el.dataset.a === 'stock-cherche') {
       const t = el.value.trim();
       const z = document.getElementById('stock-propositions');
