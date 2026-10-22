@@ -569,6 +569,68 @@
     });
     return { ...plan, jours };
   }
+  /* ---------- coach nutrition : améliorer la semaine en changeant quelques plats ---------- */
+  // écart d'un repère à son objectif (0 si atteint), et note globale d'une semaine
+  const ecartRepere = (r) => (r.etat === 'bas' ? (r.mini - r.valeur) / r.mini : r.etat === 'haut' ? (r.valeur - r.maxi) / r.maxi : 0);
+  const noteBilan = (b) => b.atteints * 10 - b.reperes.reduce((t, r) => t + Math.min(3, ecartRepere(r)) * 4, 0);
+  // ce qui aide chaque repère, pour présélectionner des plats
+  const AIDE = {
+    prot: (n) => n.parPortion.prot, fibres: (n) => n.parPortion.fibres, legumes: (n, r) => equilibre(r).grammesLegumes,
+    sel: (n) => -n.parPortion.sel, ags: (n) => -n.parPortion.ags, sucres: (n) => -n.parPortion.sucres,
+    rouge: (n, r) => (r.ing.some(([id]) => id === 'boeuf_hache') ? -1 : 1), charcuterie: (n, r) => (r.ing.some(([id]) => ['jambon', 'lardons', 'saucisse'].includes(id)) ? -1 : 1),
+    poisson: (n, r) => (r.ing.some(([id]) => ['saumon', 'colin', 'thon'].includes(id)) ? (r.ing.some(([id]) => id === 'saumon') ? 2 : 1) : 0),
+    legumineuses: (n, r) => (r.ing.some(([id]) => ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses'].includes(id)) ? 1 : 0),
+    laitages: (n, r) => (r.ing.some(([id]) => ['lait', 'yaourt', 'emmental', 'mozzarella', 'feta'].includes(id)) ? 1 : 0)
+  };
+  /**
+   * Propose jusqu'à « max » changements de plats qui améliorent le bilan nutritionnel de la semaine,
+   * sans faire baisser les autres repères, en respectant le profil (allergies, régime, goûts, notes).
+   * → [{ jour, slot, avant, apres, gains: [libellés], cout: écart de coût sur la semaine }]
+   */
+  function ameliorerSemaine(plan, p, opts = {}) {
+    const N = NUTRI();
+    if (!plan || !N) return { propositions: [], avant: null, apres: null };
+    const notes = opts.notes || {};
+    const compat = recettesCompatibles(p).filter((r) => notes[r.id] !== 1 && r.proposer !== false);
+    const avant = N.bilanSemaine(plan, REC, ING);
+    let courant = plan, bilan = avant;
+    const propositions = [], touches = new Set();
+    for (let tour = 0; tour < (opts.max || 4); tour++) {
+      const manques = bilan.reperes.filter((r) => r.etat !== 'ok').sort((a, b) => ecartRepere(b) - ecartRepere(a));
+      if (!manques.length) break;
+      const dansSemaine = new Set(courant.jours.flatMap((jp) => SLOTS.map((sl) => jp[sl] && jp[sl].recette)).filter(Boolean));
+      let meilleur = null;
+      for (const cible of manques.slice(0, 2)) {
+        const f = AIDE[cible.cle] || (() => 0);
+        const pool = compat.filter((r) => !dansSemaine.has(r.id)).map((r) => ({ r, v: f(N.de(r, ING), r) + scoreGout(r, p.gouts) * 0.3 })).sort((a, b) => b.v - a.v).slice(0, 50).map((x) => x.r);
+        courant.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
+          const m = jp[slot];
+          if (!m || m.aChoisir || touches.has(j + '-' + slot) || (opts.classiques || []).includes(m.recette)) return;
+          for (const r of pool) {
+            if (!r.repas.includes(slot) || r.temps > tempsMax(p, j) + 10) continue;
+            const essai = choisirRepas(courant, j, slot, r.id);
+            const b = N.bilanSemaine(essai, REC, ING);
+            if (b.atteints < bilan.atteints) continue;
+            const gain = noteBilan(b) - noteBilan(bilan) + scoreGout(r, p.gouts) * 0.2 + (bonusCoach(r, p) - bonusCoach(REC[m.recette], p)) * 0.6 - Math.max(0, coutPortion(r) - coutPortion(REC[m.recette])) * 0.5;
+            if (gain > 0.5 && (!meilleur || gain > meilleur.gain)) meilleur = { gain, j, slot, r, essai, b };
+          }
+        }));
+        if (meilleur) break;
+      }
+      if (!meilleur) break;
+      const m = courant.jours[meilleur.j][meilleur.slot];
+      const gains = [];
+      for (const r2 of meilleur.b.reperes) {
+        const r1 = bilan.reperes.find((x) => x.cle === r2.cle);
+        if (r1.etat !== 'ok' && r2.etat === 'ok') gains.push(`${r2.nom} : repère atteint`);
+        else if (ecartRepere(r2) < ecartRepere(r1) - 0.02) gains.push(`${r2.nom} : ${r2.valeur > r1.valeur ? '+' : ''}${Math.round((r2.valeur - r1.valeur) * 10) / 10} ${r2.unite.split(' ')[0]}`);
+      }
+      propositions.push({ jour: meilleur.j, slot: meilleur.slot, avant: m.recette, apres: meilleur.r.id, gains: gains.slice(0, 3), cout: round2((coutPortion(meilleur.r) - coutPortion(REC[m.recette])) * m.portions) });
+      touches.add(meilleur.j + '-' + meilleur.slot);
+      courant = meilleur.essai; bilan = meilleur.b;
+    }
+    return { propositions, avant, apres: bilan };
+  }
   function placerRecette(plan, jour, slot, recetteId) { return choisirRepas(plan, jour, slot, recetteId); }
 
   /** Met le plat choisi à la place du plat prévu (choix parmi les propositions : ne compte pas comme un remplacement). */
@@ -948,7 +1010,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, portions, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, portions, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

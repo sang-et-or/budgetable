@@ -1703,7 +1703,7 @@
     return `<section class="carte stack bilan-nutri" style="gap:10px" aria-label="Bilan nutritionnel de la semaine">
       <div class="spread" style="align-items:center"><h2>Bilan nutritionnel</h2><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong> repères</span></div>
       <div class="chiffres-nutri"><div><span class="small muted">Énergie</span><strong class="num">${b.kcal} kcal</strong><span class="small muted">par jour</span></div>${b.reperes.filter((r) => ['prot', 'fibres', 'legumes'].includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span class="small muted">${esc(r.nom)}</span><strong class="num">${nb(r.valeur)} ${r.cle === 'legumes' ? 'g' : 'g'}</strong><span class="small muted">par jour</span></div>`).join('')}</div>
-      ${aRevoir.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">À améliorer</span><ul class="liste-reperes">${aRevoir.map(ligne).join('')}</ul></div>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints cette semaine. Bravo !</p>'}
+      ${aRevoir.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">À améliorer</span><ul class="liste-reperes">${aRevoir.map(ligne).join('')}</ul><div><button class="btn btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button> <span class="small muted">Le coach propose de changer quelques plats.</span></div></div>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints cette semaine. Bravo !</p>'}
       <details><summary class="small"><strong>Voir tout le détail</strong></summary><ul class="liste-reperes" style="margin-top:8px">${b.reperes.map(ligne).join('')}</ul></details>
       <p class="small muted" style="margin:0">Pour un adulte, sur les déjeuners et dîners de la semaine${b.gourmand ? ' et les desserts ou goûters prévus' : ''}, hors petit-déjeuner. Estimation d’après les ingrédients et les repères de santé publique (PNNS), pas un avis médical.</p>
     </section>`;
@@ -1721,9 +1721,43 @@
       <div class="spread" style="align-items:center"><strong>Bilan nutritionnel</strong><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong></span></div>
       <div class="mini-chiffres"><div><span>Énergie</span><strong class="num">${b.kcal}</strong><span>kcal/j</span></div>${b.reperes.filter((r) => cles.includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span>${esc(r.nom)}</span><strong class="num">${nb(r.valeur)}</strong><span>g/j</span></div>`).join('')}</div>
       ${b.reperes.some((r) => r.etat !== 'ok') ? `<ul class="mini-reperes">${b.reperes.filter((r) => r.etat !== 'ok').map((r) => `<li class="rep-${r.etat}" title="${esc(r.conseil)}"><span class="fleche">${fl(r)}</span><span>${esc(r.nom)}</span><span class="num">${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur}</span></li>`).join('')}</ul>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints.</p>'}
+      ${b.atteints < b.reperes.length ? '<button class="btn btn-petit btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button>' : ''}
       <button class="btn btn-petit" data-a="bilan-ouvrir">Détails et conseils</button>
       <span class="small muted">Par adulte, déjeuners et dîners. Estimation.</span>
     </section>`;
+  }
+  /* coach nutrition : propositions de changements de plats */
+  function lancerAmeliorations() {
+    S.ameliorations = E.ameliorerSemaine(S.plan, profilSemaine(), { notes: S.notes, classiques: S.classiques, max: 4 });
+    S.ameliorations.refusees = [];
+  }
+  function vueAmeliorer() {
+    const a = S.ameliorations;
+    if (!a) return '';
+    const restantes = a.propositions.filter((x) => !x.fait && !x.refuse);
+    const faites = a.propositions.filter((x) => x.fait).length;
+    const jourTxt = (x) => `${E.JOURS[x.jour]} ${x.slot === 'diner' ? 'soir' : 'midi'}`;
+    const carte = (x, k) => {
+      if (x.fait || x.refuse) return '';
+      const av = E.REC[x.avant], ap = E.REC[x.apres];
+      return `<article class="proposition-coach">
+        <span class="eyebrow">${jourTxt(x)}</span>
+        <div class="echange"><div class="plat-echange avant">${V(av, 48)}<span class="small">${esc(av.nom)}</span></div><span class="fleche-echange" aria-hidden="true">→</span>
+          <div class="plat-echange apres">${V(ap, 48)}<button class="titre-repas small" data-a="fiche-r" data-r="${ap.id}">${esc(ap.nom)}</button>${nutriMini(ap)}</div></div>
+        <div class="row" style="gap:6px">${x.gains.map((g) => `<span class="tag tag-ok">${esc(g)}</span>`).join('')}<span class="small muted">${x.cout > 0.05 ? `+ ${euros(x.cout)}` : x.cout < -0.05 ? `− ${euros(-x.cout)} d’économie` : 'même prix'}</span></div>
+        <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="ameliorer-accepter" data-k="${k}">Changer ce plat</button><button class="btn btn-petit" data-a="ameliorer-refuser" data-k="${k}">Non merci</button></div>
+      </article>`;
+    };
+    const b = window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING);
+    return `<div class="voile" data-a="ameliorer-fond"><div class="fiche fenetre-ameliorer" role="dialog" aria-modal="true" aria-labelledby="am-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Coach nutrition</span><h2 id="am-titre">Améliorer ma semaine</h2></div>
+        <button class="btn btn-petit" data-a="ameliorer-fermer">Fermer</button></div>
+      <div class="avant-apres"><div><span class="small muted">Aujourd’hui</span><strong class="num">${b.atteints}/${b.reperes.length}</strong></div>${restantes.length ? `<span aria-hidden="true">→</span><div><span class="small muted">Avec tous les changements</span><strong class="num">${a.apres.atteints}/${a.apres.reperes.length}</strong></div>` : ''}<span class="small muted">repères atteints</span></div>
+      ${a.propositions.length ? (restantes.length ? `<p class="small" style="margin:0">Je vous propose de changer ${pluriel(restantes.length, 'plat')}. Vos allergies, votre régime et vos goûts sont respectés.</p>${a.propositions.map(carte).join('')}
+        <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="ameliorer-tout">Tout accepter</button><button class="btn" data-a="ameliorer-encore">D’autres idées</button></div>`
+        : `<p style="margin:0">${faites ? `✓ ${pluriel(faites, 'plat changé', 'plats changés')}. Votre liste de courses est à jour.` : 'C’est noté, rien n’a été changé.'}</p><div><button class="btn" data-a="ameliorer-encore">Chercher encore</button></div>`)
+        : `<p style="margin:0">${b.atteints === b.reperes.length ? '✓ Votre semaine est déjà équilibrée : tous les repères sont atteints.' : 'Je n’ai pas trouvé de changement simple qui améliore la semaine sans en dégrader une autre partie. Essayez « Nouvelle semaine » ou un coach.'}</p>`}
+    </div></div>`;
   }
   function vueBilan() {
     if (!S.bilanOuvert) return '';
@@ -1873,7 +1907,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer();
     if (document.getElementById('scene-cuisine')) monter3D();
     const apres = document.querySelector('.fiche');
     if (apres && memeFiche) apres.scrollTop = haut;
@@ -1925,7 +1959,7 @@
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -2123,6 +2157,23 @@
       }
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': return;
+      case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
+      case 'ameliorer-encore': {
+        const refus = (S.ameliorations ? S.ameliorations.propositions.filter((x) => x.refuse).map((x) => x.apres) : []);
+        const notes = { ...S.notes }; refus.forEach((id) => { notes[id] = 1; });
+        S.ameliorations = E.ameliorerSemaine(S.plan, profilSemaine(), { notes, classiques: S.classiques, max: 4 });
+        break;
+      }
+      case 'ameliorer-fermer': case 'ameliorer-fond': S.ameliorations = null; break;
+      case 'ameliorer-accepter': case 'ameliorer-refuser': case 'ameliorer-tout': {
+        const liste = S.ameliorations.propositions;
+        const appliquer = (x) => { if (x.fait || x.refuse) return; if (S.plan.jours[x.jour][x.slot] && S.plan.jours[x.jour][x.slot].recette === x.avant) { S.plan = E.placerRecette(S.plan, x.jour, x.slot, x.apres); x.fait = true; } };
+        if (a === 'ameliorer-tout') liste.forEach(appliquer);
+        else if (a === 'ameliorer-accepter') appliquer(liste[+el.dataset.k]);
+        else liste[+el.dataset.k].refuse = true;
+        if (a !== 'ameliorer-refuser') toast('Plat changé : menus et courses mis à jour');
+        break;
+      }
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
       case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
       case 'presence-editer': S.presenceEdit = el.dataset.k; break;

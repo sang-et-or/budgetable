@@ -147,7 +147,7 @@
       ['laitages', 'Laitages dans les repas', n.laitages, 'repas / semaine', 5, null, 'environ 1 repas sur 2 (2 laitages par jour au total)', 'Un yaourt ou un morceau de fromage en fin de repas.', '']
     ].map(([cle, nom, valeur, unite, mini, maxi, repere, conseilBas, conseilHaut]) => {
       const etat = mini != null && valeur < mini ? 'bas' : maxi != null && valeur > maxi ? 'haut' : 'ok';
-      return { cle, nom, valeur, unite, repere, etat, conseil: etat === 'bas' ? conseilBas : etat === 'haut' ? conseilHaut : '' };
+      return { cle, nom, valeur, unite, repere, etat, mini, maxi, conseil: etat === 'bas' ? conseilBas : etat === 'haut' ? conseilHaut : '' };
     });
     return { kcal: Math.round(parJour(t.kcal) / 10) * 10, jours, repas: n.repas, gourmand: n.gourmand, poissonGras: n.gras, volaille: Math.round(g.volaille), reperes, atteints: reperes.filter((r) => r.etat === 'ok').length };
   }

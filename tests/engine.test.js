@@ -372,3 +372,12 @@ test('nutrition : Nutri-Score et calories estimés', () => {
   assert.ok(n.kcal >= 440 && n.kcal <= 480, n.kcal);   // 355 + 30 + 76 kcal
   assert.ok('ABCDE'.includes(n.lettre));
 });
+
+test('coach nutrition : les changements proposés améliorent la semaine sans rien dégrader', () => {
+  const p = profil();
+  const plan = E.genererSemaine({ ...p, coach: 'sportif' }, { seed: 4 });
+  const r = E.ameliorerSemaine(plan, p, {});
+  assert.ok(r.propositions.length >= 1);
+  assert.ok(r.apres.atteints > r.avant.atteints, `${r.avant.atteints} → ${r.apres.atteints}`);
+  for (const x of r.propositions) assert.ok(E.recetteCompatible(E.REC[x.apres], p).ok);
+});
