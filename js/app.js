@@ -88,6 +88,7 @@
   let toastTimer = null;
 
   /* ---------- stockage local (consentement pour les données sensibles) ---------- */
+  let dernierEnregistre = null;
   function sauver() {
     const p = JSON.parse(JSON.stringify(S.profil));
     let marque = false;
@@ -97,7 +98,13 @@
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
     const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [] };
-    try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
+    const texte = JSON.stringify(a);
+    // compte : on n'envoie que quand quelque chose a vraiment changé
+    if (texte !== dernierEnregistre) {
+      if (dernierEnregistre !== null) { try { localStorage.setItem('budgetable.maj', String(Date.now())); } catch (e) { /* */ } if (typeof planifierSync === 'function') planifierSync(); }
+      dernierEnregistre = texte;
+    }
+    try { localStorage.setItem(CLE, texte); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
     }
@@ -400,26 +407,185 @@
   </svg>`;
 
   const PIED = '<nav class="pied small" aria-label="Informations légales"><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
+  /* ---------- comptes : fenêtre de connexion / inscription et synchronisation ---------- */
+  const C = window.Compte || { actif: () => false, connecte: () => false, utilisateur: () => null };
+  let compte = { vue: null, msg: '', erreur: '', charge: false, sync: null, voir: false };
+  let minuterieSync = null;
+  function planifierSync() {
+    if (!C.connecte()) return;
+    clearTimeout(minuterieSync);
+    minuterieSync = setTimeout(envoyerSync, 2500);
+  }
+  async function envoyerSync() {
+    clearTimeout(minuterieSync); minuterieSync = null;
+    if (!C.connecte()) return;
+    try {
+      const d = JSON.parse(localStorage.getItem(CLE) || 'null');
+      if (!d) return;
+      await C.ecrireDonnees(d);
+      compte.sync = { t: Date.now(), ok: true };
+      try { localStorage.setItem('budgetable.sync', String(Date.now())); } catch (e) { /* */ }
+    } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
+    if (S.onglet === 'profil' && S.vue === 'app') rendre();
+  }
+  // à la connexion : on reprend les données du compte si elles sont plus récentes, sinon on y enregistre celles de l'appareil
+  async function synchroniserConnexion() {
+    try {
+      await C.moi();
+      const distant = await C.lireDonnees();
+      const local = JSON.parse(localStorage.getItem(CLE) || 'null');
+      const majLocale = +(localStorage.getItem('budgetable.maj') || 0);
+      if (distant && distant.donnees && distant.donnees.v === 1 && (!local || !local.plan || distant.maj > majLocale)) {
+        localStorage.setItem(CLE, JSON.stringify(distant.donnees));
+        charger();
+        if (S.vue === 'accueil' && S.plan) S.vue = 'app';
+        toast('Bon retour ! Vos menus et vos réglages sont là');
+      } else if (local) { await envoyerSync(); toast('Vos données sont enregistrées dans votre compte'); }
+      compte.sync = { t: Date.now(), ok: true };
+    } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
+    rendre();
+  }
+  function champMdp(id, auto, label) {
+    return `<label class="champ"><span>${label}</span><span class="mdp"><input type="${compte.voir ? 'text' : 'password'}" id="${id}" name="${id}" autocomplete="${auto}" minlength="8" required><button type="button" class="btn-lien small" data-a="compte-voir" aria-label="${compte.voir ? 'Masquer' : 'Afficher'} le mot de passe">${compte.voir ? 'Masquer' : 'Afficher'}</button></span></label>`;
+  }
+  function vueCompte() {
+    if (!compte.vue) return '';
+    const v = compte.vue;
+    const titre = { inscription: 'Créer mon compte', connexion: 'Se connecter', oubli: 'Mot de passe oublié', 'nouveau-mdp': 'Nouveau mot de passe', envoye: 'Regardez vos e-mails', inactif: 'Comptes bientôt disponibles' }[v];
+    const msg = compte.erreur ? `<p class="bandeau bandeau-alerte small" role="alert">${esc(compte.erreur)}</p>` : compte.msg ? `<p class="bandeau bandeau-ok small" role="status">${esc(compte.msg)}</p>` : '';
+    const bouton = (t) => `<button class="btn btn-plein btn-grand" type="submit" ${compte.charge ? 'disabled' : ''}>${compte.charge ? 'Un instant…' : t}</button>`;
+    let corps = '';
+    if (v === 'inactif') corps = `<p>La création de comptes sera ouverte très bientôt. En attendant, Budgétable fonctionne entièrement sans compte : vos menus et réglages restent sur cet appareil.</p><div><button class="btn btn-plein" data-a="compte-sans">Continuer sans compte</button></div>`;
+    else if (v === 'envoye') corps = `<p>${esc(compte.msg || 'Un e-mail vient de partir.')}</p><p class="small muted">Pensez à regarder dans les indésirables. Le lien ramène sur Budgétable et vous connecte.</p><div><button class="btn" data-a="compte-vue" data-k="connexion">Retour à la connexion</button></div>`;
+    else if (v === 'inscription') corps = `<form class="stack form-compte" data-form="inscription" style="gap:12px" novalidate>
+        <p class="small muted" style="margin:0">Gratuit. Retrouvez vos menus, listes et recettes sur tous vos appareils.</p>${msg}
+        <label class="champ"><span>Prénom <span class="muted">(facultatif)</span></span><input type="text" id="c-prenom" name="prenom" autocomplete="given-name" maxlength="40"></label>
+        <label class="champ"><span>E-mail</span><input type="email" id="c-email" name="email" autocomplete="email" required></label>
+        ${champMdp('c-mdp', 'new-password', 'Mot de passe <span class="muted">(8 caractères au moins)</span>')}
+        <label class="case small"><input type="checkbox" id="c-accord" required><span>J’accepte les <a href="conditions.html" target="_blank" rel="noopener">conditions d’utilisation</a> et que mes données Budgétable soient enregistrées dans mon compte (hébergé en Europe, voir la <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>).</span></label>
+        ${bouton('Créer mon compte')}
+        <p class="small" style="margin:0">Déjà un compte ? <button type="button" class="btn-lien" data-a="compte-vue" data-k="connexion">Se connecter</button></p></form>`;
+    else if (v === 'connexion') corps = `<form class="stack form-compte" data-form="connexion" style="gap:12px" novalidate>${msg}
+        <label class="champ"><span>E-mail</span><input type="email" id="c-email" name="email" autocomplete="email" required></label>
+        ${champMdp('c-mdp', 'current-password', 'Mot de passe')}
+        ${bouton('Se connecter')}
+        <div class="row" style="gap:14px"><button type="button" class="btn-lien small" data-a="compte-vue" data-k="oubli">Mot de passe oublié ?</button><button type="button" class="btn-lien small" data-a="compte-lien">Recevoir un lien de connexion par e-mail</button></div>
+        <p class="small" style="margin:0">Pas encore de compte ? <button type="button" class="btn-lien" data-a="compte-vue" data-k="inscription">Créer un compte</button></p></form>`;
+    else if (v === 'oubli') corps = `<form class="stack form-compte" data-form="oubli" style="gap:12px" novalidate>${msg}
+        <p class="small muted" style="margin:0">Indiquez votre adresse : vous recevrez un lien pour choisir un nouveau mot de passe.</p>
+        <label class="champ"><span>E-mail</span><input type="email" id="c-email" name="email" autocomplete="email" required></label>
+        ${bouton('Envoyer le lien')}
+        <p class="small" style="margin:0"><button type="button" class="btn-lien" data-a="compte-vue" data-k="connexion">Retour</button></p></form>`;
+    else if (v === 'nouveau-mdp') corps = `<form class="stack form-compte" data-form="nouveau-mdp" style="gap:12px" novalidate>${msg}
+        ${champMdp('c-mdp', 'new-password', 'Nouveau mot de passe <span class="muted">(8 caractères au moins)</span>')}
+        ${bouton('Enregistrer')}</form>`;
+    return `<div class="voile" data-a="compte-fond"><div class="fiche fenetre-compte" role="dialog" aria-modal="true" aria-labelledby="compte-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="row" style="gap:10px;align-items:center"><span class="logo-compte">${LOGO}</span><h2 id="compte-titre">${titre}</h2></div><button class="btn btn-petit" data-a="compte-fermer">Fermer</button></div>
+      ${corps}</div></div>`;
+  }
+  // rafraîchit la fenêtre sans perdre ce qui est déjà tapé
+  function rendreCompte() {
+    const vals = [...document.querySelectorAll('.form-compte input')].map((x) => [x.id, x.type === 'checkbox' ? x.checked : x.value]);
+    rendre();
+    vals.forEach(([id, v]) => { const x = document.getElementById(id); if (x) { if (x.type === 'checkbox') x.checked = v; else x.value = v; } });
+  }
+  function ouvrirCompte(vue) { compte = { ...compte, vue: C.actif() ? vue : 'inactif', msg: '', erreur: '', charge: false }; }
+  async function soumettreCompte(form) {
+    const v = form.dataset.form;
+    const val = (n) => (form.querySelector(`[name="${n}"]`) || {}).value || '';
+    const email = val('email').trim(), mdp = val('c-mdp');
+    if (v !== 'nouveau-mdp' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { compte.erreur = 'Adresse e-mail invalide.'; return rendreCompte(); }
+    if ((v === 'inscription' || v === 'nouveau-mdp' || v === 'connexion') && mdp.length < (v === 'connexion' ? 1 : 8)) { compte.erreur = v === 'connexion' ? 'Indiquez votre mot de passe.' : 'Mot de passe trop court : 8 caractères au moins.'; return rendreCompte(); }
+    if (v === 'inscription' && !form.querySelector('#c-accord').checked) { compte.erreur = 'Cochez la case pour accepter les conditions.'; return rendreCompte(); }
+    compte.charge = true; compte.erreur = ''; rendreCompte();
+    try {
+      if (v === 'inscription') {
+        const r = await C.inscrire(email, mdp, val('prenom').trim());
+        if (r.connecte) { compte.vue = null; toast('Compte créé, bienvenue !'); await synchroniserConnexion(); }
+        else compte = { ...compte, vue: 'envoye', msg: `Un e-mail de confirmation est parti à ${email}. Cliquez sur le lien qu’il contient pour activer votre compte.` };
+      } else if (v === 'connexion') { await C.connecter(email, mdp); compte.vue = null; toast('Connecté'); await synchroniserConnexion(); }
+      else if (v === 'oubli') { await C.motDePasseOublie(email); compte = { ...compte, vue: 'envoye', msg: `Si un compte existe pour ${email}, un lien pour changer le mot de passe vient d’y être envoyé.` }; }
+      else if (v === 'nouveau-mdp') { await C.changerMotDePasse(mdp); compte.vue = null; toast('Mot de passe changé'); }
+    } catch (e) { compte.erreur = e.message; }
+    compte.charge = false; rendreCompte();
+  }
+  async function lienConnexion() {
+    const champ = document.getElementById('c-email');
+    const email = champ ? champ.value.trim() : '';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { compte.erreur = 'Indiquez d’abord votre adresse e-mail.'; return rendreCompte(); }
+    compte.charge = true; rendreCompte();
+    try { await C.lienMagique(email); compte = { ...compte, vue: 'envoye', msg: `Un lien de connexion vient de partir à ${email}.` }; } catch (e) { compte.erreur = e.message; }
+    compte.charge = false; rendreCompte();
+  }
+  function blocCompte() {
+    const u = C.utilisateur();
+    if (!C.connecte()) return `<section class="stack bloc-compte"><h2>Mon compte</h2>
+      <p>${C.actif() ? 'Créez un compte gratuit pour retrouver vos menus, votre liste et vos recettes sur votre téléphone et votre ordinateur. Sans compte, tout reste sur cet appareil.' : 'Vos réglages sont gardés sur cet appareil. Les comptes (retrouver ses menus sur tous ses appareils) ouvrent très bientôt.'}</p>
+      <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">Se connecter</button></div></section>`;
+    const s = compte.sync;
+    return `<section class="stack bloc-compte"><h2>Mon compte</h2>
+      <div class="carte-compte"><span class="avatar" aria-hidden="true">${esc(((u && (u.prenom || u.email)) || '?').charAt(0).toUpperCase())}</span><div class="stack" style="gap:2px;min-width:0"><strong>${esc((u && u.prenom) || 'Connecté')}</strong><span class="small muted" style="overflow-wrap:anywhere">${esc((u && u.email) || '')}</span>
+        <span class="small ${s && !s.ok ? 'alerte-ing' : 'pourquoi'}">${s ? (s.ok ? `Synchronisé à ${new Date(s.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Synchronisation impossible pour le moment : vos changements restent sur cet appareil') : 'Synchronisation automatique'}</span></div></div>
+      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="compte-sync">↻ Synchroniser</button><button class="btn btn-petit" data-a="compte-vue-mdp">Changer le mot de passe</button><button class="btn btn-petit" data-a="compte-deconnecter">Se déconnecter</button></div>
+      ${S.confirmerSupprCompte ? `<div class="bandeau bandeau-alerte small"><div class="stack" style="gap:8px"><strong>Supprimer définitivement votre compte ?</strong><span>Le compte et les données enregistrées en ligne seront effacés. Ce qui est sur cet appareil reste là.</span><div class="row" style="gap:8px"><button class="btn btn-petit btn-danger" data-a="compte-supprimer-ok">Oui, supprimer</button><button class="btn btn-petit" data-a="compte-supprimer-non">Annuler</button></div></div></div>` : '<div><button class="btn-lien small" data-a="compte-supprimer">Supprimer mon compte</button></div>'}</section>`;
+  }
+
   function vueAccueil() {
-    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="stack" style="max-width:980px;margin:0 auto;gap:28px">
-      <div class="marque">${LOGO}Budgétable</div>
-      <div class="accueil-hero">
-        <div class="stack">
+    const nbRec = E.RECETTES.length.toLocaleString('fr-FR');
+    const nbIng = E.DATA.ingredients.filter((i) => !i.perso).length;
+    const connecte = C.connecte();
+    const FONCTIONS = [
+      ['semaine', '#2f7a4f', 'Vos menus de la semaine', '7 déjeuners et 7 dîners selon vos goûts, votre budget, vos allergies et qui mange à la maison.'],
+      ['courses', '#2f6fa3', 'La liste de courses toute faite', 'Rangée par rayon, avec les quantités exactes. À cocher en magasin, à envoyer ou à faire sur votre drive.'],
+      ['placard', '#a8743f', 'Zéro gaspillage', 'Budgétable sait ce qu’il reste au placard et finit les paquets entamés avant d’en racheter.'],
+      ['promos', '#d0502e', 'Les promos du moment', 'Les promotions de la semaine comparées à votre liste, pour payer moins cher.'],
+      ['soir', '#c08a12', 'Gamelles et restes', 'On cuisine un peu plus le soir pour la gamelle du lendemain, avec les bonnes quantités.'],
+      ['apports', '#2b8a7e', 'Bien manger, simplement', 'Calories, Nutri-Score, bilan de la semaine et coachs : minceur, sportif, famille, femmes de 40 ans et plus.']
+    ];
+    return `<div class="wrap accueil"><div class="store" aria-hidden="true"></div>
+      <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
+        <div class="row" style="gap:8px">${connecte ? `<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>` : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>`}</div></header>
+      <section class="accueil-hero">
+        <div class="stack" style="gap:16px">
           <p class="eyebrow">Bien manger, petit budget</p>
           <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
-          <p class="muted">Deux minutes de questions, et Budgétable prépare vos 7 déjeuners et 7 dîners, les recettes et une liste de courses qui évite le gaspillage.</p>
-          <div class="row"><button class="btn btn-plein" data-a="commencer">Préparer ma semaine</button></div>
+          <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
+          <div class="row" style="gap:10px"><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
+          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · aucune application à installer</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
-      </div>
-      <div class="promesses">
-        <div class="promesse"><span class="pastille verte">1</span><div><strong>${E.RECETTES.length.toLocaleString('fr-FR')} recettes pour toute la tablée</strong><p class="small muted">Un test de goût pour vous proposer d’abord ce que vous aimez.</p></div></div>
-        <div class="promesse"><span class="pastille or">€</span><div><strong>Le prix de chaque assiette</strong><p class="small muted">Votre budget suivi semaine après semaine.</p></div></div>
-        <div class="promesse"><span class="pastille rouge">0</span><div><strong>Zéro gaspillage</strong><p class="small muted">Les mêmes ingrédients reviennent pour finir les paquets.</p></div></div>
-      </div>
-      <div class="bandeau bandeau-demo small"><span class="tag tag-demo">Version de test</span><span>Les menus et listes fonctionnent réellement. Les prix sont des estimations de démonstration : aucun prix de magasin n’est encore branché.</span></div>
+      </section>
+      <section class="chiffres" aria-label="Budgétable en chiffres">
+        <div><strong class="num">${nbRec}</strong><span>recettes adaptées à votre foyer</span></div>
+        <div><strong class="num">${nbIng}</strong><span>produits suivis, avec leur prix</span></div>
+        <div><strong class="num">≈ 2 €</strong><span>l’assiette en moyenne, fait maison</span></div>
+      </section>
+      <section class="stack" style="gap:16px"><div class="titre-section"><p class="eyebrow">Tout au même endroit</p><h2>De l’idée du menu au panier</h2></div>
+        <div class="fonctions">${FONCTIONS.map(([ic, c, t, d]) => `<article class="fonction" style="--c:${c}"><span class="fonction-ic">${ICONES[ic]}</span><h3>${t}</h3><p class="small muted">${d}</p></article>`).join('')}</div>
+      </section>
+      <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Trois étapes, et c’est prêt</h2></div>
+        <ol class="etapes">
+          <li><span class="num-etape">1</span><div><strong>Vous répondez à quelques questions</strong><p class="small muted">Qui mange à la maison, votre budget, vos goûts, vos allergies, le temps que vous avez.</p></div></li>
+          <li><span class="num-etape">2</span><div><strong>Budgétable prépare la semaine</strong><p class="small muted">Menus variés, recettes pas à pas, quantités pour votre foyer. Changez un plat en un geste.</p></div></li>
+          <li><span class="num-etape">3</span><div><strong>Vous faites les courses</strong><p class="small muted">Liste par rayon, promos du moment, drive guidé, placard mis à jour. Et bon appétit !</p></div></li>
+        </ol>
+      </section>
+      <section class="carte stack compte-accueil" style="gap:12px"><h2>${connecte ? 'Vous êtes connecté' : 'Un compte pour vous suivre partout'}</h2>
+        <p class="muted" style="margin:0">${connecte ? 'Vos menus, votre liste et vos recettes sont enregistrés dans votre compte et vous suivent sur tous vos appareils.' : 'Avec un compte gratuit, vos menus, votre liste et vos recettes vous suivent sur votre téléphone et votre ordinateur. Sans compte, tout fonctionne aussi : vos données restent sur cet appareil.'}</p>
+        <div class="row" style="gap:8px">${connecte ? '<button class="btn btn-plein" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">J’ai déjà un compte</button>'}</div>
+      </section>
+      <section class="stack" style="gap:10px"><div class="titre-section"><p class="eyebrow">Questions fréquentes</p><h2>Bon à savoir</h2></div>
+        <div class="faq">
+          <details><summary>Est-ce vraiment gratuit ?</summary><p>Oui : menus, recettes, liste de courses, placard et suivi sont gratuits. Une formule Premium pourra s’ajouter plus tard pour des options en plus.</p></details>
+          <details><summary>Faut-il créer un compte ?</summary><p>Non. Le compte sert seulement à retrouver vos données sur plusieurs appareils. Sans compte, tout reste sur votre appareil.</p></details>
+          <details><summary>Les prix sont-ils ceux de mon magasin ?</summary><p>Ce sont des prix moyens estimés, pour comparer et tenir un budget. Les promotions du moment viennent des enseignes et sont à vérifier en magasin.</p></details>
+          <details><summary>Et mes allergies ?</summary><p>Budgétable ne propose jamais un plat qui contient un aliment que vous avez signalé. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
+        </div>
+      </section>
+      <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button></section>
+      <div class="bandeau bandeau-demo small"><span class="tag tag-demo">Version de test</span><span>Les menus et listes fonctionnent réellement. Les prix sont des estimations de démonstration.</span></div>
       ${PIED}
-    </div></div>`;
+    </div>`;
   }
 
   /* ---------- application ---------- */
@@ -432,7 +598,7 @@
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
-      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
+      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
   }
 
@@ -1963,8 +2129,7 @@
             <ul><li>Plusieurs semaines à l’avance</li><li>Ajustement automatique au budget</li><li>Comparaison des drives, dès que les vrais prix seront disponibles</li></ul>
             <label class="case"><input type="checkbox" id="premium-test" data-a="premium" ${S.premium ? 'checked' : ''}><span>Activer Premium en mode test (aucun paiement : Stripe sera branché plus tard)</span></label></div>
         </div></section>
-      <section class="stack"><div class="spread"><h2>Compte</h2><span class="tag tag-simu">Simulé</span></div>
-        <p>${S.compteLocal ? 'Compte local actif : vos préférences sont gardées <strong>sur cet appareil</strong>.' : 'Vos préférences sont gardées sur cet appareil uniquement.'} Les vrais comptes (connexion par e-mail, plusieurs appareils) arrivent à l’étape 3.</p></section>
+      ${blocCompte()}
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
         <div class="champ"><span>Export de vos données (format JSON)</span><textarea id="export" readonly aria-label="Export JSON de vos données">${esc(exportJson)}</textarea></div>
@@ -2707,7 +2872,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -2993,6 +3158,20 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'compte-ouvrir': ouvrirCompte(el.dataset.k || 'connexion'); break;
+      case 'compte-vue': compte = { ...compte, vue: el.dataset.k, msg: '', erreur: '' }; break;
+      case 'compte-voir': compte.voir = !compte.voir; rendreCompte(); return;
+      case 'compte-fermer': compte.vue = null; break;
+      case 'compte-fond': if (ev.target === el) compte.vue = null; else return; break;
+      case 'compte-sans': compte.vue = null; if (S.vue === 'accueil') { S.vue = 'questionnaire'; S.etape = 0; } break;
+      case 'compte-lien': lienConnexion(); return;
+      case 'compte-reprendre': S.vue = S.plan ? 'app' : 'questionnaire'; if (!S.plan) S.etape = 0; break;
+      case 'compte-sync': compte.sync = null; rendre(); synchroniserConnexion(); return;
+      case 'compte-vue-mdp': compte = { ...compte, vue: 'nouveau-mdp', msg: '', erreur: '' }; break;
+      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); toast('Déconnecté : vos données restent sur cet appareil'); break;
+      case 'compte-supprimer': S.confirmerSupprCompte = true; break;
+      case 'compte-supprimer-non': S.confirmerSupprCompte = false; break;
+      case 'compte-supprimer-ok': try { await C.supprimerCompte(); S.confirmerSupprCompte = false; toast('Compte supprimé'); } catch (e) { toast(e.message); } break;
       case 'envoi-ouvrir': S.envoiOuvert = true; S.envoiQuoi = el.dataset.k || 'liste'; break;
       case 'envoi-fermer': S.envoiOuvert = false; break;
       case 'envoi-fond': if (ev.target === el) S.envoiOuvert = false; else return; break;
@@ -3319,7 +3498,9 @@
   });
 
   window.addEventListener('resize', () => ajusterAffiche());
-  window.addEventListener('hashchange', () => rendre());
+  window.addEventListener('hashchange', () => { traiterRetourCompte(); rendre(); });
+  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); soumettreCompte(f); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
   document.addEventListener('input', (ev) => {
     if (ev.target.id === 'promo-cherche') { S.cherchePromo = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('promo-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
     if (ev.target.id === 'affiche-titre') { S.afficheOpts = { ...optsAffiche(), titre: ev.target.value.slice(0, 48) }; const t = document.querySelector('.aff-titre'); if (t) t.textContent = S.afficheOpts.titre || 'Au menu cette semaine'; sauver(); return; }
@@ -3471,6 +3652,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && compte.vue) { compte.vue = null; rendre(); return; }
     if (ev.key === 'Escape' && S.envoiOuvert) { S.envoiOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.gamellesOuvert) { S.gamellesOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.afficheOuverte) { S.afficheOuverte = false; rendre(); return; }
@@ -3613,6 +3795,18 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   /* ---------- démarrage ---------- */
   charger();
+  // retour depuis un lien reçu par e-mail (confirmation, connexion, nouveau mot de passe)
+  function traiterRetourCompte() {
+    const r = C.lireRetour ? C.lireRetour() : null;
+    if (r && r.erreur) compte = { ...compte, vue: 'connexion', erreur: r.erreur };
+    else if (r) {
+      if (r.type === 'recovery') compte = { ...compte, vue: 'nouveau-mdp', msg: 'Choisissez votre nouveau mot de passe.' };
+      else setTimeout(() => toast(r.type === 'signup' ? 'Adresse confirmée : bienvenue sur Budgétable !' : 'Connecté'), 600);
+      synchroniserConnexion();
+    }
+    return !!r;
+  }
+  if (!traiterRetourCompte() && C.connecte()) synchroniserConnexion();
   // une semaine déjà enregistrée peut contenir deux fois le même plat : on remplace le second
   if (S.plan && E.dedoublonner) {
     try {
