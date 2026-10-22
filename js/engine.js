@@ -101,7 +101,8 @@
         id: r.id, nom: String(r.nom).slice(0, 90), repas: r.repas && r.repas.length ? r.repas : ['dejeuner', 'diner'],
         temps: r.temps > 0 ? r.temps : 30, niveau: 1, equip: [], cuisine: 'francaise', tags: r.enfants ? ['enfants'] : [],
         ing, etapes: r.lien ? ['Suivez la recette sur le site d’origine (lien ci-dessus).'] : ['Votre recette : préparez-la comme d’habitude.'],
-        modele: 'perso', perso: true, lien: r.lien || null, extras, proposer: r.proposer !== false
+        modele: 'perso', perso: true, lien: r.lien || null, extras, proposer: r.proposer !== false,
+        photo: typeof r.photo === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(r.photo) && r.photo.length < 300000 ? r.photo : null, photoSource: r.photo ? String(r.photoSource || '').slice(0, 60) : ''
       };
       rec.prot = (rec.ing.find(([id]) => ING[id].groupe === 'P') || [])[0];
       rec.sig = rec.id;

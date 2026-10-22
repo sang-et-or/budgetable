@@ -406,6 +406,15 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .qte-saisie input { width: 72px; text-align: right; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 8px; font: inherit; background: var(--surface); }
 .qte-saisie .muted { min-width: 3.2em; }
 .personnes-recette strong { min-width: 1.5em; text-align: center; font-size: 1.1rem; }
+
+/* ---------- photo d'une recette perso ---------- */
+.bloc-photo { display: flex; gap: 14px; align-items: center; }
+.apercu-photo { width: 96px; height: 96px; border-radius: 14px; overflow: hidden; flex-shrink: 0; background: var(--surface); border: 1px dashed var(--trait); display: grid; place-items: center; }
+.apercu-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-vide { font-size: 28px; opacity: .6; }
+.choisir-photo { position: relative; align-self: flex-start; cursor: pointer; }
+.choisir-photo:focus-within { outline: 3px solid var(--moutarde); outline-offset: 2px; }
+.visuellement-cache { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 </style>
 
 <div id="app"></div>

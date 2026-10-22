@@ -42,12 +42,14 @@
   // photo d'illustration posée sur le dessin : si la photo ne charge pas, le dessin reste visible
   function V(rec, taille, forme) {
     const svg = window.Visuels.illustration(rec, E, taille);
-    const ph = window.Photos && window.Photos.photoPour(rec);
+    const ph = rec.photo ? { src: rec.photo } : rec.perso ? null : window.Photos && window.Photos.photoPour(rec);
     if (!ph) return svg;
     const dim = forme === 'rect' ? 'width:100%;height:' + taille + 'px' : `width:${taille}px;height:${taille}px`;
     return `<span class="photo ${forme || 'rond'}" style="${dim}">${svg}<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`;
   }
   function creditPhoto(rec) {
+    if (rec.photo) return rec.photoSource === 'perso' ? 'Votre photo' : `Photo : ${esc(rec.photoSource || 'site de la recette')}${rec.lien ? ` (<a href="${esc(rec.lien)}" target="_blank" rel="noopener noreferrer">voir la recette</a>)` : ''}`;
+    if (rec.perso) return 'Illustration dessinée à partir des ingrédients';
     const ph = window.Photos && window.Photos.photoPour(rec);
     if (!ph) return 'Illustration dessinée à partir des ingrédients';
     return `Photo d’illustration : <a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(ph.auteur)}</a>, ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}, via Wikimedia Commons. Le plat préparé peut différer.`;
@@ -69,7 +71,10 @@
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
     const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu };
-    try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) { /* stockage indisponible : l'appli marche quand même */ }
+    try { localStorage.setItem(CLE, JSON.stringify(a)); } catch (e) {
+      // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
+      if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
+    }
   }
   function charger() {
     try {
@@ -588,9 +593,9 @@
   function ouvrirEdition(depart = {}) {
     const ex = depart.id ? S.bibliotheque.find((r) => r.id === depart.id) : null;
     edition = ex ? {
-      id: ex.id, nom: ex.nom, lien: ex.lien || '', personnes: ex.personnes || personnesFoyer(), repas: ex.repas && ex.repas.length === 1 ? ex.repas[0] : 'tous', temps: ex.temps || '', etape: 'ingredients', proposer: ex.proposer !== false,
+      id: ex.id, nom: ex.nom, lien: ex.lien || '', photo: ex.photo || null, photoSource: ex.photoSource || '', personnes: ex.personnes || personnesFoyer(), repas: ex.repas && ex.repas.length === 1 ? ex.repas[0] : 'tous', temps: ex.temps || '', etape: 'ingredients', proposer: ex.proposer !== false,
       ing: ex.ing.map(([id, q]) => ({ id, q, coche: true })), extras: (ex.extras || []).map((x) => ({ ...(typeof x === 'string' ? { nom: x, tags: [] } : x), coche: true })), retires: [], source: '', placer: null
-    } : { nom: depart.nom || '', lien: '', personnes: personnesFoyer(), repas: depart.slot || 'tous', temps: '', etape: 'nom', proposer: true, ing: [], extras: [], retires: [], source: '', placer: depart.placer || null };
+    } : { nom: depart.nom || '', lien: '', photo: null, photoSource: '', personnes: personnesFoyer(), repas: depart.slot || 'tous', temps: '', etape: 'nom', proposer: true, ing: [], extras: [], retires: [], source: '', placer: depart.placer || null };
     if (!ex && edition.nom.trim().length >= 2) devinerEdition();
   }
   const personnesFoyer = () => Math.max(1, Math.min(12, (S.profil.foyer.adultes || 1) + (S.profil.foyer.enfants || []).length));
@@ -641,6 +646,44 @@
     }
     rendre();
   }
+  // photo réduite à 480 px (JPEG ~30 Ko) : elle tient dans le navigateur, même hors ligne
+  async function reduirePhoto(blob) {
+    const img = await createImageBitmap(blob);
+    const k = Math.min(1, 480 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.72);
+  }
+  async function photoDuSite(url, site) {
+    const ed = edition;
+    if (!ed || !url || ed.photoSource === 'perso') return;
+    ed.photoAttente = true; rendre();
+    try {
+      const rep = await fetch(`${LECTEUR}/image?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout ? AbortSignal.timeout(40000) : undefined });
+      if (!rep.ok) throw new Error();
+      const d = await reduirePhoto(await rep.blob());
+      if (edition === ed && ed.photoSource !== 'perso') { ed.photo = d; ed.photoSource = site || ''; }
+    } catch (e) { /* pas de photo : le dessin reste */ }
+    if (edition === ed) { ed.photoAttente = false; rendre(); }
+  }
+  async function photoPerso(fichier) {
+    const ed = edition;
+    if (!ed || !fichier) return;
+    if (!/^image\//.test(fichier.type)) { toast('Choisissez une photo (JPEG, PNG…)'); return; }
+    try {
+      const d = await reduirePhoto(fichier);
+      if (edition === ed) { ed.photo = d; ed.photoSource = 'perso'; rendre(); toast('Photo ajoutée'); }
+    } catch (e) { toast('Cette photo ne peut pas être lue'); }
+  }
+  function blocPhoto(e) {
+    const apercu = e.photo ? `<img src="${esc(e.photo)}" alt="Photo du plat">` : `<span class="photo-vide">${e.photoAttente ? '<span class="rond-attente" aria-hidden="true"></span>' : '📷'}</span>`;
+    const legende = e.photoAttente ? 'Récupération de la photo…' : e.photo ? (e.photoSource === 'perso' ? 'Votre photo' : `Photo de ${esc(e.photoSource || 'la recette')}`) : 'Pas encore de photo';
+    return `<div class="bloc-photo"><div class="apercu-photo">${apercu}</div>
+      <div class="stack" style="gap:6px"><strong class="small">${legende}</strong>
+        <label class="btn btn-petit ${e.photo ? '' : 'btn-plein'} choisir-photo">${e.photo && e.photoSource !== 'perso' ? 'Mettre ma propre photo' : e.photo ? 'Changer la photo' : 'Ajouter une photo'}<input type="file" accept="image/*" data-a="ed-photo" class="visuellement-cache"></label>
+        ${e.photo ? '<button class="btn-lien small" data-a="ed-photo-retirer" style="align-self:flex-start">Retirer la photo</button>' : '<span class="small muted">Prenez votre plat en photo ou choisissez-en une : elle reste sur cet appareil.</span>'}</div></div>`;
+  }
   function appliquerRecette(d) {
     const ed = edition;
     if (ed.nom.trim().length < 2 && d.nom) ed.nom = d.nom.split(/\s+[:|–—-]\s+/)[0].replace(/\s+(facile|rapide|maison)$/i, '').trim() || d.nom;
@@ -654,6 +697,7 @@
     ed.retires = a.retires; ed.ignores = a.ignores; ed.etape = 'ingredients';
     ed.source = `la recette ${d.site || ''}`.trim();
     ed.lecture = { etat: 'ok', lien: ed.lien.trim(), site: d.site, n: a.coches.length + a.extras.length, portions: d.portions };
+    if (d.image && !(ed.photo && ed.photoSource === 'perso')) setTimeout(() => photoDuSite(d.image, d.site), 0);
   }
   function etatLecture(e) {
     const l = e.lecture;
@@ -725,6 +769,7 @@
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${e.id ? 'Modifier une recette' : 'Mes recettes'}${ou ? ' · pour le ' + ou : ''}</span><h2 id="edition-titre">${e.id ? esc(e.nom) : 'Ajouter une recette'}</h2></div>
         <button class="btn btn-petit" data-a="edition-fermer">Fermer</button></div>
       <label class="champ"><span>Nom du plat</span><input type="text" id="ed-nom" data-a="ed-champ" data-k="nom" maxlength="90" value="${esc(e.nom)}" placeholder="Ex. Lasagnes de mamie, Wok de crevettes…" autocomplete="off"></label>
+      ${blocPhoto(e)}
       <div id="liens-recherche">${liensRecherche(e.nom)}</div>
       <label class="champ"><span>Lien de la recette (facultatif)</span><input type="url" id="ed-lien" data-a="ed-champ" data-k="lien" inputmode="url" value="${esc(e.lien)}" placeholder="https://www.marmiton.org/recettes/…" autocomplete="off"></label>
       ${lienOk ? `<div id="etat-lecture">${etatLecture(e)}</div>` : '<p class="small alerte-ing">Le lien doit commencer par https:// (copiez-le depuis la barre d’adresse).</p>'}
@@ -748,7 +793,7 @@
     const extras = e.extras.filter((x) => x.coche).map((x) => ({ nom: x.nom, tags: x.tags || [] }));
     if (!ing.length && !extras.length) { toast('Cochez au moins un ingrédient'); return false; }
     const temps = parseInt(e.temps, 10);
-    const rec = { id: e.id || 'p-' + Date.now().toString(36), nom, lien: lien || '', personnes: e.personnes, repas: e.repas === 'tous' ? ['dejeuner', 'diner'] : [e.repas], temps: temps > 0 && temps < 600 ? temps : null, ing, extras, proposer: e.proposer, cree: e.id ? undefined : new Date().toISOString().slice(0, 10) };
+    const rec = { id: e.id || 'p-' + Date.now().toString(36), nom, lien: lien || '', personnes: e.personnes, photo: e.photo || null, photoSource: e.photo ? e.photoSource : '', repas: e.repas === 'tous' ? ['dejeuner', 'diner'] : [e.repas], temps: temps > 0 && temps < 600 ? temps : null, ing, extras, proposer: e.proposer, cree: e.id ? undefined : new Date().toISOString().slice(0, 10) };
     const i = S.bibliotheque.findIndex((r) => r.id === rec.id);
     if (i >= 0) S.bibliotheque[i] = { ...S.bibliotheque[i], ...rec, cree: S.bibliotheque[i].cree }; else S.bibliotheque.unshift(rec);
     E.definirPerso(S.bibliotheque);
@@ -1313,6 +1358,8 @@
       case 'ed-nouveau': ouvrirEdition({}); break;
       case 'ed-modifier': ouvrirEdition({ id: el.dataset.r }); fiche = null; break;
       case 'ed-lire': lireLien(); return;
+      case 'ed-photo-retirer': edition.photo = null; edition.photoSource = ''; break;
+      case 'ed-photo': return;
       case 'ed-pers': edition.personnes = Math.max(1, Math.min(30, (edition.personnes || 4) + +el.dataset.d)); break;
       case 'ed-deviner':
         if (edition.etape === 'nom' && lienValide(edition.lien) && !(edition.lecture && edition.lecture.lien === edition.lien.trim())) { lireLien(); return; }
@@ -1573,6 +1620,7 @@
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
     if (el.dataset.a === 'repas-fait') { S.repasDecoches = S.repasDecoches || {}; S.repasDecoches[el.dataset.k] = !el.checked; return; }
+    if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-proposer' && edition) { edition.proposer = el.checked; return; }

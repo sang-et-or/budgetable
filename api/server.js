@@ -39,6 +39,28 @@ async function verifierUrl(brut) {
   if (!ips.length || ips.some((x) => ipInterne(x.address))) throw Object.assign(new Error('Adresse refusée'), { code: 400 });
   return u;
 }
+// photo d'une recette : 5 Mo au plus, images seulement (le site la réduit ensuite à 480 px)
+async function lireImage(brut) {
+  let u = await verifierUrl(brut);
+  for (let saut = 0; saut < 4; saut++) {
+    const rep = await fetch(u, { redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'User-Agent': AGENT, Accept: 'image/avif,image/webp,image/jpeg,image/png,image/*' } });
+    if (rep.status >= 300 && rep.status < 400 && rep.headers.get('location')) { u = await verifierUrl(new URL(rep.headers.get('location'), u).href); continue; }
+    if (!rep.ok) throw Object.assign(new Error(`Le site a répondu ${rep.status}`), { code: 502 });
+    const type = (rep.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\/(jpeg|png|webp|avif|gif)$/i.test(type)) throw Object.assign(new Error('Ce lien n’est pas une photo'), { code: 422 });
+    const lecteur = rep.body.getReader();
+    const morceaux = []; let total = 0;
+    for (;;) {
+      const { done, value } = await lecteur.read();
+      if (done) break;
+      total += value.length;
+      if (total > 5 * 1024 * 1024) { lecteur.cancel(); throw Object.assign(new Error('Photo trop lourde'), { code: 413 }); }
+      morceaux.push(value);
+    }
+    return { octets: Buffer.concat(morceaux), type };
+  }
+  throw Object.assign(new Error('Trop de redirections'), { code: 502 });
+}
 async function lirePage(brut) {
   let u = await verifierUrl(brut);
   for (let saut = 0; saut < 4; saut++) {
@@ -87,6 +109,19 @@ const serveur = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGINES.includes(origine) ? origine : ORIGINES[0], 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Max-Age': '86400' }); return res.end(); }
   if (u.pathname === '/sante' || u.pathname === '/') return repondre(res, 200, { ok: true }, origine);
+  if (u.pathname === '/image' && req.method === 'GET') {
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes' }, origine);
+    try {
+      const { octets, type } = await lireImage(u.searchParams.get('url') || '');
+      const h = { 'Content-Type': type, 'Content-Length': octets.length, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", Vary: 'Origin' };
+      if (origine && (ORIGINES.includes(origine) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine))) h['Access-Control-Allow-Origin'] = origine;
+      res.writeHead(200, h); return res.end(octets);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : 502;
+      return repondre(res, code, { erreur: e.code ? e.message : 'Photo introuvable' }, origine);
+    }
+  }
   if (u.pathname !== '/recette' || req.method !== 'GET') return repondre(res, 404, { erreur: 'Introuvable' }, origine);
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes, réessayez dans une minute' }, origine);

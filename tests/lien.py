@@ -4,11 +4,14 @@ from playwright.sync_api import sync_playwright
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 LIEN = "https://www.marmiton.org/recettes/recette_quiche-lorraine_30283.aspx"
-RECETTE = {"nom": "Quiche lorraine", "site": "marmiton.org", "portions": 6, "temps": 65, "image": None,
+RECETTE = {"nom": "Quiche lorraine", "site": "marmiton.org", "portions": 6, "temps": 65, "image": "https://assets.exemple.fr/quiche.jpg",
            "ingredients": ["1 pâte brisée", "200 g de lardons", "3 œufs", "20 cl de crème fraîche", "20 cl de lait", "50 g de gruyère râpé", "Sel", "Poivre", "1 pincée de muscade"]}
 erreurs, appels = [], []
+IMAGE = {}
 def lecteur(route):
     u = route.request.url; appels.append(u)
+    if "/image?" in u:
+        return route.fulfill(status=200, content_type="image/png", body=IMAGE["png"], headers={"Access-Control-Allow-Origin": "*"})
     if "echec" in u:
         route.fulfill(status=422, content_type="application/json", body=json.dumps({"erreur": "Pas de fiche recette lisible sur cette page"}), headers={"Access-Control-Allow-Origin": "*"})
     else:
@@ -19,6 +22,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lecteur)
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
+    IMAGE["png"] = page.screenshot(clip={"x": 0, "y": 0, "width": 300, "height": 200})
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     clic("Préparer ma semaine")
     for _ in range(25):
@@ -56,9 +60,15 @@ with sync_playwright() as p:
     etat = ed.locator(".lecture-ok").inner_text()
     assert "repris de marmiton.org" in etat and "pour 6" in etat and "sel" in etat.lower(), etat
     assert ed.locator("[data-k=temps]").input_value() == "65"
+    # la photo du site arrive, réduite et gardée dans le navigateur
+    page.wait_for_selector(".apercu-photo img", timeout=8000)
+    assert ed.locator(".apercu-photo img").get_attribute("src").startswith("data:image/jpeg")
+    assert "Photo de marmiton.org" in ed.locator(".bloc-photo").inner_text()
+    assert any("/image?url=https%3A%2F%2Fassets.exemple.fr" in a for a in appels)
     page.screenshot(path=f"{OUT}/l1-lien.png", full_page=False)
     clic("Enregistrer dans Mes recettes")
     assert "Quiche lorraine" in page.inner_text("main")
+    assert page.locator(".carte-recette").first.locator(".vignette img").get_attribute("src").startswith("data:image/jpeg")
     # quantité gardée par personne : 300/6 = 50 g ; le nombre de personnes est mémorisé
     biblio = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).bibliotheque[0]")
     q = dict((i, v) for i, v in biblio["ing"])
@@ -74,7 +84,23 @@ with sync_playwright() as p:
     assert page.locator("#ed-nom").input_value() == "Gratin dauphinois"
     dans = page.locator(".fenetre-edition .dans-recette").inner_text()
     assert "Pommes de terre" in dans, dans
+    # recette créée : photo personnelle
+    assert "Ajouter une photo" in page.locator(".bloc-photo").inner_text()
+    page.locator("input[data-a=ed-photo]").set_input_files(files=[{"name": "plat.png", "mimeType": "image/png", "buffer": IMAGE["png"]}])
+    page.wait_for_selector(".apercu-photo img", timeout=5000)
+    assert "Votre photo" in page.locator(".bloc-photo").inner_text()
     page.screenshot(path=f"{OUT}/l2-echec.png", full_page=False)
+    clic("Enregistrer dans Mes recettes")
+    b = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).bibliotheque")
+    assert b[0]["photoSource"] == "perso" and b[0]["photo"].startswith("data:image/jpeg") and len(b[0]["photo"]) < 120000, len(b[0]["photo"])
+    assert b[1]["photoSource"] == "marmiton.org"
+    # retirer la photo
+    page.get_by_role("button", name="Modifier", exact=True).first.click()
+    clic("Retirer la photo")
+    assert "Ajouter une photo" in page.locator(".bloc-photo").inner_text()
+    clic("Fermer")
+    page.locator(".carte-recette").nth(1).scroll_into_view_if_needed()
+    page.screenshot(path=f"{OUT}/l3-cartes.png", full_page=False)
     print("Erreurs JS :", erreurs or "aucune")
     assert not erreurs
     print("LIEN OK")
