@@ -643,7 +643,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 
 /* ---------- mes apports ---------- */
-@media (max-width: 899px) { .nav button[data-k="apports"] { display: none; } }
+@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"] { display: none; } }
 .tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .tuile-apport strong { font: 800 1.5rem var(--f-titre); }
@@ -702,6 +702,18 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .fenetre-kcal .stack[role="radiogroup"] .chip { justify-content: flex-start; text-align: left; }
 .resultat-kcal { padding: 12px; border-radius: 14px; border-left: 5px solid var(--poireau); background: var(--poireau-pale); }
 .repere-final { color: var(--poireau); }
+
+/* ---------- mon journal ---------- */
+.resume-journal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.resume-journal > div { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
+.resume-journal strong { font: 800 1.3rem var(--f-titre); }
+.jour-journal { display: grid; gap: 10px; }
+.jour-journal h2 { font-size: 1.1rem; margin: 0; }
+.smiley-jour { font-size: 1.8rem; line-height: 1; }
+.groupe-journal ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.groupe-journal li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
+#journal-jours .chip[aria-pressed="true"], .chip[data-a^="journal"][aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+@media print { .jour-journal { break-inside: avoid; } }
 </style>
 
 <div id="app"></div>

@@ -144,6 +144,7 @@
     drives: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
     gourmand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12l-1.6 8.2a1 1 0 0 1-1 .8H8.6a1 1 0 0 1-1-.8z"/><path d="M5 12a3 3 0 0 1 2.2-2.9A4.8 4.8 0 0 1 12 5a4.8 4.8 0 0 1 4.8 4.1A3 3 0 0 1 19 12"/><path d="M12 5V3"/></svg>',
     apports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    journal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>',
     profil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>',
     recettes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h6"/></svg>'
@@ -414,11 +415,11 @@
   }
 
   /* ---------- application ---------- */
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['apports', 'Apports'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const nav = `<nav class="nav" aria-label="Navigation principale">${ONGLETS.map(([k, v]) => `<button data-a="onglet" data-k="${k}" ${S.onglet === k ? 'aria-current="page"' : ''}>${ICONES[k]}<span>${v}</span></button>`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><div class="marque">${LOGO}Budgétable</div>${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}</div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -1774,8 +1775,7 @@
       if (cle === 'kcal' && journeeFinie && v > 0 && v < ma * 0.5) return 'neutre';
       return v <= ma * 0.9 ? 'vert' : v <= ma ? 'neutre' : 'rouge';
     }
-    if (v >= mi) return 'vert';
-    return journeeFinie && v < mi * 0.5 ? 'rouge' : 'neutre';
+    return v >= mi ? 'vert' : 'neutre';   // un objectif non atteint n'est jamais « rouge » : souvent, tout n'a pas été noté
   }
   const alimentDe = (x) => (x.a ? (window.Aliments.ALIMENTS.find((y) => y.id === x.a) || null)
     : x.nut ? { nom: x.nom, portion: x.portion || 'portion', ...x.nut }
@@ -1985,10 +1985,68 @@
         <section class="carte stack" style="gap:4px"><h2>Protéines, semaine après semaine</h2><span class="small muted">moyenne par jour, 8 dernières semaines</span>${barres(semaines.map((s) => ({ v: Math.round(s.prot), lab: s.lab, vide: !s.jours, tip: `Semaine du ${s.lab} : ${s.jours ? `${Math.round(s.prot)} g par jour (${pluriel(s.jours, 'jour')} suivis)` : 'pas de suivi'}` })), 'prot', { titre: 'Protéines par semaine' })}</section>
         <section class="carte stack" style="gap:4px"><h2>Fibres, semaine après semaine</h2><span class="small muted">moyenne par jour, 8 dernières semaines</span>${barres(semaines.map((s) => ({ v: Math.round(s.fibres), lab: s.lab, vide: !s.jours, tip: `Semaine du ${s.lab} : ${s.jours ? `${Math.round(s.fibres)} g par jour` : 'pas de suivi'}` })), 'fibres', { titre: 'Fibres par semaine' })}</section>
       </div>
-      <details class="carte"><summary><strong>Journal des repas</strong> <span class="small muted">· le détail, jour par jour</span></summary>
-        <table class="journal"><thead><tr><th>Jour</th><th>Repas</th><th class="num">kcal</th><th class="num">Prot.</th><th class="num">Fibres</th><th>NS</th></tr></thead><tbody>
-        ${avecRepas.slice().reverse().flatMap(([d, v]) => v.repas.map((x) => `<tr><td>${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${x.s === 'diner' ? 'soir' : 'midi'}</td><td>${esc(E.REC[x.r].nom)}</td><td class="num">${x.n.kcal}</td><td class="num">${Math.round(x.n.parPortion.prot)} g</td><td class="num">${Math.round(x.n.parPortion.fibres)} g</td><td>${x.n.lettre ? `<span class="ns-lettre ns-${x.n.lettre}">${x.n.lettre}</span>` : ''}</td></tr>`)).join('') || '<tr><td colspan="6" class="small muted">Aucun repas noté.</td></tr>'}
-        </tbody></table></details>`;
+      <section class="carte spread" style="align-items:center"><div class="stack" style="gap:2px"><strong>📖 Mon journal</strong><span class="small muted">Tout ce que vous avez noté, jour par jour, avec recherche, filtres et export.</span></div><button class="btn btn-plein" data-a="onglet" data-k="journal">Ouvrir le journal</button></section>`;
+  }
+
+  /* ---------- « Mon journal » : tout ce qui a été mangé, jour par jour ---------- */
+  const MOMENTS_JOURNAL = [['petitdej', 'Petit-déjeuner', '☕'], ['dejeuner', 'Déjeuner', '🍽️'], ['collation', 'Collations et fruits', '🍎'], ['diner', 'Dîner', '🌙'], ['boisson', 'Boissons', '🥤'], ['dehors', 'Repas pris dehors', '🥡']];
+  function humeurJour(j, finie) {
+    const cles = ['kcal', 'sucres', 'sel', 'ags', 'prot', 'fibres', 'legumes'];
+    const etats = cles.map((k) => etatCompteur(k, j[k], finie));
+    return etats.includes('rouge') ? 'rouge' : etats.includes('neutre') ? 'neutre' : 'vert';
+  }
+  function lignesJournal(j) {
+    const l = [];
+    j.repas.forEach((x) => l.push({ moment: x.s, nom: E.REC[x.r].nom, detail: 'repas du planning', kcal: x.n.kcal, ns: x.n.lettre, suppr: `data-a="journal-suppr-repas" data-d="${x.d}" data-s="${x.s}"`, r: x.r }));
+    j.ajouts.forEach((x) => { const al = alimentDe(x); if (al) l.push({ moment: x.m || 'collation', nom: al.nom, detail: `${x.n > 1 ? x.n + ' × ' : ''}${al.portion}`, kcal: Math.round(al.kcal * x.n), ns: null, suppr: `data-a="carnet-suppr" data-i="${x.i}"` }); });
+    return l;
+  }
+  function csvJournal(jours) {
+    const lignes = [['Date', 'Moment', 'Aliment ou plat', 'Portion', 'kcal']];
+    for (const [d, j] of jours) for (const x of lignesJournal(j)) lignes.push([d, (MOMENTS_JOURNAL.find(([k]) => k === x.moment) || [, x.moment])[1], x.nom, x.detail, x.kcal]);
+    return lignes.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+  }
+  function ongletJournal() {
+    Object.assign(OBJ, objectifsJour());
+    const per = S.periodeJournal || '30';
+    const auj = new Date(); auj.setHours(12, 0, 0, 0);
+    const toutes = [].concat((S.journal || []).map((x) => x.d), (S.ajouts || []).map((x) => x.d)).sort();
+    const debut = per === 'tout' ? (toutes[0] || ISO(auj)) : ISO(new Date(auj.getTime() - (+per - 1) * 864e5));
+    const filtre = S.filtreJournal || 'tout';
+    const q = E.norm(S.rechercheJournal || '');
+    const jours = Object.entries(apportsParJour(debut, ISO(auj))).filter(([, j]) => j.repas.length || j.ajouts.length).reverse();
+    const visibles = jours.map(([d, j]) => [d, j, lignesJournal(j).filter((x) => (filtre === 'tout' || (filtre === 'repas' ? ['dejeuner', 'diner'].includes(x.moment) : x.moment === filtre)) && (!q || E.norm(x.nom).includes(q)))]).filter(([, , l]) => l.length);
+    const humeurs = jours.map(([d, j]) => humeurJour(j, d < ISO(auj)));
+    const moyKcal = jours.length ? Math.round(jours.reduce((t, [, j]) => t + j.kcal, 0) / jours.length / 10) * 10 : 0;
+    const filtres = [['tout', 'Tout'], ['repas', 'Repas'], ['petitdej', 'Petit-déjeuner'], ['collation', 'Collations'], ['boisson', 'Boissons'], ['dehors', 'Dehors']];
+    const urlCsv = jours.length ? 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csvJournal(jours)) : null;
+    return `<div class="spread"><div><p class="eyebrow">Suivi</p><h1>Mon journal</h1></div><div class="row ecran-seul" style="gap:6px">${urlCsv ? `<a class="btn btn-petit" href="${urlCsv}" download="budgetable-journal.csv">⬇ Télécharger (tableur)</a>` : ''}<button class="btn btn-petit" data-a="imprimer-journal">🖨 Imprimer</button></div></div>
+      <p class="muted">Tout ce que vous avez noté, jour par jour : les repas du planning marqués « C’est mangé » et les aliments du carnet.</p>
+      <section class="resume-journal">
+        <div><span class="small muted">Jours notés</span><strong class="num">${jours.length}</strong></div>
+        <div><span class="small muted">En moyenne</span><strong class="num">${nb(moyKcal)}</strong><span class="small muted">kcal / jour</span></div>
+        <div><span class="small muted">Journées</span><strong class="num">😊 ${humeurs.filter((h) => h === 'vert').length} · 😐 ${humeurs.filter((h) => h === 'neutre').length} · 😟 ${humeurs.filter((h) => h === 'rouge').length}</strong></div>
+      </section>
+      <div class="stack ecran-seul" style="gap:8px">
+        <div class="row" role="radiogroup" aria-label="Période" style="gap:6px">${[['7', '7 jours'], ['30', '30 jours'], ['tout', 'Tout']].map(([k, v]) => `<button class="chip" role="radio" data-a="journal-periode" data-k="${k}" aria-checked="${per === k}" aria-pressed="${per === k}">${v}</button>`).join('')}</div>
+        <div class="row" role="group" aria-label="Filtrer" style="gap:6px">${filtres.map(([k, v]) => `<button class="chip" data-a="journal-filtre" data-k="${k}" aria-pressed="${filtre === k}">${v}</button>`).join('')}</div>
+        <label class="champ"><span class="sr">Chercher dans le journal</span><input type="search" id="journal-cherche" data-a="journal-cherche" value="${esc(S.rechercheJournal || '')}" placeholder="Chercher : pizza, saumon, soda…" autocomplete="off"></label>
+      </div>
+      <div id="journal-jours" class="stack" style="gap:12px">${journalJours(visibles, auj)}</div>`;
+  }
+  function journalJours(visibles, auj) {
+    if (!visibles.length) return `<section class="carte stack" style="gap:8px"><strong>Rien à afficher</strong><span class="small">${(S.journal || []).length + (S.ajouts || []).length ? 'Aucune entrée ne correspond à ce filtre.' : 'Notez vos repas avec « ✓ C’est mangé » dans la semaine, et vos petits-déjeuners, collations et boissons dans le carnet de la page Apports.'}</span>${(S.journal || []).length + (S.ajouts || []).length ? '' : '<div><button class="btn btn-petit btn-plein" data-a="onglet" data-k="apports">Ouvrir le carnet du jour</button></div>'}</section>`;
+    return visibles.map(([d, j, lignes]) => {
+      const h = humeurJour(j, d < ISO(auj));
+      const titre = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: d.slice(0, 4) !== String(auj.getFullYear()) ? 'numeric' : undefined });
+      const groupes = MOMENTS_JOURNAL.map(([k, v, ic]) => [v, ic, lignes.filter((x) => x.moment === k)]).filter(([, , l]) => l.length);
+      return `<article class="carte jour-journal">
+        <header class="spread" style="align-items:center"><div class="row" style="gap:8px;align-items:center"><span class="smiley-jour" role="img" aria-label="${SMILEY[h][1]}">${SMILEY[h][0]}</span><h2>${esc(titre.charAt(0).toUpperCase() + titre.slice(1))}</h2></div>
+          <span class="small"><strong class="num">${nb(Math.round(j.kcal))} kcal</strong> <span class="muted">· prot. ${Math.round(j.prot)} g · sucres ${Math.round(j.sucres)} g · sel ${nb(Math.round(j.sel * 10) / 10)} g</span></span></header>
+        ${groupes.map(([v, ic, l]) => `<div class="groupe-journal"><span class="eyebrow">${ic} ${esc(v)}</span><ul>${l.map((x) => `<li><span class="stack" style="gap:0;min-width:0"><span>${x.r ? `<button class="btn-lien" data-a="fiche-r" data-r="${x.r}">${esc(x.nom)}</button>` : esc(x.nom)}</span><span class="small muted">${esc(x.detail)}</span></span><span class="row" style="gap:6px;align-items:center;flex-wrap:nowrap">${x.ns ? `<span class="ns-lettre ns-${x.ns}" aria-label="Nutri-Score ${x.ns}">${x.ns}</span>` : ''}<span class="small num">${x.kcal} kcal</span><button class="btn-lien small ecran-seul" ${x.suppr} aria-label="Retirer ${esc(x.nom)} du journal">✕</button></span></li>`).join('')}</ul></div>`).join('')}
+        <div class="ecran-seul"><button class="btn-lien small" data-a="journal-ajouter" data-d="${d}">+ Ajouter un aliment à ce jour</button></div>
+      </article>`;
+    }).join('');
   }
 
   /* ---------- bilan nutritionnel de la semaine ---------- */
@@ -2025,6 +2083,7 @@
       ${b.atteints < b.reperes.length ? '<button class="btn btn-petit btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button>' : ''}
       <button class="btn btn-petit" data-a="bilan-ouvrir">Détails et conseils</button>
       <button class="btn btn-petit" data-a="onglet" data-k="apports">📈 Mon suivi des apports</button>
+      <button class="btn btn-petit" data-a="onglet" data-k="journal">📖 Mon journal</button>
       <span class="small muted">Par adulte, déjeuners et dîners. Estimation.</span>
     </section>`;
   }
@@ -2549,6 +2608,11 @@
       case 'kcal-choix': S.calcKcal[el.dataset.cle] = el.dataset.k; break;
       case 'kcal-appliquer': S.objectifKcal = +el.dataset.k; S.calcKcalOuvert = false; toast(`Repère : ${nb(+el.dataset.k)} kcal par jour`); break;
       case 'carnet-objectif': S.objectifKcal = +el.dataset.k; break;
+      case 'journal-periode': S.periodeJournal = el.dataset.k; break;
+      case 'journal-filtre': S.filtreJournal = el.dataset.k; break;
+      case 'journal-ajouter': S.jourCarnet = el.dataset.d; S.onglet = 'apports'; window.scrollTo(0, 0); break;
+      case 'journal-suppr-repas': S.journal = (S.journal || []).filter((x) => !(x.d === el.dataset.d && x.s === el.dataset.s)); toast('Retiré du journal'); break;
+      case 'imprimer-journal': window.print(); return;
       case 'periode-apports': S.periodeApports = el.dataset.k; break;
       case 'bilan-ouvrir': S.bilanOuvert = true; break;
       case 'bilan-fermer': case 'bilan-fond': S.bilanOuvert = false; break;
@@ -2749,6 +2813,15 @@
     if (el.dataset.a === 'scan-g' && S.scanCarnet) {
       const g = parseFloat(String(el.value).replace(',', '.'));
       if (g > 0 && g < 5000) { S.scanCarnet.grammes = g; const z = document.getElementById('scan-resume'); if (z) z.innerHTML = resumeScan(); document.querySelectorAll('[data-a=scan-qte]').forEach((b) => b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.g - g) < 0.01))); }
+      return;
+    }
+    if (el.dataset.a === 'journal-cherche') {
+      S.rechercheJournal = el.value;
+      // on redessine seulement la liste des jours pour garder le curseur dans le champ
+      const html = ongletJournal();
+      const tmp = document.createElement('div'); tmp.innerHTML = html;
+      const z = document.getElementById('journal-jours'), n = tmp.querySelector('#journal-jours');
+      if (z && n) z.innerHTML = n.innerHTML;
       return;
     }
     if (el.dataset.a === 'carnet-cherche') {

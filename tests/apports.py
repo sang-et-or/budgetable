@@ -48,8 +48,8 @@ with sync_playwright() as p:
         # info-bulle
         main.locator(".graphe .barre").nth(25).hover()
         assert page.locator("#bulle-graphe").is_visible() and "kcal" in page.locator("#bulle-graphe").inner_text() or "aucun repas" in page.locator("#bulle-graphe").inner_text()
-        main.locator("details summary", has_text="Journal").click()
-        assert main.locator(".journal tbody tr").count() >= 10
+        main.get_by_role("button", name="Ouvrir le journal").click()
+        assert "Mon journal" in main.inner_text() and main.locator(".jour-journal").count() >= 10
         page.screenshot(path=f"{OUT}/ap-{largeur}.png", full_page=True)
         page.close()
     print("Erreurs JS :", erreurs or "aucune")
