@@ -185,7 +185,10 @@
   }
   function presence(p, jour, slot) {
     const pr = p.presences && p.presences[jour + '-' + slot];
-    return pr ? { a: Math.max(0, Math.min(20, pr.a | 0)), e: p.foyer.enfants.map((_, k) => !pr.e || pr.e[k] !== false), invA: Math.max(0, pr.invA | 0), invE: Math.max(0, pr.invE | 0) } : presenceParDefaut(p, jour, slot);
+    const r = pr ? { a: Math.max(0, Math.min(20, pr.a | 0)), e: p.foyer.enfants.map((_, k) => !pr.e || pr.e[k] !== false), invA: Math.max(0, pr.invA | 0), invE: Math.max(0, pr.invE | 0) } : presenceParDefaut(p, jour, slot);
+    // ceux qui emportent une gamelle ne déjeunent pas à la maison
+    if (slot === 'dejeuner') { const g = nbGamelles(p, jour); if (g) r.a = Math.max(0, r.a - Math.max(0, g - Math.max(0, p.foyer.adultes - r.a))); }
+    return r;
   }
   function portions(p, jour, slot) {
     const fa = facteurAdulte(p);
@@ -202,8 +205,84 @@
       const presents = em === 'oui' || (em === 'mercredi' && jour === 2);
       if (!presents) enfants = [];
     }
+    if (slot === 'dejeuner') adultes = Math.max(0, adultes - Math.max(0, nbGamelles(p, jour) - (p.foyer.adultes - adultes)));
     const total = adultes * fa + enfants.reduce((s, a) => s + (AGE_FACTEUR[a] || 0.7), 0);
     return Math.round(total * 10) / 10;
+  }
+  /* ---------- gamelles du midi et restes ---------- */
+  // p.gamelles = { n: gamelles par jour, jours: [0..6], mode: 'restes' | 'plat' }
+  function nbGamelles(p, jour) {
+    const g = p.gamelles;
+    return g && g.n > 0 && (g.jours || []).includes(jour) ? Math.min(10, g.n | 0) : 0;
+  }
+  const MODELES_GAMELLE = { salade: 3, bowl: 3, wraps: 3, pates: 2, quiche: 2, curry: 1, mijote: 1, poelee: 1 };
+  /** Plats faciles à emporter (froids ou qui se réchauffent bien), pour une gamelle préparée à part. */
+  function platsGamelle(p, exclure = []) {
+    return recettesCompatibles(p).filter((r) => MODELES_GAMELLE[r.modele] && r.repas.includes('dejeuner') && !r.gourmand && !exclure.includes(r.id) && r.temps <= 40)
+      .map((r) => ({ r, s: MODELES_GAMELLE[r.modele] * 2 + scoreGout(r, p.gouts || {}) - coutPortion(r) - r.temps / 30 }))
+      .sort((a, b) => b.s - a.s).map((x) => x.r);
+  }
+  /** Portions à cuisiner pour un repas : à table + restes prévus (gamelles, lendemain, congélateur). Un repas « restes » ne se cuisine pas. */
+  function aCuisiner(m) { return !m || m.deRestes ? 0 : m.portions + (m.plus || 0); }
+  /**
+   * Organise gamelles et restes de la semaine (à rappeler après chaque changement du planning).
+   * Remplit, sans rien perdre de ce que l'utilisateur a choisi :
+   *  - jp.gamelles = { n, mode: 'restes' | 'plat', source: jour du dîner, recette, portions }
+   *  - m.plus et m.extra = { gamelles, demain, congel } sur les plats cuisinés en plus grande quantité
+   *  - le déjeuner du lendemain marqué deRestes quand le dîner est prévu « avec des restes pour demain midi »
+   */
+  function organiserRestes(plan, p) {
+    if (!plan || !plan.jours) return plan;
+    const fa = facteurAdulte(p);
+    const J = plan.jours;
+    J.forEach((jp) => SLOTS.forEach((sl) => { const m = jp[sl]; if (m) { delete m.plus; delete m.extra; } }));
+    // restes du dîner pour le déjeuner du lendemain (et retour au plat d'origine si on annule)
+    J.forEach((jp, j) => {
+      const l = jp.dejeuner;
+      if (!l) return;
+      const src = j > 0 ? J[j - 1].diner : null;
+      const veut = src && REC[src.recette] && src.restes && src.restes.vers === 'dejeuner';
+      if (veut) {
+        if (!l.deRestes) l.recetteAvant = l.recette;
+        l.deRestes = { jour: j - 1, slot: 'diner' };
+        l.recette = src.recette;
+      } else if (l.deRestes) {
+        if (l.recetteAvant && REC[l.recetteAvant]) l.recette = l.recetteAvant;
+        delete l.deRestes; delete l.recetteAvant;
+      }
+    });
+    const pris = [];
+    J.forEach((jp, j) => {
+      const n = nbGamelles(p, j);
+      if (!n) { delete jp.gamelles; return; }
+      const voulu = jp.gamelleMode || (p.gamelles.mode === 'plat' ? 'plat' : 'restes');
+      if (voulu === 'non') { jp.gamelles = { n: 0, mode: 'non' }; return; }
+      const src = j > 0 ? J[j - 1].diner : null;
+      if (voulu === 'restes' && src && REC[src.recette] && !src.deRestes) {
+        jp.gamelles = { n, mode: 'restes', source: j - 1, recette: src.recette, portions: Math.round(n * fa * 10) / 10 };
+        return;
+      }
+      // plat préparé à part (lundi, ou pas de dîner la veille, ou choisi)
+      let rec = jp.gamelleRecette && REC[jp.gamelleRecette] ? jp.gamelleRecette : null;
+      if (!rec) { const l = platsGamelle(p, pris); rec = l.length ? l[0].id : null; if (rec) jp.gamelleRecette = rec; }
+      if (rec) pris.push(rec);
+      jp.gamelles = rec ? { n, mode: 'plat', recette: rec, portions: Math.round(n * fa * 10) / 10, force: voulu === 'restes' } : { n: 0, mode: 'non' };
+    });
+    // quantités en plus sur les dîners qui servent de restes
+    J.forEach((jp, j) => {
+      const m = jp.diner;
+      if (!m || !REC[m.recette] || m.deRestes) return;
+      const ex = { gamelles: 0, demain: 0, congel: 0 };
+      const suiv = J[j + 1];
+      if (suiv && suiv.gamelles && suiv.gamelles.mode === 'restes' && suiv.gamelles.source === j) ex.gamelles = suiv.gamelles.portions;
+      if (suiv && suiv.dejeuner && suiv.dejeuner.deRestes) ex.demain = suiv.dejeuner.portions;
+      if (m.restes && m.restes.vers === 'congel') ex.congel = Math.max(0, Math.min(20, +m.restes.n || 0));
+      const plus = Math.round((ex.gamelles + ex.demain + ex.congel) * 10) / 10;
+      if (plus > 0) { m.plus = plus; m.extra = ex; }
+    });
+    // restes au congélateur prévus sur un déjeuner
+    J.forEach((jp) => { const m = jp.dejeuner; if (m && !m.deRestes && m.restes && m.restes.vers === 'congel' && m.restes.n > 0) { m.plus = Math.min(20, +m.restes.n); m.extra = { gamelles: 0, demain: 0, congel: m.plus }; } });
+    return plan;
   }
 
   /* ---------- filtres de sécurité et de goûts ---------- */
@@ -556,7 +635,7 @@
         const nb = portions(p, j, slot);
         const mis = '_' + slot;
         if (nb <= 0) { if (n[slot]) n[mis] = n[slot]; n[slot] = null; continue; }
-        if (n[slot]) { n[slot] = { ...n[slot], portions: nb }; continue; }
+        if (n[slot]) { n[slot] = { ...n[slot], portions: n[slot].manuel ? n[slot].portions : nb }; continue; }
         if (n[mis] && REC[n[mis].recette]) { n[slot] = { ...n[mis], portions: nb }; delete n[mis]; continue; }
         const liste = candidats(p, j, slot, ctx, aujourdHui);
         if (!liste.length) continue;
@@ -691,9 +770,12 @@
     plan.jours.forEach((jp) => {
       SLOTS.forEach((slot) => {
         const m = jp[slot];
-        if (!m) return;
-        for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * m.portions;
+        if (!m || !REC[m.recette]) return;
+        const n = aCuisiner(m);
+        if (n > 0) for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * n;
       });
+      // gamelles préparées à part
+      if (jp.gamelles && jp.gamelles.mode === 'plat' && REC[jp.gamelles.recette]) for (const [id, q] of REC[jp.gamelles.recette].ing) besoins[id] = (besoins[id] || 0) + q * jp.gamelles.portions;
       // desserts et goûters ajoutés à la semaine
       for (const g of jp.gourmand || []) if (REC[g.recette]) for (const [id, q] of REC[g.recette].ing) besoins[id] = (besoins[id] || 0) + q * g.portions;
     });
@@ -821,7 +903,9 @@
   /** Ce qu'un repas consomme : recette × portions (ingrédients du catalogue). */
   function consommationRepas(m) {
     if (!m || !REC[m.recette]) return [];
-    return REC[m.recette].ing.filter(([id]) => !ING[id].perso).map(([id, q]) => [id, q * m.portions]);
+    const n = m.deRestes ? 0 : m.portions + (m.plus || 0);
+    if (!n) return [];
+    return REC[m.recette].ing.filter(([id]) => !ING[id].perso).map(([id, q]) => [id, q * n]);
   }
   /** Ce qu'un article acheté ajoute au placard : nombre de paquets × taille du paquet. */
   function achatArticle(a) { return ING[a.id] && !ING[a.id].perso ? [a.id, a.conditionnements * ING[a.id].cond] : null; }
@@ -1010,7 +1094,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, portions, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, portions, organiserRestes, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

@@ -544,8 +544,8 @@
     const classique = S.classiques.includes(r.id);
     return `<div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}</span>
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
-      <div class="meta"><span>${r.temps} min</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
-      ${raison && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
+      <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
+      ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
       ${blocMange(r, j, slot)}</div></div>`;
   }
   // « C'est mangé » : on déduit du placard, puis on note le plat pour apprendre les goûts
@@ -553,7 +553,8 @@
   function blocMange(r, j, slot) {
     const k = j + '-' + slot;
     if (S.deduits[k] !== 'cuisine') {
-      return `<div class="row" style="gap:6px"><button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button></div>`;
+      const restes = S.plan && S.plan.jours[j][slot] && S.plan.jours[j][slot].deRestes;
+      return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button></div>`;
     }
     const note = S.notes[r.id] || 0;
     return `<div class="mange-ok stack" style="gap:6px">
@@ -579,6 +580,7 @@
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${blocPresences()}
+      ${blocGamelles()}
       ${blocCoach()}
       <div class="nutri-mobile">${blocNutritionSemaine()}</div>
       ${blocBudget()}
@@ -586,21 +588,105 @@
       ${suggestionRituels()}
       <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
       <div class="jours">${S.plan.jours.map((jp, j) => `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour}</h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${ligneRepas(jp.dejeuner, j, 'dejeuner')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`).join('')}</div>
+        ${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`).join('')}</div>
       ${carteRituels()}
       <p class="small muted">${restants}.</p>`;
+  }
+
+  /* ---------- gamelles du midi et restes ---------- */
+  const JOURS_COURTS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  function majGamelles() {
+    if (!S.plan) return;
+    S.plan = E.appliquerPresences(S.plan, { ...S.profil, presences: S.plan.presences || S.profil.presences || {} }, optsMoteur());
+    E.organiserRestes(S.plan, S.profil);
+  }
+  function texteGamelle(j) {
+    const g = S.plan.jours[j].gamelles;
+    if (!g || !g.n) return '';
+    return g.mode === 'restes' ? `restes du dîner de ${E.JOURS[g.source].toLowerCase()}` : 'plat à préparer la veille au soir';
+  }
+  // carte « gamelle » à la place du déjeuner (personne ne mange à la maison ce midi) ou ligne sous le déjeuner
+  function carteGamelle(j, seule) {
+    const g = S.plan.jours[j].gamelles;
+    if (!g || !g.n || !E.REC[g.recette]) return '';
+    const r = E.REC[g.recette];
+    if (!seule) return `<button class="ligne-gamelle" data-a="gamelle-fiche" data-j="${j}"><span aria-hidden="true">🥡</span> ${pluriel(g.n, 'gamelle')} : ${esc(r.nom)} <span class="small muted">· ${texteGamelle(j)}</span></button>`;
+    return `<div class="repas repas-illu repas-gamelle"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">Déjeuner · 🥡 ${pluriel(g.n, 'gamelle')}</span>
+      <button class="titre-repas" data-a="gamelle-fiche" data-j="${j}">${esc(r.nom)}</button>
+      <span class="small ${g.mode === 'restes' ? 'pourquoi' : ''}">${g.mode === 'restes' ? `Restes du dîner de ${E.JOURS[g.source].toLowerCase()} : rien à cuisiner ce midi` : 'À préparer la veille au soir, quantités dans la recette'}</span>
+      <div class="row" style="gap:6px"><button class="btn btn-petit" data-a="gamelles-ouvrir">Régler les gamelles</button></div></div></div>`;
+  }
+  function blocGamelles() {
+    if (!S.plan) return '';
+    const g = S.profil.gamelles;
+    const restes = [];
+    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => { const m = jp[sl]; if (m && m.extra && (m.extra.demain || m.extra.congel)) restes.push(`${E.JOURS[j].toLowerCase()} ${sl === 'diner' ? 'soir' : 'midi'} : ${[m.extra.demain ? 'déjeuner du lendemain' : '', m.extra.congel ? pluriel(m.extra.congel, 'portion') + ' au congélateur' : ''].filter(Boolean).join(' et ')}`); }));
+    if (!g || !g.n || !(g.jours || []).length) {
+      return `<section class="carte stack gamelles" style="gap:8px"><div class="spread"><h2>🥡 Gamelles et restes</h2></div>
+        <p class="small" style="margin:0">Vous emportez votre déjeuner au travail ? Budgétable cuisine un peu plus le soir et met le reste en gamelle pour le lendemain midi : les quantités et la liste de courses suivent toutes seules.</p>
+        <div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="gamelles-ouvrir">Prévoir mes gamelles</button></div>
+        ${restes.length ? `<p class="small muted" style="margin:0">Restes prévus : ${esc(restes.join(' · '))}.</p>` : '<p class="small muted" style="margin:0">Pour cuisiner en plus et garder des restes, ouvrez un plat : « Quantités et restes ».</p>'}</section>`;
+    }
+    const jours = S.plan.jours.map((jp, j) => [j, jp.gamelles]).filter(([, x]) => x && x.n);
+    return `<section class="carte stack gamelles" style="gap:8px"><div class="spread"><h2>🥡 Gamelles du midi</h2><button class="btn btn-petit" data-a="gamelles-ouvrir">Régler</button></div>
+      <p class="small muted" style="margin:0">${pluriel(g.n, 'gamelle')} par jour, ${esc(g.jours.slice().sort().map((j) => JOURS_COURTS[j].toLowerCase()).join(', '))}${g.mode === 'plat' ? ' · un plat préparé à part' : ' · avec les restes du dîner de la veille'}</p>
+      <ul class="liste-gamelles">${jours.map(([j, x]) => `<li><strong>${JOURS_COURTS[j]}.</strong> <button class="btn-lien" data-a="gamelle-fiche" data-j="${j}">${esc(E.REC[x.recette].nom)}</button> <span class="small muted">${texteGamelle(j)}</span></li>`).join('')}</ul>
+      ${restes.length ? `<p class="small muted" style="margin:0">Autres restes prévus : ${esc(restes.join(' · '))}.</p>` : ''}</section>`;
+  }
+  function vueGamelles() {
+    if (!S.gamellesOuvert || !S.plan) return '';
+    const g = { n: 1, jours: [0, 1, 2, 3, 4], mode: 'restes', ...(S.profil.gamelles || {}) };
+    const parJour = S.plan.jours.map((jp, j) => [j, jp]).filter(([j]) => g.n && g.jours.includes(j));
+    return `<div class="voile" data-a="gamelles-fond"><div class="fiche fenetre-gamelles" role="dialog" aria-modal="true" aria-labelledby="gam-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Semaine</span><h2 id="gam-titre">Mes gamelles du midi</h2></div><button class="btn btn-petit" data-a="gamelles-fermer">Fermer</button></div>
+      <div class="spread ligne-presence"><span>Gamelles à préparer par jour</span><div class="row" style="gap:6px;align-items:center;flex-wrap:nowrap"><button class="btn btn-petit" data-a="gamelles-n" data-d="-1" aria-label="Une gamelle de moins" ${g.n <= 0 ? 'disabled' : ''}>−</button><strong class="num" style="min-width:1.5em;text-align:center">${g.n}</strong><button class="btn btn-petit" data-a="gamelles-n" data-d="1" aria-label="Une gamelle de plus">+</button></div></div>
+      <div class="stack" style="gap:6px"><span class="small"><strong>Les jours</strong></span><div class="row" style="gap:6px">${JOURS_COURTS.map((jn, j) => `<button class="chip" data-a="gamelles-jour" data-j="${j}" aria-pressed="${g.jours.includes(j)}">${jn}</button>`).join('')}</div></div>
+      <div class="stack" style="gap:6px" role="radiogroup" aria-label="Comment préparer les gamelles"><span class="small"><strong>Comment ?</strong></span>
+        ${[['restes', 'Avec les restes du dîner de la veille', 'On cuisine plus le soir, le reste part dans la gamelle. Le moins cher et le plus simple.'], ['plat', 'Un plat à emporter, préparé à part', 'Salades, bowls, wraps, quiches : des plats qui se mangent froids ou se réchauffent bien.']].map(([k, t, d]) => `<button class="choix-gamelle" role="radio" aria-checked="${g.mode === k}" data-a="gamelles-mode" data-k="${k}"><strong>${t}</strong><span class="small muted">${d}</span></button>`).join('')}</div>
+      ${parJour.length ? `<div class="stack" style="gap:6px"><span class="small"><strong>Jour par jour</strong></span><ul class="liste-gamelles detail">${parJour.map(([j, jp]) => { const x = jp.gamelles || {}; const mode = jp.gamelleMode || g.mode; return `<li><div class="spread" style="align-items:center"><strong>${E.JOURS[j]}</strong><span class="row" style="gap:4px">${[['restes', 'Restes'], ['plat', 'Plat à part'], ['non', 'Pas ce jour-là']].map(([k, v]) => `<button class="chip chip-petit" data-a="gamelle-jour-mode" data-j="${j}" data-k="${k}" aria-pressed="${mode === k}">${v}</button>`).join('')}</span></div>
+          ${x.n && E.REC[x.recette] ? `<span class="small"><button class="btn-lien" data-a="gamelle-fiche" data-j="${j}">${esc(E.REC[x.recette].nom)}</button> · ${x.mode === 'restes' ? `restes du dîner de ${E.JOURS[x.source].toLowerCase()} (cuisiné pour ${pluriel(x.n, 'personne')} de plus)` : 'préparé la veille au soir'}${x.mode === 'plat' ? ` · <button class="btn-lien small" data-a="gamelle-changer" data-j="${j}">Un autre plat</button>` : ''}</span>${x.force ? '<span class="small muted">Pas de dîner la veille dans le planning : on prévoit un plat à part.</span>' : ''}` : '<span class="small muted">Pas de gamelle ce jour-là.</span>'}</li>`; }).join('')}</ul></div>` : ''}
+      <p class="small muted" style="margin:0">Les restes se gardent 2 à 3 jours au réfrigérateur dans une boîte fermée : mettez la gamelle au frais dès la fin du repas. Ceux qui emportent une gamelle ne sont plus comptés au déjeuner à la maison.</p>
+      <div><button class="btn btn-plein" data-a="gamelles-fermer">C’est réglé</button></div>
+    </div></div>`;
+  }
+  // fiche : quantités à table, restes à prévoir, total à cuisiner
+  function blocQuantites(m) {
+    if (!fiche) return '';
+    const pas = (a, val, label, min) => `<div class="row" style="gap:6px;align-items:center;flex-wrap:nowrap"><button class="btn btn-petit" data-a="${a}" data-d="-1" aria-label="${label} : moins" ${val <= min ? 'disabled' : ''}>−</button><strong class="num" style="min-width:2em;text-align:center">${nb(val)}</strong><button class="btn btn-petit" data-a="${a}" data-d="1" aria-label="${label} : plus">+</button></div>`;
+    if (fiche.recette) return `<section class="carte-quantites stack" style="gap:8px"><h3>Quantités</h3><div class="spread"><span>Nombre de portions</span>${pas('fiche-portions', m.portions, 'Portions', 1)}</div><span class="small muted">Les quantités des ingrédients s’adaptent.</span></section>`;
+    if (m.deRestes) return `<div class="bandeau bandeau-ok small">♻ Ce sont les restes du dîner d’hier : rien à cuisiner, il suffit de réchauffer ${pluriel(m.portions, 'portion')}.</div>`;
+    const j = fiche.jour, sl = fiche.slot;
+    const ex = m.extra || { gamelles: 0, demain: 0, congel: 0 };
+    const suiv = S.plan.jours[j + 1];
+    const demainOk = sl === 'diner' && suiv && suiv.dejeuner;
+    const vers = m.restes && m.restes.vers;
+    const parts = [`${nb(m.portions)} à table`].concat(ex.gamelles ? [`${nb(ex.gamelles)} pour ${pluriel(S.plan.jours[j + 1].gamelles.n, 'gamelle')} de demain`] : [], ex.demain ? [`${nb(ex.demain)} pour le déjeuner de demain`] : [], ex.congel ? [`${nb(ex.congel)} au congélateur`] : []);
+    return `<section class="carte-quantites stack" style="gap:10px"><h3>Quantités et restes</h3>
+      <div class="spread"><span>À table${m.manuel ? ' <button class="btn-lien small" data-a="fiche-portions-auto">revenir au calcul auto</button>' : ''}</span>${pas('fiche-portions', m.portions, 'Portions à table', 0.5)}</div>
+      <div class="stack" style="gap:6px"><span class="small"><strong>Cuisiner en plus pour avoir des restes ?</strong></span><div class="row" style="gap:6px">
+        <button class="chip" data-a="fiche-restes" data-k="non" aria-pressed="${!vers}">Non</button>
+        ${demainOk ? `<button class="chip" data-a="fiche-restes" data-k="dejeuner" aria-pressed="${vers === 'dejeuner'}">Pour le déjeuner de demain</button>` : ''}
+        <button class="chip" data-a="fiche-restes" data-k="congel" aria-pressed="${vers === 'congel'}">Pour le congélateur</button></div>
+        ${vers === 'congel' ? `<div class="spread"><span class="small">Portions à congeler</span>${pas('fiche-congel', ex.congel || m.restes.n || 0, 'Portions à congeler', 1)}</div>` : ''}
+        ${vers === 'dejeuner' ? `<span class="small muted">Le déjeuner de ${E.JOURS[j + 1].toLowerCase()} devient « restes » : rien à racheter pour ce repas.</span>` : ''}
+        ${ex.gamelles ? `<span class="small pourquoi">+ ${nb(ex.gamelles)} pour les gamelles de ${E.JOURS[j + 1].toLowerCase()} midi</span>` : ''}</div>
+      <div class="total-cuisson"><span>À cuisiner</span><strong class="num">${pluriel(E.aCuisiner(m), 'portion')}</strong></div>
+      ${parts.length > 1 ? `<span class="small muted">${esc(parts.join(' + '))}. Les quantités ci-dessous sont pour tout ce qu’il faut cuisiner.</span>` : ''}
+    </section>`;
   }
 
   /* ---------- affiche du frigo : la semaine en une page A4 paysage à imprimer ---------- */
   const STYLES_AFFICHE = [['papier', 'Papier crème'], ['ardoise', 'Ardoise'], ['eco', 'Économie d’encre']];
   function optsAffiche() { return { style: 'papier', images: true, douceurs: true, notes: true, titre: '', ...(S.afficheOpts || {}) }; }
-  function celluleAffiche(m, o) {
+  function celluleAffiche(m, o, g) {
+    const gam = g && g.n && E.REC[g.recette] ? `<span class="aff-tag">🥡 ${pluriel(g.n, 'gamelle')}${m ? '' : ''}</span>` : '';
+    if (!m && gam) { const r = E.REC[g.recette]; return `<div class="aff-case">${o.images && o.style !== 'eco' ? `<div class="aff-img">${V(r, 64).replace(/ loading="lazy"/g, '')}</div>` : ''}${gam}<strong>${esc(r.nom)}</strong><span class="aff-meta">${g.mode === 'restes' ? 'restes d’hier soir' : 'préparée la veille'}</span><span class="aff-coche" aria-hidden="true"></span></div>`; }
     if (!m) return '<div class="aff-case aff-vide"><span>Repas libre</span></div>';
     const r = E.REC[m.recette];
     if (!r) return '<div class="aff-case aff-vide"><span>—</span></div>';
     if (m.aChoisir) { const pr = prenomDuTour(); return `<div class="aff-case aff-enfants"><span class="aff-surprise" aria-hidden="true">?</span><strong>${pr ? 'Le choix de ' + esc(pr) : 'Le choix des enfants'}</strong><span class="aff-meta">surprise !</span></div>`; }
     const img = o.images && o.style !== 'eco' ? `<div class="aff-img">${V(r, 64).replace(/ loading="lazy"/g, '')}</div>` : '';
-    return `<div class="aff-case">${img}<strong>${esc(r.nom)}</strong><span class="aff-meta">${r.temps} min${m.choisiPar ? ' · choisi par ' + esc(m.choisiPar) : ''}</span><span class="aff-coche" aria-hidden="true"></span></div>`;
+    return `<div class="aff-case">${img}${m.deRestes ? '<span class="aff-tag">♻ restes</span>' : ''}<strong>${esc(r.nom)}</strong><span class="aff-meta">${m.deRestes ? 'd’hier soir' : r.temps + ' min'}${m.choisiPar ? ' · choisi par ' + esc(m.choisiPar) : ''}${m.plus ? ` · +${nb(m.plus)} pour les restes` : ''}</span>${gam}<span class="aff-coche" aria-hidden="true"></span></div>`;
   }
   function affiche() {
     const o = optsAffiche(), p = S.plan;
@@ -616,7 +702,7 @@
         <div class="aff-marque"><span class="aff-cloche" aria-hidden="true">🍽️</span><span>Budgétable</span></div></header>
       <div class="aff-grille" style="${cols}">
         <span></span>${p.jours.map((jp, j) => `<div class="aff-jour"><strong>${esc(jp.jour)}</strong><span>${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></div>`).join('')}
-        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${p.jours.map((jp) => celluleAffiche(jp[sl], o)).join('')}`).join('')}
+        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${p.jours.map((jp) => celluleAffiche(jp[sl], o, sl === 'dejeuner' ? jp.gamelles : null)).join('')}`).join('')}
         ${douceurs ? `<div class="aff-moment"><span aria-hidden="true">🍪</span>Douceur</div>${p.jours.map((jp, j) => `<div class="aff-case aff-case-douceur">${cases(j)}</div>`).join('')}` : ''}
       </div>
       ${o.notes ? `<footer class="aff-pied"><div class="aff-notes"><strong>À ne pas oublier</strong><i></i><i></i></div><div class="aff-notes"><strong>À racheter</strong><i></i><i></i></div><p class="aff-astuce">Cochez la case quand le plat est mangé ✓</p></footer>` : ''}
@@ -1722,7 +1808,8 @@
       <div class="equi"><span class="tag ${eq.legumes ? 'tag-ok' : 'tag-simu'}">Légumes ${eq.legumes ? '✓' : '—'}</span><span class="tag ${eq.feculent ? 'tag-ok' : 'tag-simu'}">Féculent ${eq.feculent ? '✓' : '—'}</span><span class="tag ${eq.proteine ? 'tag-ok' : 'tag-simu'}">Protéines ${eq.proteine ? '✓' : '—'}</span></div>
       ${!eq.legumes || !eq.feculent ? `<p class="small muted">Pour compléter : ${!eq.legumes ? 'une crudité ou un fruit' : ''}${!eq.legumes && !eq.feculent ? ' et ' : ''}${!eq.feculent ? 'du pain' : ''}.</p>` : ''}
       ${r.perso ? `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:6px"><strong>Une recette de votre bibliothèque</strong>${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : '<span>Recette de famille, sans lien.</span>'}<div><button class="btn btn-petit" data-a="ed-modifier" data-r="${r.id}">Modifier les ingrédients</button></div></div></div>` : ''}
-      <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * m.portions, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
+      ${blocQuantites(m)}
+      <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite)}</span></li>`).join('')}</ul></div>
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, m.portions)}</section>
@@ -2406,13 +2493,14 @@
     document.documentElement.classList.toggle('imprimable', S.imprimable && S.vue === 'app' && S.onglet === 'courses');
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
+    if (S.plan) E.organiserRestes(S.plan, S.profil);
     const html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue]();
     const avantEd = document.querySelector('.fenetre-edition');
     const hautEd = avantEd ? avantEd.scrollTop : 0;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -2678,6 +2766,19 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'gamelles-ouvrir': if (!S.profil.gamelles || !S.profil.gamelles.n) { S.profil.gamelles = { n: 1, jours: [0, 1, 2, 3, 4], mode: 'restes' }; majGamelles(); } S.gamellesOuvert = true; fiche = null; break;
+      case 'gamelles-fermer': S.gamellesOuvert = false; break;
+      case 'gamelles-fond': if (ev.target === el) S.gamellesOuvert = false; else return; break;
+      case 'gamelles-n': { const g = { n: 1, jours: [0, 1, 2, 3, 4], mode: 'restes', ...(p.gamelles || {}) }; g.n = Math.max(0, Math.min(10, g.n + +el.dataset.d)); p.gamelles = g; majGamelles(); break; }
+      case 'gamelles-jour': { const g = { n: 1, jours: [], mode: 'restes', ...(p.gamelles || {}) }; const j = +el.dataset.j; g.jours = g.jours.includes(j) ? g.jours.filter((x) => x !== j) : g.jours.concat(j).sort(); p.gamelles = g; majGamelles(); break; }
+      case 'gamelles-mode': p.gamelles = { ...(p.gamelles || { n: 1, jours: [0, 1, 2, 3, 4] }), mode: el.dataset.k }; S.plan.jours.forEach((jp) => { delete jp.gamelleMode; }); majGamelles(); break;
+      case 'gamelle-jour-mode': { const jp = S.plan.jours[+el.dataset.j]; if (el.dataset.k === ((p.gamelles && p.gamelles.mode) || 'restes')) delete jp.gamelleMode; else jp.gamelleMode = el.dataset.k; majGamelles(); break; }
+      case 'gamelle-changer': { const j = +el.dataset.j, jp = S.plan.jours[j]; const autres = S.plan.jours.map((x) => x.gamelleRecette).filter(Boolean); const l = E.platsGamelle(p, autres.concat(jp.gamelleRecette || [])); if (l.length) { const i = Math.floor(Math.random() * Math.min(6, l.length)); jp.gamelleRecette = l[i].id; } majGamelles(); break; }
+      case 'gamelle-fiche': { const g = S.plan.jours[+el.dataset.j].gamelles; if (!g || !E.REC[g.recette]) return; if (g.mode === 'restes') fiche = { jour: g.source, slot: 'diner' }; else fiche = { recette: g.recette, parts: g.portions }; S.gamellesOuvert = false; break; }
+      case 'fiche-portions': { if (!fiche) return; const d = +el.dataset.d; if (fiche.recette) { const r0 = E.REC[fiche.recette]; const cur = fiche.parts || (r0.gourmand ? r0.parts : E.portions(p, aujourdhui(), 'diner')); fiche.parts = Math.max(1, Math.round(cur + d)); break; } const m = S.plan.jours[fiche.jour][fiche.slot]; m.portions = Math.max(0.5, Math.round((m.portions + d) * 2) / 2); m.manuel = true; break; }
+      case 'fiche-portions-auto': { const m = S.plan.jours[fiche.jour][fiche.slot]; delete m.manuel; majGamelles(); break; }
+      case 'fiche-restes': { const m = S.plan.jours[fiche.jour][fiche.slot]; if (el.dataset.k === 'non') delete m.restes; else m.restes = { vers: el.dataset.k, n: (m.restes && m.restes.n) || 2 }; break; }
+      case 'fiche-congel': { const m = S.plan.jours[fiche.jour][fiche.slot]; m.restes = { vers: 'congel', n: Math.max(1, Math.min(20, ((m.restes && m.restes.n) || 2) + +el.dataset.d)) }; break; }
       case 'affiche-fermer': S.afficheOuverte = false; break;
       case 'affiche-style': S.afficheOpts = { ...optsAffiche(), style: el.dataset.k }; break;
       case 'affiche-imprimer': window.print(); return;
@@ -3128,6 +3229,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.gamellesOuvert) { S.gamellesOuvert = false; rendre(); return; }
     if (ev.key === 'Escape' && S.afficheOuverte) { S.afficheOuverte = false; rendre(); return; }
     if (ev.key === 'Escape' && edition) { edition = null; rendre(); return; }
     if (ev.key === 'Escape' && auMenu) { auMenu = null; rendre(); return; }

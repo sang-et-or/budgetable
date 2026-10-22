@@ -732,6 +732,21 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .btn-suppr { padding-inline: 8px; }
 .bandeau-suppr { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px; background: var(--moutarde-pale); }
 
+
+/* ---------- gamelles et restes ---------- */
+.ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
+.repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }
+.liste-gamelles { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-gamelles.detail li { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--surface); }
+.choix-gamelle { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1.5px solid var(--trait); border-radius: 12px; background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; }
+.choix-gamelle[aria-checked="true"] { border-color: var(--poireau); background: var(--poireau-pale); }
+.chip.chip-petit { padding: 4px 9px; font-size: .78rem; min-height: 30px; }
+.carte-quantites { padding: 12px 14px; border-radius: 14px; background: var(--moutarde-pale); }
+.total-cuisson { display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px dashed color-mix(in srgb, var(--encre) 25%, transparent); font-size: 1.05rem; }
+.plus-restes { color: var(--poireau); font-weight: 700; }
+.fenetre-gamelles { display: grid; gap: 14px; }
+.aff-case .aff-tag { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: rgb(47 107 71 / .12); }
+.aff-ardoise .aff-case .aff-tag { background: rgb(251 250 243 / .15); font-size: 14px; }
 /* ---------- affiche du frigo (A4 paysage) ---------- */
 .affiche-voile { position: fixed; inset: 0; z-index: 60; overflow-y: auto; grid-template-columns: minmax(0, 1fr); background: color-mix(in srgb, var(--papier) 94%, transparent); backdrop-filter: blur(4px); padding: 16px; display: grid; gap: 14px; align-content: start; justify-items: center; }
 .affiche-outils { width: 100%; max-width: 1123px; display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--trait); border-radius: var(--r); padding: 14px; box-shadow: var(--ombre); }
