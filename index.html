@@ -29,19 +29,23 @@
   --ardoise: #25332b;
   --bois: #a8743f;
   --r: 14px;
+  --mur: #eef1ea; --joint: #dfe5db; --frigo: #fbfcfb; --frigo-bord: #cdd6d0; --frigo-int: #eaf3f6; --congel-int: #e3edf7;
+  --bois-int: #efe3d0; --bois-fonce: #8a5c2f; --verre: rgb(255 255 255 / .75); --osier: #c99a5b;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --papier: #111713; --surface: #18201b; --encre: #e7ede6; --encre-douce: #9eaba2;
     --trait: #2a352e; --poireau: #74c495; --poireau-pale: #1f3326; --moutarde: #e3b44a; --moutarde-pale: #3a2f14;
-    --tomate: #ec8b77; --tomate-pale: #3c211b; --ombre: 0 1px 2px rgb(0 0 0 / .4); color-scheme: dark;
+    --tomate: #ec8b77; --tomate-pale: #3c211b; --mur: #18211c; --joint: #222d26; --frigo: #2b3530; --frigo-bord: #3b4842; --frigo-int: #1b262b; --congel-int: #1a2230;
+    --bois-int: #2a231b; --bois-fonce: #6e4a26; --verre: rgb(255 255 255 / .08); --osier: #9c7444;  --ombre: 0 1px 2px rgb(0 0 0 / .4); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --papier: #111713; --surface: #18201b; --encre: #e7ede6; --encre-douce: #9eaba2;
   --trait: #2a352e; --poireau: #74c495; --poireau-pale: #1f3326; --moutarde: #e3b44a; --moutarde-pale: #3a2f14;
-  --tomate: #ec8b77; --tomate-pale: #3c211b; --ombre: 0 1px 2px rgb(0 0 0 / .4); color-scheme: dark;
+  --tomate: #ec8b77; --tomate-pale: #3c211b; --mur: #18211c; --joint: #222d26; --frigo: #2b3530; --frigo-bord: #3b4842; --frigo-int: #1b262b; --congel-int: #1a2230;
+    --bois-int: #2a231b; --bois-fonce: #6e4a26; --verre: rgb(255 255 255 / .08); --osier: #9c7444;  --ombre: 0 1px 2px rgb(0 0 0 / .4); color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -421,6 +425,74 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .bilan-rangement { border-left: 5px solid var(--poireau); background: var(--surface); }
 .ligne-stock.nouveau { border-color: var(--poireau); }
 .tag-nouveau { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; background: var(--poireau); border-radius: 99px; padding: 1px 8px; vertical-align: 2px; }
+
+/* ---------- la cuisine du placard ---------- */
+.cuisine { position: relative; overflow: clip; border-radius: 18px; padding: 16px 14px 0;
+  background-color: var(--mur);
+  background-image: linear-gradient(var(--joint) 2px, transparent 2px), linear-gradient(90deg, var(--joint) 2px, transparent 2px);
+  background-size: 34px 22px; border: 1px solid var(--trait); display: grid; gap: 14px; }
+.cuisine .porte, .cuisine .corbeille { cursor: pointer; font: inherit; color: inherit; }
+.cuisine button:focus-visible { outline: 3px solid var(--moutarde); outline-offset: 2px; }
+.meuble, .compartiment { position: relative; }
+.caisson { position: relative; border-radius: 10px; }
+/* placard mural */
+.meuble-placard { min-height: 118px; }
+.meuble-placard > .caisson { min-height: 118px; background: var(--bois-int); box-shadow: inset 0 6px 14px rgb(0 0 0 / .18); border: 6px solid var(--bois-fonce); }
+.portes-doubles { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; pointer-events: none; }
+.porte { border: 0; padding: 0; pointer-events: auto; transition: transform .6s cubic-bezier(.3,.7,.2,1), opacity .6s; backface-visibility: visible; }
+.portes-doubles .porte { background: var(--bois); border-radius: 8px; box-shadow: inset 0 0 0 7px rgb(0 0 0 / .08), inset 0 0 0 9px rgb(255 255 255 / .12), 0 3px 8px rgb(0 0 0 / .15); position: relative; }
+.porte-g { transform-origin: left center; }
+.porte-d { transform-origin: right center; }
+.porte .poignee { position: absolute; width: 6px; height: 28px; border-radius: 4px; background: #e8e2d6; box-shadow: 0 1px 2px rgb(0 0 0 / .35); top: 50%; translate: 0 -50%; }
+.porte-g .poignee { right: 10px; } .porte-d .poignee { left: 10px; }
+.meuble-placard.ouvert .porte-g { transform: perspective(1000px) rotateY(-97deg); }
+.meuble-placard.ouvert .porte-d { transform: perspective(1000px) rotateY(97deg); }
+.etiquette { position: absolute; left: 10px; top: 10px; display: inline-flex; gap: 6px; align-items: center; font-weight: 700; font-size: .82rem; padding: 3px 9px; border-radius: 99px; background: rgb(255 255 255 / .88); color: #1d2721; box-shadow: 0 1px 3px rgb(0 0 0 / .2); text-transform: capitalize; }
+.compte { min-width: 1.5em; text-align: center; font-size: .75rem; background: #2f6b47; color: #fff; border-radius: 99px; padding: 0 6px; }
+.meuble.ouvert .etiquette, .compartiment.ouvert .etiquette { opacity: 0; }
+/* bas : frigo + plan de travail */
+.rangee-bas { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; align-items: end; }
+.ouverte-frigo .rangee-bas, .ouverte-congel .rangee-bas, .ouverte-corbeille .rangee-bas { grid-template-columns: 1fr; }
+.meuble-frigo { background: var(--frigo); border: 2px solid var(--frigo-bord); border-radius: 18px 18px 8px 8px; padding: 5px; display: grid; gap: 5px; box-shadow: 0 6px 14px rgb(0 0 0 / .12); }
+.compartiment.congel { min-height: 86px; }
+.compartiment.frigo { min-height: 210px; }
+.compartiment > .caisson { min-height: inherit; height: 100%; }
+.compartiment.frigo > .caisson { background: var(--frigo-int); box-shadow: inset 0 0 24px rgb(255 255 255 / .6), inset 0 4px 10px rgb(0 0 0 / .12); }
+.compartiment.congel > .caisson { background: var(--congel-int); box-shadow: inset 0 0 18px rgb(190 215 240 / .7), inset 0 4px 10px rgb(0 0 0 / .12); }
+.compartiment .porte { position: absolute; inset: 0; border-radius: 12px; background: linear-gradient(105deg, var(--frigo) 0 70%, color-mix(in srgb, var(--frigo) 88%, #9fb3a8)); border: 1px solid var(--frigo-bord); transform-origin: left center; }
+.compartiment .porte .poignee { right: 12px; left: auto; width: 7px; height: 46px; background: linear-gradient(#c5cdc8, #9aa59f); }
+.compartiment.congel .porte .poignee { top: auto; bottom: 10px; translate: 0; height: 30px; }
+.compartiment.ouvert .porte { transform: perspective(1100px) rotateY(-98deg); }
+.plan-travail { display: grid; gap: 0; }
+.corbeille { position: relative; border: 0; background: none; padding: 34px 0 0; display: grid; justify-items: center; min-height: 120px; }
+.dans-corbeille { font-size: 26px; line-height: 1; letter-spacing: -6px; position: relative; z-index: 1; margin-bottom: -10px; max-width: 100%; overflow: hidden; white-space: nowrap; }
+.panier { width: 78%; height: 44px; background: repeating-linear-gradient(90deg, var(--osier) 0 6px, color-mix(in srgb, var(--osier) 75%, #000) 6px 8px), var(--osier); clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%); border-radius: 4px; }
+.corbeille .etiquette { top: 0; left: 0; }
+.plan-travail::after { content: ""; display: block; height: 96px; margin-top: 0; border-top: 12px solid var(--bois); border-radius: 4px; background: linear-gradient(var(--frigo) 0 0) 10% 22% / 80% 4px no-repeat, linear-gradient(var(--frigo-bord) 0 0) 10% 70% / 80% 4px no-repeat, color-mix(in srgb, var(--bois-int) 70%, var(--frigo)); box-shadow: 0 6px 14px rgb(0 0 0 / .1); }
+.ouverte-corbeille .plan-travail::after { height: 18px; }
+.plan-travail > .caisson { background: var(--surface); border: 1px solid var(--trait); margin-top: 8px; }
+.sol { height: 14px; margin: 0 -14px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--bois) 55%, var(--mur)) 0 40px, color-mix(in srgb, var(--bois) 45%, var(--mur)) 40px 80px); }
+/* intérieur */
+.interieur { padding: 12px; display: grid; gap: 12px; }
+.int-tete { align-items: center; }
+.etagere { display: grid; gap: 6px; padding-bottom: 10px; border-bottom: 5px solid var(--verre); box-shadow: 0 6px 6px -6px rgb(0 0 0 / .25); }
+.meuble-placard .etagere { border-bottom-color: var(--bois); }
+.etagere:last-of-type { border-bottom: 0; box-shadow: none; }
+.etagere-nom { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-douce); }
+.rangee { display: flex; flex-wrap: wrap; gap: 8px; }
+.rangee .vide { color: var(--encre-douce); font-style: italic; }
+.produit { position: relative; width: 78px; display: grid; justify-items: center; gap: 2px; padding: 7px 4px 6px; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); color: var(--encre); font: inherit; cursor: pointer; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+.produit .emoji { font-size: 26px; line-height: 1.1; }
+.produit .p-nom { font-size: .7rem; line-height: 1.15; font-weight: 600; text-align: center; overflow-wrap: anywhere; }
+.produit .p-qte { font-size: .7rem; color: var(--encre-douce); }
+.produit .jauge { width: 56px; height: 4px; }
+.produit.presque-fini .jauge i { background: var(--tomate); }
+.produit.sel { outline: 3px solid var(--poireau); outline-offset: 1px; }
+.pastille-nouveau { position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--poireau); box-shadow: 0 0 0 2px var(--surface); }
+.produit-detail { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; background: var(--surface); border: 2px solid var(--poireau); }
+.produit-detail .emoji { font-size: 30px; }
+.liste-detaillee summary { cursor: pointer; padding: 6px 0; }
+@media (prefers-reduced-motion: reduce) { .porte { transition: none; } }
 </style>
 
 <div id="app"></div>

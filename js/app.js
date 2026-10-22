@@ -875,6 +875,72 @@
         <span class="small muted">${x.manquants.length ? `Il manque : ${esc(x.manquants.map((id) => E.ING[id].nom.toLowerCase()).join(', '))}` : 'Tout est déjà à la maison'}</span>
         ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></section>`;
   }
+  /* ---------- la cuisine : frigo, congélateur, placard et corbeille qu'on ouvre ---------- */
+  const EMOJI = { oignon: '🧅', ail: '🧄', carotte: '🥕', courgette: '🥒', tomate: '🍅', poivron: '🫑', pomme_de_terre: '🥔', poireau: '🥬', champignon: '🍄', brocoli: '🥦', salade: '🥬', concombre: '🥒', aubergine: '🍆', courge: '🎃', citron: '🍋', persil: '🌿', patate_douce: '🍠', chou: '🥬',
+    poulet_filet: '🍗', cuisses_poulet: '🍗', boeuf_hache: '🥩', jambon: '🍖', lardons: '🥓', saucisse: '🌭', saumon: '🐟', oeufs: '🥚', lait: '🥛', beurre: '🧈', creme: '🥛', emmental: '🧀', mozzarella: '🧀', feta: '🧀', yaourt: '🍶', tofu: '🍱',
+    pates: '🍝', riz: '🍚', semoule: '🌾', quinoa: '🌾', farine: '🌾', lentilles_corail: '🫘', lentilles_vertes: '🫘', pois_chiches: '🫘', haricots_rouges: '🫘', haricots_blancs: '🫘', pois_casses: '🫛', mais: '🌽', tomates_concassees: '🥫', lait_coco: '🥥', thon: '🥫',
+    huile_olive: '🫒', curry: '🍛', cumin: '🧂', paprika: '🌶️', bouillon: '🍲', sauce_soja: '🍶', moutarde: '🫙', tortillas: '🫓', colin: '🐟', epinards: '🥬', haricots_verts: '🫛', petits_pois: '🫛', pain: '🥖', pain_mie: '🍞' };
+  const SEC = new Set(['pomme_de_terre', 'oignon', 'ail', 'courge', 'patate_douce', 'citron', 'pain', 'pain_mie']);
+  const EPICES = new Set(['huile_olive', 'curry', 'cumin', 'paprika', 'bouillon', 'sauce_soja', 'moutarde']);
+  const CONSERVES = new Set(['tomates_concassees', 'lait_coco', 'thon', 'mais', 'pois_chiches', 'haricots_rouges', 'haricots_blancs']);
+  function zoneDe(id) {
+    const r = E.ING[id].rayon;
+    if (SEC.has(id)) return 'corbeille';
+    if (r === 'Surgelés') return 'congel';
+    if (r === 'Épicerie') return 'placard';
+    return 'frigo';
+  }
+  const ZONES = {
+    placard: { nom: 'Le placard', etageres: [['Pâtes, riz et farines', (id) => !EPICES.has(id) && !CONSERVES.has(id)], ['Conserves', (id) => CONSERVES.has(id)], ['Huiles, épices et sauces', (id) => EPICES.has(id)]], rapide: ['pates', 'riz', 'farine', 'semoule', 'tomates_concassees', 'thon', 'huile_olive', 'lentilles_corail'] },
+    frigo: { nom: 'Le frigo', etageres: [['Crèmerie', (id) => E.ING[id].rayon === 'Crèmerie et frais'], ['Viandes et poissons', (id) => E.ING[id].rayon === 'Viandes et poissons'], ['Bac à légumes', (id) => E.ING[id].rayon === 'Fruits et légumes']], rapide: ['oeufs', 'lait', 'beurre', 'creme', 'emmental', 'jambon', 'courgette', 'carotte'] },
+    congel: { nom: 'Le congélateur', etageres: [['Surgelés', () => true]], rapide: ['epinards', 'haricots_verts', 'petits_pois', 'colin'] },
+    corbeille: { nom: 'La corbeille', etageres: [['Légumes et pain', () => true]], rapide: ['pomme_de_terre', 'oignon', 'ail', 'citron', 'pain'] }
+  };
+  function produitCuisine(id, st, nouveaux) {
+    const i = E.ING[id], q = st[id], part = Math.min(1, q / i.cond);
+    const sel = S.stockSel === id;
+    return `<button class="produit ${sel ? 'sel' : ''} ${part < 0.25 ? 'presque-fini' : ''}" data-a="stock-sel" data-id="${id}" aria-pressed="${sel}" aria-label="${esc(i.nom)} : ${quantite(q, i.unite)}">
+      <span class="emoji" aria-hidden="true">${EMOJI[id] || '🥣'}</span><span class="p-nom">${esc(i.nom.replace(/\s*\(.*\)$/, ''))}</span><span class="p-qte num">${quantite(q, i.unite)}</span>
+      <span class="jauge" aria-hidden="true"><i style="width:${Math.round(part * 100)}%"></i></span>${nouveaux.has(id) ? '<span class="pastille-nouveau" aria-hidden="true"></span>' : ''}</button>`;
+  }
+  function interieur(zone, ids, st, nouveaux) {
+    const z = ZONES[zone];
+    const dedans = ids.filter((id) => zoneDe(id) === zone);
+    const sel = S.stockSel && dedans.includes(S.stockSel) ? E.ING[S.stockSel] : null;
+    const detail = () => `<div class="produit-detail" role="group" aria-label="${esc(sel.nom)}"><span class="emoji" aria-hidden="true">${EMOJI[sel.id] || '🥣'}</span><div class="stack" style="gap:2px;flex:1;min-width:0"><strong>${esc(sel.nom)}</strong><span class="small"><span class="num">${quantite(st[sel.id], sel.unite)}</span> · ${esc(sel.condLabel)}</span></div>
+        <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="stock-moins" data-id="${sel.id}" aria-label="Moins de ${esc(sel.nom)}">−</button><button class="btn btn-petit" data-a="stock-plus" data-id="${sel.id}" aria-label="Plus de ${esc(sel.nom)}">+</button><button class="btn-lien small" data-a="stock-fini" data-id="${sel.id}" aria-label="${esc(sel.nom)} : fini">Fini</button></div></div>`;
+    const manquent = z.rapide.filter((id) => !st[id] && !E.ingredientInterdit(E.ING[id], S.profil)).slice(0, 6);
+    return `<div class="interieur">
+      <div class="spread int-tete"><strong>${esc(z.nom)}</strong><button class="btn btn-petit" data-a="cuisine-ouvrir" data-z="${zone}">Fermer</button></div>
+      ${z.etageres.map(([nom, f]) => { const l = dedans.filter(f).sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')); return `<div class="etagere"><span class="etagere-nom">${esc(nom)}</span><div class="rangee">${l.length ? l.map((id) => produitCuisine(id, st, nouveaux)).join('') : '<span class="vide small">Rien ici</span>'}</div>${sel && l.includes(sel.id) ? detail() : ''}</div>`; }).join('')}
+      ${!sel && dedans.length ? '<p class="small muted aide-cuisine">Touchez un produit pour changer sa quantité.</p>' : ''}
+      ${manquent.length ? `<div class="row puces-ajout" style="gap:6px"><span class="small">Ranger ici :</span>${manquent.map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom.replace(/\s*\(.*\)$/, ''))}</button>`).join('')}</div>` : ''}
+    </div>`;
+  }
+  function vueCuisine(st, ids, nouveaux) {
+    const o = S.cuisine || null;
+    const n = (zone) => ids.filter((id) => zoneDe(id) === zone).length;
+    const porte = (zone, classe, libelle) => `<button class="porte ${classe}" data-a="cuisine-ouvrir" data-z="${zone}" aria-expanded="${o === zone}" aria-label="${o === zone ? 'Fermer' : 'Ouvrir'} ${libelle} (${pluriel(n(zone), 'produit')})"><span class="poignee" aria-hidden="true"></span><span class="etiquette">${esc(libelle.replace(/^(le|la) /i, ''))}<span class="compte">${n(zone)}</span></span></button>`;
+    const corb = ids.filter((id) => zoneDe(id) === 'corbeille');
+    return `<section class="cuisine ${o ? 'ouverte-' + o : ''}" aria-label="Ma cuisine : ouvrez le frigo, le congélateur ou le placard">
+      <div class="meuble meuble-placard ${o === 'placard' ? 'ouvert' : ''}">
+        <div class="caisson">${o === 'placard' ? interieur('placard', ids, st, nouveaux) : ''}</div>
+        <div class="portes-doubles">${porte('placard', 'porte-g', 'le placard')}<button class="porte porte-d" data-a="cuisine-ouvrir" data-z="placard" tabindex="-1" aria-hidden="true"><span class="poignee"></span></button></div>
+      </div>
+      <div class="rangee-bas">
+        <div class="meuble meuble-frigo ${o === 'frigo' || o === 'congel' ? 'ouvert' : ''}">
+          <div class="compartiment congel ${o === 'congel' ? 'ouvert' : ''}"><div class="caisson">${o === 'congel' ? interieur('congel', ids, st, nouveaux) : ''}</div>${porte('congel', 'porte-congel', 'le congélateur')}</div>
+          <div class="compartiment frigo ${o === 'frigo' ? 'ouvert' : ''}"><div class="caisson">${o === 'frigo' ? interieur('frigo', ids, st, nouveaux) : ''}</div>${porte('frigo', 'porte-frigo', 'le frigo')}</div>
+        </div>
+        <div class="plan-travail ${o === 'corbeille' ? 'ouvert' : ''}">
+          <button class="corbeille" data-a="cuisine-ouvrir" data-z="corbeille" aria-expanded="${o === 'corbeille'}" aria-label="${o === 'corbeille' ? 'Fermer' : 'Voir'} la corbeille (${pluriel(corb.length, 'produit')})">
+            <span class="dans-corbeille" aria-hidden="true">${corb.slice(0, 6).map((id) => EMOJI[id] || '🥣').join('') || '<span class="small muted">vide</span>'}</span><span class="panier" aria-hidden="true"></span><span class="etiquette">Corbeille<span class="compte">${corb.length}</span></span></button>
+          ${o === 'corbeille' ? `<div class="caisson">${interieur('corbeille', ids, st, nouveaux)}</div>` : ''}
+        </div>
+      </div>
+      <div class="sol" aria-hidden="true"></div>
+    </section>`;
+  }
   function ongletPlacard() {
     const st = S.profil.stock || {};
     const ids = Object.keys(st).filter((id) => E.ING[id]);
@@ -906,11 +972,15 @@
         <span class="small muted">Ils seront déduits du placard. Décochez ceux que vous n’avez pas faits.</span>
         <ul class="liste-repas-faits">${repas.map(({ j, sl, m }) => `<li><label class="case"><input type="checkbox" data-a="repas-fait" data-k="${j}-${sl}" ${S.repasDecoches && S.repasDecoches[j + '-' + sl] ? '' : 'checked'}><span>${E.JOURS[j]} ${sl === 'diner' ? 'soir' : 'midi'} : ${esc(E.REC[m.recette].nom)}</span></label></li>`).join('')}</ul>
         <div class="row"><button class="btn btn-plein" data-a="deduire-repas">Mettre à jour le placard</button></div></section>` : ''}
+      <section class="stack" style="gap:10px"><div class="spread"><h2>Ma cuisine</h2>${ids.length ? `<span class="small muted">${pluriel(ids.length, 'produit')}</span>` : ''}</div>
+        <p class="small ${ids.length ? 'muted' : ''}" style="margin:0">${!ids.length ? 'Votre placard est vide pour Budgétable. Ouvrez un meuble pour y ranger ce que vous avez déjà, ou ajoutez-le plus bas : vos menus l’utiliseront en premier.' : S.cuisine ? 'Touchez « Fermer » pour refermer.' : 'Ouvrez le frigo, le congélateur ou le placard pour voir ce qu’il y a dedans.'}</p>
+        ${vueCuisine(st, ids, nouveaux)}
+      </section>
       ${avec.length ? blocAvecPlacard(avec, 'Que cuisiner avec ce que j’ai ?') : ''}
-      <section class="stack" style="gap:10px"><div class="spread"><h2>Dans mon placard</h2>${ids.length ? `<span class="small muted">${pluriel(ids.length, 'produit')}</span>` : ''}</div>
+      <details class="stack liste-detaillee" ${S.listeStockOuverte ? 'open' : ''}><summary data-a="liste-stock-ouvrir"><strong>Tout le placard en liste</strong> <span class="small muted">· ${pluriel(ids.length, 'produit')}</span></summary><div class="stack" style="gap:10px;margin-top:10px">
         ${ids.length ? Object.entries(par).sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([rayon, l]) => `<div class="stack" style="gap:4px"><span class="eyebrow">${esc(rayon)}</span><ul class="liste-stock">${l.sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')).map(ligne).join('')}</ul></div>`).join('')
           : '<p class="small">Votre placard est vide pour Budgétable. Ajoutez ce que vous avez déjà ci-dessous : vos menus l’utiliseront en premier.</p>'}
-      </section>
+      </div></details>
       <section class="carte stack" style="gap:10px"><h2>Ajouter ce que j’ai déjà</h2>
         <p class="small muted">Touchez un produit : un paquet entier est ajouté. Ajustez ensuite avec − et +.</p>
         <div class="row puces-ajout">${PLACARD_RAPIDE.filter((id) => !st[id]).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('')}</div>
@@ -1519,6 +1589,9 @@
         S.modeCourses = { ...m, ouvert: true, i };
         break;
       }
+      case 'cuisine-ouvrir': S.cuisine = S.cuisine === el.dataset.z ? null : el.dataset.z; S.stockSel = null; break;
+      case 'stock-sel': S.stockSel = S.stockSel === el.dataset.id ? null : el.dataset.id; break;
+      case 'liste-stock-ouvrir': S.listeStockOuverte = !el.parentElement.open; return;
       case 'drives-ouvrir': S.drivesOuverts = !el.parentElement.open; return;
       case 'stock-ajouter': {
         const id = el.dataset.id;
@@ -1529,7 +1602,7 @@
       }
       case 'stock-plus': p.stock = E.ajouterAuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
       case 'stock-moins': p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, pasStock(el.dataset.id)]]); break;
-      case 'stock-fini': p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, Infinity]]); toast(`${E.ING[el.dataset.id].nom} : retiré du placard`); break;
+      case 'stock-fini': if (S.stockSel === el.dataset.id) S.stockSel = null; p.stock = E.retirerDuStock(p.stock, [[el.dataset.id, Infinity]]); toast(`${E.ING[el.dataset.id].nom} : retiré du placard`); break;
       case 'ranger-achats': {
         const achats = achatsARanger();
         if (!achats.length) { toast('Rien à ranger : cochez d’abord vos articles achetés'); if (S.modeCourses) S.modeCourses.ouvert = false; break; }

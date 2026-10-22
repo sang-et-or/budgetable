@@ -28,14 +28,24 @@ with sync_playwright() as p:
         b.click()
     page.fill("#stock-cherche", "emment")
     page.locator("#stock-propositions .puce-ajout").first.click()
-    txt = main.inner_text()
-    assert "Dans mon placard" in txt and "Emmental" in txt and txt.count("Fini") >= 4, txt[:800]
-    # − / +
-    lp = main.locator(".ligne-stock", has_text="Pâtes").first
-    q0 = lp.locator(".num").inner_text()
-    lp.get_by_role("button", name=re.compile("^Moins")).click()
-    q1 = main.locator(".ligne-stock", has_text="Pâtes").first.locator(".num").inner_text()
+    # la cuisine : le placard contient les pâtes, le frigo les œufs et l'emmental
+    k = main.locator(".cuisine")
+    assert "Placard" in k.inner_text() and "Frigo" in k.inner_text()
+    k.get_by_role("button", name=re.compile("^Ouvrir le placard")).click()
+    pates = k.locator(".produit", has_text="Pâtes")
+    q0 = pates.locator(".p-qte").inner_text()
+    pates.click()
+    k.locator(".produit-detail").get_by_role("button", name=re.compile("^Moins")).click()
+    q1 = k.locator(".produit", has_text="Pâtes").locator(".p-qte").inner_text()
     assert q0 != q1, (q0, q1)
+    k.get_by_role("button", name=re.compile("^Ouvrir le frigo")).click()
+    ft = k.locator(".meuble-frigo").inner_text()
+    assert "Emmental" in ft and "Œufs" in ft, ft
+    assert "Pâtes" not in ft
+    # la liste détaillée reste disponible
+    main.locator(".liste-detaillee summary").click()
+    txt = main.locator(".liste-detaillee").inner_text()
+    assert "Emmental" in txt and txt.count("Fini") >= 4, txt[:600]
     # idées avec ce que j'ai
     assert "Que cuisiner avec ce que j’ai" in main.inner_text()
     idee = main.locator("[data-a=placard-ce-soir]").first
