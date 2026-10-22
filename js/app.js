@@ -2015,10 +2015,18 @@
     const filtre = S.filtreJournal || 'tout';
     const q = E.norm(S.rechercheJournal || '');
     const jours = Object.entries(apportsParJour(debut, ISO(auj))).filter(([, j]) => j.repas.length || j.ajouts.length).reverse();
-    const visibles = jours.map(([d, j]) => [d, j, lignesJournal(j).filter((x) => (filtre === 'tout' || (filtre === 'repas' ? ['dejeuner', 'diner'].includes(x.moment) : x.moment === filtre)) && (!q || E.norm(x.nom).includes(q)))]).filter(([, , l]) => l.length);
-    const humeurs = jours.map(([d, j]) => humeurJour(j, d < ISO(auj)));
+    const humeur = S.humeurJournal || 'tout';
+    const humeurDe = new Map(jours.map(([d, j]) => [d, humeurJour(j, d < ISO(auj))]));
+    const toutesLignes = jours.flatMap(([d, j]) => lignesJournal(j).map((x) => ({ ...x, d })));
+    const garde = (x) => (filtre === 'tout' || (filtre === 'repas' ? ['dejeuner', 'diner'].includes(x.moment) : x.moment === filtre)) && (!q || E.norm(x.nom).includes(q));
+    const visibles = jours.filter(([d]) => humeur === 'tout' || humeurDe.get(d) === humeur).map(([d, j]) => [d, j, lignesJournal(j).filter(garde)]).filter(([, , l]) => l.length);
+    const humeurs = [...humeurDe.values()];
+    // propositions : seulement ce qui existe dans le journal, avec le nombre d'entrées
+    const compte = (f) => toutesLignes.filter(f).length;
+    const nomsFrequents = Object.entries(toutesLignes.reduce((m, x) => { m[x.nom] = (m[x.nom] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]);
     const moyKcal = jours.length ? Math.round(jours.reduce((t, [, j]) => t + j.kcal, 0) / jours.length / 10) * 10 : 0;
-    const filtres = [['tout', 'Tout'], ['repas', 'Repas'], ['petitdej', 'Petit-déjeuner'], ['collation', 'Collations'], ['boisson', 'Boissons'], ['dehors', 'Dehors']];
+    const filtres = [['tout', 'Tout', () => true], ['repas', 'Repas du planning', (x) => ['dejeuner', 'diner'].includes(x.moment)], ['petitdej', '☕ Petit-déjeuner', (x) => x.moment === 'petitdej'], ['dejeuner', '🍽️ Déjeuner', (x) => x.moment === 'dejeuner'], ['collation', '🍎 Collations', (x) => x.moment === 'collation'], ['diner', '🌙 Dîner', (x) => x.moment === 'diner'], ['boisson', '🥤 Boissons', (x) => x.moment === 'boisson'], ['dehors', '🥡 Dehors', (x) => x.moment === 'dehors']]
+      .map(([k, v, f]) => [k, v, compte(f)]).filter(([k, , n]) => n > 0 || k === 'tout' || k === filtre);
     const urlCsv = jours.length ? 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csvJournal(jours)) : null;
     return `<div class="spread"><div><p class="eyebrow">Suivi</p><h1>Mon journal</h1></div><div class="row ecran-seul" style="gap:6px">${urlCsv ? `<a class="btn btn-petit" href="${urlCsv}" download="budgetable-journal.csv">⬇ Télécharger (tableur)</a>` : ''}<button class="btn btn-petit" data-a="imprimer-journal">🖨 Imprimer</button></div></div>
       <p class="muted">Tout ce que vous avez noté, jour par jour : les repas du planning marqués « C’est mangé » et les aliments du carnet.</p>
@@ -2029,13 +2037,17 @@
       </section>
       <div class="stack ecran-seul" style="gap:8px">
         <div class="row" role="radiogroup" aria-label="Période" style="gap:6px">${[['7', '7 jours'], ['30', '30 jours'], ['tout', 'Tout']].map(([k, v]) => `<button class="chip" role="radio" data-a="journal-periode" data-k="${k}" aria-checked="${per === k}" aria-pressed="${per === k}">${v}</button>`).join('')}</div>
-        <div class="row" role="group" aria-label="Filtrer" style="gap:6px">${filtres.map(([k, v]) => `<button class="chip" data-a="journal-filtre" data-k="${k}" aria-pressed="${filtre === k}">${v}</button>`).join('')}</div>
-        <label class="champ"><span class="sr">Chercher dans le journal</span><input type="search" id="journal-cherche" data-a="journal-cherche" value="${esc(S.rechercheJournal || '')}" placeholder="Chercher : pizza, saumon, soda…" autocomplete="off"></label>
+        <div class="row" role="group" aria-label="Moment" style="gap:6px">${filtres.map(([k, v, n]) => `<button class="chip" data-a="journal-filtre" data-k="${k}" aria-pressed="${filtre === k}">${v} <span class="compte-filtre">${n}</span></button>`).join('')}</div>
+        ${jours.length ? `<div class="row" role="group" aria-label="Journées" style="gap:6px">${[['tout', 'Toutes les journées'], ['vert', '😊 Belles journées'], ['neutre', '😐 Correctes'], ['rouge', '😟 Avec dépassement']].map(([k, v]) => [k, v, k === 'tout' ? jours.length : humeurs.filter((h) => h === k).length]).filter(([k, , n]) => n > 0 || k === 'tout' || k === humeur).map(([k, v, n]) => `<button class="chip" data-a="journal-humeur" data-k="${k}" aria-pressed="${humeur === k}">${v} <span class="compte-filtre">${n}</span></button>`).join('')}</div>` : ''}
+        <label class="champ"><span class="sr">Chercher dans le journal</span><input type="search" id="journal-cherche" data-a="journal-cherche" list="journal-noms" value="${esc(S.rechercheJournal || '')}" placeholder="Chercher un aliment ou un plat de votre journal…" autocomplete="off"></label>
+        <datalist id="journal-noms">${nomsFrequents.map(([n]) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+        ${nomsFrequents.length ? `<div class="row suggestions-journal" style="gap:6px"><span class="small muted">Le plus souvent :</span>${nomsFrequents.slice(0, 8).map(([n, c]) => `<button class="chip chip-petit" data-a="journal-suggestion" data-k="${esc(n)}" aria-pressed="${E.norm(n) === q}" title="${esc(n)}">${esc(n.length > 28 ? n.slice(0, 26) + '…' : n)} <span class="compte-filtre">${c}</span></button>`).join('')}</div>` : ''}
+        ${filtre !== 'tout' || humeur !== 'tout' || q ? '<div><button class="btn-lien small" data-a="journal-effacer">Effacer les filtres</button></div>' : ''}
       </div>
-      <div id="journal-jours" class="stack" style="gap:12px">${journalJours(visibles, auj)}</div>`;
+      <div id="journal-jours" class="stack" style="gap:12px">${journalJours(visibles, auj, filtre !== 'tout' || humeur !== 'tout' || q)}</div>`;
   }
-  function journalJours(visibles, auj) {
-    if (!visibles.length) return `<section class="carte stack" style="gap:8px"><strong>Rien à afficher</strong><span class="small">${(S.journal || []).length + (S.ajouts || []).length ? 'Aucune entrée ne correspond à ce filtre.' : 'Notez vos repas avec « ✓ C’est mangé » dans la semaine, et vos petits-déjeuners, collations et boissons dans le carnet de la page Apports.'}</span>${(S.journal || []).length + (S.ajouts || []).length ? '' : '<div><button class="btn btn-petit btn-plein" data-a="onglet" data-k="apports">Ouvrir le carnet du jour</button></div>'}</section>`;
+ function journalJours(visibles, auj, filtreActif) {
+    if (!visibles.length) return `<section class="carte stack" style="gap:8px"><strong>Rien à afficher</strong><span class="small">${(S.journal || []).length + (S.ajouts || []).length ? `Aucune entrée ne correspond${filtreActif ? ' à ces filtres. <button class="btn-lien" data-a="journal-effacer">Tout afficher</button>' : ' à cette période.'}` : 'Notez vos repas avec « ✓ C’est mangé » dans la semaine, et vos petits-déjeuners, collations et boissons dans le carnet de la page Apports.'}</span>${(S.journal || []).length + (S.ajouts || []).length ? '' : '<div><button class="btn btn-petit btn-plein" data-a="onglet" data-k="apports">Ouvrir le carnet du jour</button></div>'}</section>`;
     return visibles.map(([d, j, lignes]) => {
       const h = humeurJour(j, d < ISO(auj));
       const titre = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: d.slice(0, 4) !== String(auj.getFullYear()) ? 'numeric' : undefined });
@@ -2610,6 +2622,9 @@
       case 'carnet-objectif': S.objectifKcal = +el.dataset.k; break;
       case 'journal-periode': S.periodeJournal = el.dataset.k; break;
       case 'journal-filtre': S.filtreJournal = el.dataset.k; break;
+      case 'journal-humeur': S.humeurJournal = el.dataset.k; break;
+      case 'journal-suggestion': S.rechercheJournal = E.norm(el.dataset.k) === E.norm(S.rechercheJournal || '') ? '' : el.dataset.k; break;
+      case 'journal-effacer': S.filtreJournal = 'tout'; S.humeurJournal = 'tout'; S.rechercheJournal = ''; break;
       case 'journal-ajouter': S.jourCarnet = el.dataset.d; S.onglet = 'apports'; window.scrollTo(0, 0); break;
       case 'journal-suppr-repas': S.journal = (S.journal || []).filter((x) => !(x.d === el.dataset.d && x.s === el.dataset.s)); toast('Retiré du journal'); break;
       case 'imprimer-journal': window.print(); return;

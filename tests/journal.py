@@ -34,9 +34,18 @@ with sync_playwright() as p:
     tl = t.lower(); assert "petit-déjeuner" in tl and "déjeuner" in tl and "boissons" in tl and "😟" in t
     page.screenshot(path=f"{OUT}/jo1.png")
     # filtre et recherche
-    main.get_by_role("button", name="Boissons", exact=True).click()
+    main.locator("[data-a=journal-filtre][data-k=boisson]").click()
+    assert "10" in main.locator("[data-a=journal-filtre][data-k=petitdej]").inner_text()
+    assert main.locator("[data-a=journal-filtre][data-k=dehors]").count() == 0, "filtre sans entrée proposé"
     assert "Croissant" not in main.locator("#journal-jours").inner_text()
-    main.get_by_role("button", name="Tout", exact=True).first.click()
+    main.locator("[data-a=journal-filtre][data-k=tout]").click()
+    # suggestions : un clic filtre sur l'aliment
+    main.locator("[data-a=journal-suggestion]", has_text="Soda").click()
+    assert main.locator(".jour-journal").count() == 4
+    main.locator("[data-a=journal-humeur][data-k=rouge]").click()
+    assert main.locator(".jour-journal").count() >= 1
+    clic("Effacer les filtres")
+    assert main.locator(".jour-journal").count() == 10
     page.fill("#journal-cherche", "soda")
     assert main.locator(".jour-journal").count() == 4, main.locator(".jour-journal").count()
     page.fill("#journal-cherche", "")

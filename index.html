@@ -714,6 +714,11 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .groupe-journal li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
 #journal-jours .chip[aria-pressed="true"], .chip[data-a^="journal"][aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
 @media print { .jour-journal { break-inside: avoid; } }
+
+.compte-filtre { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 2px; border-radius: 99px; background: var(--papier); color: var(--encre-douce); font-size: .75rem; font-weight: 700; text-align: center; }
+.chip[aria-pressed="true"] .compte-filtre { background: rgb(255 255 255 / .25); color: #fff; }
+.chip[data-a="journal-humeur"][aria-pressed="true"], .chip[data-a="journal-suggestion"][aria-pressed="true"] { background: var(--poireau); color: #fff; border-color: var(--poireau); }
+.chip-petit { font-size: .82rem; padding: 4px 10px; }
 </style>
 
 <div id="app"></div>
