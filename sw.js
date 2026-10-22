@@ -1,5 +1,5 @@
 // Budgétable — fonctionnement hors ligne (mise en cache des fichiers de l'appli)
-const VERSION = 'budgetable-v1.2.0';
+const VERSION = 'budgetable-v1.2.1';
 const FICHIERS = ['./', './index.html', './js/data.js', './js/modeles.js', './js/engine.js', './js/saisie.js', './js/visuels.js', './js/photos.js', './js/magasins.js', './js/app.js', './manifest.webmanifest', './icon.svg', './icon-maskable.svg'];
 
 self.addEventListener('install', (e) => {
@@ -17,5 +17,5 @@ self.addEventListener('fetch', (e) => {
     const copie = r.clone();
     caches.open(VERSION).then((c) => c.put(e.request, copie));
     return r;
-  }).catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html'))));
+  }).catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match('./index.html'))));
 });
