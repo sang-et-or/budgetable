@@ -174,6 +174,7 @@
       if (mots.some((m) => contient(t, m))) { cites.add(id); if (!coches.has(id)) coches.set(id, qte(id)); }
     }
     if (cites.has('tomates_concassees') && coches.has('tomate')) coches.delete('tomates_concassees');
+    if (['nouilles', 'lasagnes', 'gnocchis', 'raviolis'].some((id) => cites.has(id))) coches.delete('pates');
     if (coches.has('lentilles_corail') && !/lentilles? vertes?|lentilles? du puy/.test(t)) coches.delete('lentilles_vertes');
     if (coches.has('patate_douce') && !/pomme de terre|frite|puree/.test(t)) coches.delete('pomme_de_terre');
     // une protéine nommée remplace celle du plat par défaut (wok aux crevettes, lasagnes au saumon…)
@@ -232,12 +233,17 @@
   }
 
   /** Ingrédients du catalogue dont le nom commence par / contient le texte (pour « ajouter un ingrédient »). */
-  function chercherIngredients(texte, n = 6) {
+  function chercherIngredients(texte, n = 12) {
     const t = norm(texte);
     if (t.length < 2) return [];
-    const viaMots = MOTS.filter(([mots]) => mots.some((m) => norm(m).startsWith(t) || t.startsWith(norm(m)))).map(([, id]) => id);
-    const viaNoms = E.DATA.ingredients.filter((i) => norm(i.nom).includes(t)).map((i) => i.id);
-    return [...new Set(viaNoms.concat(viaMots))].slice(0, n);
+    const sing = t.replace(/(s|x)$/, '');
+    const debut = (x) => x.split(' ').some((w) => w.startsWith(sing));
+    // les noms qui commencent par le texte d'abord, puis les autres façons de l'écrire, puis ce qui le contient
+    const noms = E.DATA.ingredients.filter((i) => !i.perso);
+    const viaDebut = noms.filter((i) => debut(norm(i.nom))).map((i) => i.id);
+    const viaMots = MOTS.filter(([mots]) => mots.some((m) => { const x = norm(m); return debut(x) || (t.length >= 4 && t.startsWith(x)); })).map(([, id]) => id);
+    const viaNoms = noms.filter((i) => norm(i.nom).includes(sing)).map((i) => i.id);
+    return [...new Set(viaDebut.concat(viaMots, viaNoms))].filter((id) => E.ING[id]).slice(0, n);
   }
 
   /* ---------- lignes d'ingrédients d'une vraie recette (« 200 g de lardons », « 2 oignons »…) ---------- */
@@ -245,14 +251,14 @@
   const LIGNE = [
     [['blanc de poulet', 'blancs de poulet', 'filet de poulet', 'escalope de poulet', 'aiguillette de poulet', 'aiguillettes de poulet', 'poulet', 'volaille'], 'poulet_filet'],
     [['cuisse de poulet', 'cuisses de poulet', 'haut de cuisse', 'hauts de cuisse', 'pilon', 'poulet entier'], 'cuisses_poulet'],
-    [['boeuf hache', 'viande hachee', 'steak hache', 'steaks haches', 'hache de boeuf', 'boeuf', 'paleron', 'macreuse', 'gite', 'bavette', 'rumsteak', 'viande a bourguignon'], 'boeuf_hache'],
-    [['jambon', 'des de jambon'], 'jambon'], [['lardon', 'poitrine fumee', 'poitrine de porc fumee', 'bacon', 'allumettes'], 'lardons'],
+    [['boeuf hache', 'viande hachee', 'steak hache', 'steaks haches', 'hache de boeuf', 'boeuf'], 'boeuf_hache'],
+    [['jambon', 'des de jambon'], 'jambon'], [['lardon', 'poitrine fumee', 'poitrine de porc fumee', 'allumettes'], 'lardons'],
     [['saucisse', 'chipolata', 'merguez', 'saucisse de toulouse'], 'saucisse'], [['saumon', 'pave de saumon'], 'saumon'], [['thon'], 'thon'],
-    [['colin', 'cabillaud', 'merlu', 'lieu', 'poisson blanc', 'filet de poisson', 'dos de cabillaud'], 'colin'],
+    [['colin', 'merlu', 'lieu', 'poisson blanc', 'filet de poisson'], 'colin'],
     [['oeuf', 'jaune d oeuf', 'jaunes d oeufs', 'blanc d oeuf', 'blancs d oeufs'], 'oeufs'], [['tofu'], 'tofu'],
     [['lait de coco', 'creme de coco', 'lait coco'], 'lait_coco'], [['lait'], 'lait'], [['beurre', 'beurre doux', 'beurre demi sel'], 'beurre'],
     [['creme fraiche', 'creme liquide', 'creme epaisse', 'creme entiere', 'creme semi epaisse', 'creme legere', 'creme'], 'creme'],
-    [['emmental', 'gruyere', 'comte', 'fromage rape', 'fromage a raclette', 'reblochon', 'cheddar', 'fromage'], 'emmental'],
+    [['emmental', 'fromage rape', 'fromage'], 'emmental'],
     [['mozzarella', 'mozza'], 'mozzarella'], [['feta'], 'feta'], [['yaourt', 'yogourt', 'yaourt grec', 'fromage blanc'], 'yaourt'],
     [['pates', 'spaghetti', 'spaghettis', 'tagliatelle', 'tagliatelles', 'penne', 'macaroni', 'coquillettes', 'fusilli', 'feuilles de lasagne', 'lasagnes', 'nouilles', 'linguine', 'farfalle', 'torsades', 'rigatoni'], 'pates'],
     [['riz', 'riz arborio', 'riz basmati', 'riz thai'], 'riz'], [['semoule', 'couscous'], 'semoule'], [['quinoa'], 'quinoa'],
@@ -271,7 +277,7 @@
     [['courge', 'butternut', 'potiron', 'potimarron', 'citrouille'], 'courge'], [['citron', 'jus de citron', 'citron vert'], 'citron'], [['persil', 'persil plat'], 'persil'],
     [['chou', 'chou blanc', 'chou vert'], 'chou'], [['epinard', 'pousses d epinard'], 'epinards'], [['pain de mie'], 'pain_mie'], [['baguette', 'pain', 'pain de campagne'], 'pain'],
     [['sucre', 'sucre semoule', 'sucre en poudre', 'sucre glace', 'sucre roux', 'cassonade', 'sucre vanille'], { nom: 'sucre', tags: [] }],
-    [['pate brisee', 'pate feuilletee', 'pate sablee', 'pate a pizza', 'rouleau de pate'], { nom: 'pâte à tarte', tags: ['gluten'] }],
+    [['pate brisee', 'pate a tarte', 'rouleau de pate'], { nom: 'pâte à tarte', tags: ['gluten'] }],
     [['chapelure'], { nom: 'chapelure', tags: ['gluten'] }], [['vinaigre', 'vinaigre balsamique'], { nom: 'vinaigre', tags: [] }],
     [['herbes de provence', 'thym', 'laurier', 'romarin', 'origan', 'ciboulette', 'estragon', 'aneth', 'bouquet garni', 'menthe'], null],
     [['noix de muscade', 'muscade', 'cannelle', 'vanille', 'piment', 'piment d espelette', 'curcuma', 'gingembre en poudre', 'ras el hanout', 'quatre epices', 'clou de girofle'], null]
@@ -350,6 +356,7 @@
     if (al.cible === null) return { ignore: brut, epice: true };
     let id = al.cible;
     if (typeof id === 'object') { id = versCatalogue(al.cible.nom); if (!id) return { extra: { nom: al.cible.nom, tags: al.cible.tags } }; }
+    if (!E.ING[id]) return { extra: { nom: nomLisible, tags: tagsExtra(nomLisible) || [] } };
     const ing = E.ING[id];
     let total = null;
     const kind = unite ? unite[2] : null;
@@ -405,7 +412,27 @@
     } catch (e) { return ''; }
   }
 
-  const api = { versCatalogue, QTE_SUCRE, devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
+  /**
+   * Catalogue élargi : nouveaux mots pour la recherche et la lecture des recettes, quantités habituelles.
+   * Les aliments « hors catalogue » devenus produits du catalogue ne sont plus proposés en double.
+   */
+  const SANS_LECTURE = new Set(['epices', 'thym', 'sel']); // épices et herbes sèches : pas ajoutées d'office en lisant une recette
+  function etendre(mots, quantites) {
+    const tous = new Set();
+    for (const [m, id] of mots || []) {
+      if (!E.ING[id]) continue;
+      MOTS.push([m, id]);
+      if (!SANS_LECTURE.has(id)) LIGNE.unshift([m, id]);
+      m.forEach((x) => tous.add(norm(x)));
+      tous.add(norm(E.ING[id].nom));
+    }
+    for (const [id, q] of Object.entries(quantites || {})) if (QTE[id] == null) QTE[id] = q;
+    for (let i = HORS.length - 1; i >= 0; i--) if (HORS[i][0].some((m) => tous.has(norm(m))) || tous.has(norm(HORS[i][1]))) HORS.splice(i, 1);
+    MOTIFS.clear();
+  }
+  // viandes à mijoter et fromages de montagne : produits de saison quand ils existent
+  LIGNE.unshift([['paleron', 'macreuse', 'gite', 'viande a bourguignon', 'boeuf bourguignon', 'joue de boeuf', 'plat de cote', 'boeuf a braiser', 'boeuf a mijoter'], 'boeuf_braiser'], [['reblochon'], 'reblochon'], [['fromage a raclette', 'raclette'], 'raclette']);
+  const api = { etendre, versCatalogue, QTE_SUCRE, devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Saisie = api;
 })(typeof window !== 'undefined' ? window : globalThis);

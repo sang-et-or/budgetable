@@ -113,6 +113,13 @@
     return GOURMAND;
   }
   const gourmandises = () => GOURMAND.slice();
+  /** Ajoute des produits au catalogue (catalogue élargi, produits des desserts et de saison). */
+  function ajouterIngredients(liste) {
+    let n = 0;
+    for (const i of liste || []) if (i && i.id && (!ING[i.id] || ING[i.id].perso)) { if (ING[i.id]) { const k = DATA.ingredients.indexOf(ING[i.id]); if (k >= 0) DATA.ingredients.splice(k, 1); } ING[i.id] = { ...i, tags: (i.tags || []).slice() }; DATA.ingredients.push(ING[i.id]); n++; }
+    if (n) { cacheCompat.clear(); }
+    return n;
+  }
   /* ---------- idées de saison : recettes du catalogue, proposées dans les menus quand on les garde ---------- */
   let SAISON = [], SAISON_ACTIF = [];
   function definirSaison(ingredients, recettes) {
@@ -1117,7 +1124,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, portions, organiserRestes, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    profilParDefaut, ameliorerSemaine, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

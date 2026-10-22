@@ -102,6 +102,13 @@
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
     }
   }
+  // catalogue élargi + produits des desserts et de saison : enregistrés avant les recettes perso qui peuvent les utiliser
+  (function catalogueComplet() {
+    const extra = window.CatalogueExtra, G = window.Gourmand, Sa = window.Saison;
+    E.ajouterIngredients([].concat(G ? G.INGREDIENTS : [], Sa ? Sa.INGREDIENTS : [], extra ? extra.INGREDIENTS : []));
+    if (window.Nutrition) for (const src of [Sa && Sa.NUTRITION, extra && extra.NUTRITION]) for (const [k, v] of Object.entries(src || {})) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
+    if (extra && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(extra.MOTS, extra.Q);
+  })();
   function charger() {
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
@@ -3160,7 +3167,7 @@
     if (el.dataset.a === 'stock-cherche') {
       const t = el.value.trim();
       const z = document.getElementById('stock-propositions');
-      if (z) z.innerHTML = t.length < 2 ? '' : (window.Saisie.chercherIngredients(t, 8).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('') || '<span class="small muted">Produit inconnu de Budgétable : il ne peut pas être suivi.</span>');
+      if (z) z.innerHTML = t.length < 2 ? '' : (window.Saisie.chercherIngredients(t, 14).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('') || '<span class="small muted">Produit inconnu de Budgétable : il ne peut pas être suivi.</span>');
       return;
     }
     if (el.dataset.a === 'recherche-plat' && choix) {
@@ -3188,7 +3195,7 @@
       const t = el.value.trim();
       const zone = document.getElementById('propositions-ing');
       if (zone) {
-        const ids = window.Saisie.chercherIngredients(t).filter((id) => !edition.ing.some((y) => y.id === id && y.coche));
+        const ids = window.Saisie.chercherIngredients(t, 16).filter((id) => !edition.ing.some((y) => y.id === id && y.coche));
         zone.innerHTML = t.length < 2 ? '' : ids.map((id) => `<button class="chip" data-a="ajout-ing-choisir" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('')
           + `<button class="chip" data-a="ajout-ing-libre" data-nom="${esc(t)}">+ « ${esc(t)} » tel quel</button>`;
       }

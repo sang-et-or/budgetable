@@ -41,7 +41,7 @@ with sync_playwright() as p:
     lus = [a for a in appels if "/recette?" in a]
     assert "url=https%3A%2F%2Fwww.marmiton.org" in lus[0], appels
     dans = ed.locator(".dans-recette").inner_text()
-    for x in ["Lardons", "Œufs", "Crème fraîche", "Lait demi-écrémé", "Emmental râpé", "Pâte brisée"]:
+    for x in ["Lardons", "Œufs", "Crème fraîche", "Lait demi-écrémé", "Comté", "Pâte brisée"]:
         assert x.lower() in dans.lower(), (x, dans)
     assert "Muscade" not in dans and "Sel" not in dans.split("\n")[0]
     # recette pour 6 personnes (lue sur le site) : quantités de la recette
