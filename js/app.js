@@ -124,6 +124,8 @@
       Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
+      // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
+      if (S.plan && !Array.isArray(S.profil.provisionsRangees)) rangerProvisions(S.profil);
     } catch (e) { /* données illisibles : on repart de zéro */ }
     finally { definirGourmand(); E.definirVariantes(S.variantes || []); }
   }
@@ -186,7 +188,7 @@
     { id: 'refus', titre: (p) => kids(p) ? 'Ce que quelqu’un refuse de manger' : 'Ce que vous ne mangez pas', aide: 'Ces aliments seront écartés.', type: 'multi', champ: 'refus', options: L.refus, aucune: 'Rien de particulier' },
     { id: 'dejeuners', titre: 'Et les déjeuners en semaine ?', type: 'dejeuners' },
     { id: 'budget', titre: 'Quel budget pour les courses de la semaine ?', type: 'budget' },
-    { id: 'provisions', titre: 'Qu’avez-vous déjà en réserve ?', aide: 'Ces produits ne seront pas ajoutés à la liste.', type: 'provisions' }
+    { id: 'provisions', titre: 'Qu’avez-vous déjà en réserve ?', aide: 'Ils seront rangés dans votre placard et ne seront pas ajoutés à la liste de courses.', type: 'provisions' }
   ];
   const questionsActives = (p) => QUESTIONS.filter((q) => !q.quand || q.quand(p));
 
@@ -3191,9 +3193,20 @@
     S.vue = 'questionnaire';
   }
 
+  /** Provisions déclarées au questionnaire → rangées dans le placard (une seule fois chacune, avec un paquet). */
+  function rangerProvisions(p) {
+    const voulus = [...new Set([...(p.provisions || []), ...(p.placardBase ? E.PLACARD_BASE : [])])].filter((id) => E.ING[id] && !E.ING[id].perso);
+    const deja = new Set(p.provisionsRangees || []);
+    const st = p.stock || {};
+    const ajouts = voulus.filter((id) => !deja.has(id) && !(st[id] > 0)).map((id) => [id, E.ING[id].cond]);
+    if (ajouts.length) p.stock = E.ajouterAuStock(p.stock, ajouts);
+    p.provisionsRangees = [...new Set([...deja, ...voulus])];
+    return ajouts.length;
+  }
   function suivant() {
     const qs = questionsActives(S.profil);
     const q = qs[S.etape];
+    if (q.id === 'provisions') { const n = rangerProvisions(S.profil); if (n) toast(`${pluriel(n, 'produit rangé', 'produits rangés')} dans votre placard`); }
     if (q.id === 'allergies') { S.profil.allergiesNonRenseignees = false; S.sensibleNonEnregistre = false; }
     if (S.edition) {
       // si la question a ouvert une question dépendante (ex. enfants → âges), on la pose aussi
