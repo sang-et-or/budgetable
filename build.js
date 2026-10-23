@@ -40,4 +40,17 @@ for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 
   fs.copyFileSync(path.join(__dirname, f), path.join(dist, f));
 }
 for (const base of versionnes) fs.copyFileSync(path.join(__dirname, base + '.js'), path.join(dist, `${base}.${version}.js`));
+// appli installable : icônes, captures d'écran, et service worker qui garde hors ligne les bons fichiers (versionnés)
+for (const dossier of ['icons', 'captures']) {
+  if (!fs.existsSync(path.join(__dirname, dossier))) continue;
+  fs.mkdirSync(path.join(dist, dossier), { recursive: true });
+  for (const f of fs.readdirSync(path.join(__dirname, dossier))) fs.copyFileSync(path.join(__dirname, dossier, f), path.join(dist, dossier, f));
+}
+{
+  const icones = fs.readdirSync(path.join(__dirname, 'icons')).map((f) => './icons/' + f);
+  const fichiers = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-maskable.svg', ...versionnes.map((b) => `./${b}.${version}.js`), ...icones];
+  let sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
+  sw = sw.replace(/const VERSION = '[^']*';/, `const VERSION = 'budgetable-${version}';`).replace(/const FICHIERS = \[[^\]]*\];/, `const FICHIERS = ${JSON.stringify(fichiers)};`);
+  fs.writeFileSync(path.join(dist, 'sw.js'), sw);
+}
 console.log('dist/ prêt');

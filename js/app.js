@@ -98,7 +98,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [] };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -121,7 +121,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [] });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
     } catch (e) { /* données illisibles : on repart de zéro */ }
@@ -532,6 +532,45 @@
       ${S.confirmerSupprCompte ? `<div class="bandeau bandeau-alerte small"><div class="stack" style="gap:8px"><strong>Supprimer définitivement votre compte ?</strong><span>Le compte et les données enregistrées en ligne seront effacés. Ce qui est sur cet appareil reste là.</span><div class="row" style="gap:8px"><button class="btn btn-petit btn-danger" data-a="compte-supprimer-ok">Oui, supprimer</button><button class="btn btn-petit" data-a="compte-supprimer-non">Annuler</button></div></div></div>` : '<div><button class="btn-lien small" data-a="compte-supprimer">Supprimer mon compte</button></div>'}</section>`;
   }
 
+  /* ---------- installer l'appli sur le téléphone ou l'ordinateur ---------- */
+  let invitationInstall = null;
+  const estInstallee = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  const surIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); invitationInstall = ev; rendre(); });
+  window.addEventListener('appinstalled', () => { invitationInstall = null; S.installee = true; toast('Budgétable est installé : retrouvez-le sur votre écran d’accueil'); rendre(); });
+  function boutonInstaller(classe) {
+    if (estInstallee() || DANS_UN_CADRE) return '';
+    return `<button class="btn ${classe || ''}" data-a="installer">📲 Installer l’appli</button>`;
+  }
+  async function installer() {
+    if (invitationInstall) {
+      invitationInstall.prompt();
+      try { const r = await invitationInstall.userChoice; if (r && r.outcome === 'accepted') S.installee = true; } catch (e) { /* */ }
+      invitationInstall = null; rendre(); return;
+    }
+    S.aideInstall = true; rendre();
+  }
+  function bandeauInstaller() {
+    if (estInstallee() || DANS_UN_CADRE || S.installIgnore || S.installee) return '';
+    if (!invitationInstall && !surIOS()) return '';
+    return `<div class="bandeau-installer ecran-seul"><img src="icons/icon-192.png" alt="" width="40" height="40"><div class="stack" style="gap:0;flex:1;min-width:0"><strong>Budgétable sur votre écran d’accueil</strong><span class="small muted">Une icône, plein écran, même sans connexion.</span></div><button class="btn btn-petit btn-plein" data-a="installer">Installer</button><button class="btn-lien small" data-a="installer-plus-tard" aria-label="Plus tard">✕</button></div>`;
+  }
+  function vueAideInstall() {
+    if (!S.aideInstall) return '';
+    const ios = surIOS();
+    const partager = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>';
+    const etapes = ios
+      ? [[`Touchez le bouton <strong>Partager</strong> ${partager} en bas de Safari (en haut sur iPad).`, 'Il faut ouvrir Budgétable dans <strong>Safari</strong>.'], ['Faites défiler et touchez <strong>« Sur l’écran d’accueil »</strong>.', ''], ['Touchez <strong>« Ajouter »</strong> en haut à droite.', 'L’icône Budgétable apparaît avec vos autres applis.']]
+      : /android/i.test(navigator.userAgent)
+        ? [['Ouvrez le menu <strong>⋮</strong> de Chrome, en haut à droite.', ''], ['Touchez <strong>« Installer l’application »</strong> ou <strong>« Ajouter à l’écran d’accueil »</strong>.', ''], ['Confirmez avec <strong>« Installer »</strong>.', 'L’icône Budgétable apparaît sur l’écran d’accueil.']]
+        : [['Dans Chrome ou Edge, cliquez sur l’icône <strong>Installer</strong> ⊕ à droite de la barre d’adresse.', 'Ou menu ⋮ puis « Installer Budgétable ».'], ['Confirmez avec <strong>« Installer »</strong>.', 'Budgétable s’ouvre dans sa propre fenêtre.'], ['Sur Safari (Mac) : menu <strong>Fichier</strong> puis <strong>« Ajouter au Dock »</strong>.', '']];
+    return `<div class="voile" data-a="aide-install-fond"><div class="fiche fenetre-install" role="dialog" aria-modal="true" aria-labelledby="install-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="row" style="gap:12px;align-items:center"><img src="icons/icon-192.png" alt="" width="52" height="52" style="border-radius:12px"><div class="stack" style="gap:2px"><span class="eyebrow">${ios ? 'iPhone et iPad' : /android/i.test(navigator.userAgent) ? 'Android' : 'Ordinateur'}</span><h2 id="install-titre">Installer Budgétable</h2></div></div><button class="btn btn-petit" data-a="aide-install-fermer">Fermer</button></div>
+      <ol class="etapes-install">${etapes.map(([t, d], i) => `<li><span class="num-etape">${i + 1}</span><div><p style="margin:0">${t}</p>${d ? `<p class="small muted" style="margin:4px 0 0">${d}</p>` : ''}</div></li>`).join('')}</ol>
+      <p class="small muted" style="margin:0">C’est gratuit et sans magasin d’applications. L’appli se met à jour toute seule et garde vos menus et votre liste même sans connexion.</p>
+    </div></div>`;
+  }
+
   function vueAccueil() {
     const nbRec = E.RECETTES.length.toLocaleString('fr-FR');
     const nbIng = E.DATA.ingredients.filter((i) => !i.perso).length;
@@ -546,14 +585,14 @@
     ];
     return `<div class="wrap accueil"><div class="store" aria-hidden="true"></div>
       <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
-        <div class="row" style="gap:8px">${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
+        <div class="row" style="gap:8px">${boutonInstaller('btn-petit')}${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
       <section class="accueil-hero">
         <div class="stack" style="gap:16px">
           <p class="eyebrow">Bien manger, petit budget</p>
           <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
           <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
           <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
-          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · aucune application à installer</p>
+          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · à installer sur votre téléphone en un geste</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
       </section>
@@ -786,6 +825,7 @@
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
       ${bandeauAlertes()}
+      ${bandeauInstaller()}
       ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
       <div class="jours jours-m">${liste ? S.plan.jours.map((jp, x) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
       ${suggestionRituels()}
@@ -805,6 +845,7 @@
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${bandeauAlertes()}
+      ${bandeauInstaller()}
       ${blocPresences()}
       ${blocGamelles()}
       ${blocCoach()}
@@ -2267,6 +2308,7 @@
             <label class="case"><input type="checkbox" id="premium-test" data-a="premium" ${S.premium ? 'checked' : ''}><span>Activer Premium en mode test (aucun paiement : Stripe sera branché plus tard)</span></label></div>
         </div></section>
       ${blocCompte()}
+      <section class="stack"><h2>L’application</h2>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
         <div class="champ"><span>Export de vos données (format JSON)</span><textarea id="export" readonly aria-label="Export JSON de vos données">${esc(exportJson)}</textarea></div>
@@ -3111,7 +3153,7 @@
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -3397,6 +3439,10 @@
       }
       case 'imprimable': S.imprimable = !S.imprimable; break;
       case 'affiche-ouvrir': S.afficheOuverte = true; break;
+      case 'installer': installer(); return;
+      case 'installer-plus-tard': S.installIgnore = true; break;
+      case 'aide-install-fermer': S.aideInstall = false; break;
+      case 'aide-install-fond': if (ev.target === el) S.aideInstall = false; else return; break;
       case 'alertes-voir': S.onglet = 'promos'; window.scrollTo(0, 0); setTimeout(() => { const c = document.getElementById('mes-alertes'); if (c) c.scrollIntoView({ block: 'start' }); }, 80); break;
       case 'alerte-idee': ajouterAlerte(el.dataset.k); break;
       case 'alerte-suppr': S.alertesPromos.splice(+el.dataset.i, 1); break;
@@ -3944,6 +3990,7 @@
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.aideInstall) { S.aideInstall = false; rendre(); return; }
     if (ev.key === 'Escape' && S.prospectusOuvert) { S.prospectusOuvert = null; rendre(); return; }
     if (ev.key === 'Escape' && compte.vue) { compte.vue = null; rendre(); return; }
     if (ev.key === 'Escape' && S.envoiOuvert) { S.envoiOuvert = false; rendre(); return; }
@@ -4088,6 +4135,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   /* ---------- démarrage ---------- */
   charger();
+  // raccourcis de l'appli installée (appui long sur l'icône) : ?onglet=courses…
+  try {
+    const q = new URLSearchParams(location.search);
+    const o = q.get('onglet');
+    if (o && ['semaine', 'soir', 'courses', 'promos', 'recettes', 'placard', 'profil'].includes(o) && S.plan) { S.vue = 'app'; S.onglet = o; }
+    if (q.has('onglet') || q.has('source')) history.replaceState(null, '', location.pathname + location.hash);
+  } catch (e) { /* */ }
   // retour depuis un lien reçu par e-mail (confirmation, connexion, nouveau mot de passe)
   function traiterRetourCompte() {
     const r = C.lireRetour ? C.lireRetour() : null;

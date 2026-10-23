@@ -4,6 +4,13 @@
 <meta name="description" content="Vos déjeuners et dîners de la semaine selon vos goûts, vos besoins et votre budget, avec la liste de courses.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budgétable">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="Budgétable">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caveat:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
@@ -927,6 +934,15 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 .bandeau-alertes { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; border-radius: var(--r); border: 0; background: var(--tomate); color: #fff; font: inherit; cursor: pointer; }
 .bandeau-alertes > span:nth-child(2) { flex: 1; display: grid; }
 .nav-badge.alerte { background: var(--tomate); color: #fff; }
+
+/* ---------- installer l'appli ---------- */
+.bandeau-installer { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--trait); box-shadow: var(--ombre); }
+.bandeau-installer img { border-radius: 10px; flex: none; }
+.fenetre-install { display: grid; gap: 16px; max-width: 480px; }
+.etapes-install { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.etapes-install li { display: flex; gap: 12px; align-items: flex-start; }
+.etapes-install svg { vertical-align: -4px; color: #0a84ff; }
+@media (display-mode: standalone) { .wrap { padding-top: max(12px, env(safe-area-inset-top)); } }
 /* ---------- gamelles et restes ---------- */
 .ligne-gamelle { display: block; width: 100%; text-align: left; border: 1px dashed var(--poireau); background: var(--poireau-pale); color: var(--encre); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: .88rem; cursor: pointer; margin-top: 6px; }
 .repas-gamelle { background: var(--poireau-pale); border-radius: 12px; padding: 8px; }
