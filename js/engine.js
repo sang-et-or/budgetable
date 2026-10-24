@@ -403,7 +403,11 @@
     if (!n) return 0;
     const pp = n.parPortion, ids = rec.ing.map(([id]) => id);
     if (p.coach === 'minceur') {
-      let s = n.kcal <= 550 ? 3 : n.kcal <= 620 ? 1 : -(n.kcal - 620) / 40;
+      const pr = p.programme && p.programme.cibleRepas ? p.programme : null;
+      const cr = pr ? pr.cibleRepas : 550;
+      let s = n.kcal <= cr ? 3 : n.kcal <= cr * 1.13 ? 1 : -(n.kcal - cr * 1.13) / 40;
+      if (pr && pr.rassasiant) { if (pp.prot >= 25) s += 1; if (pp.fibres >= 7) s += 1; }
+      if (pr && pr.simple) s -= Math.max(0, rec.temps - 30) / 15;
       s += equilibre(rec).grammesLegumes / 100;
       s -= Math.max(0, pp.ags - 6) * 0.5;
       if (n.lettre === 'A') s += 1;

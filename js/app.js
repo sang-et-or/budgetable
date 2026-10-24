@@ -97,6 +97,7 @@
       if (p.allergies.length || p.objectifs.includes('perte')) marque = true;
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
+      delete p.programme;
     }
     const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore };
     const texte = JSON.stringify(a);
@@ -157,6 +158,7 @@
     toastTimer = setTimeout(() => t.remove(), 2600);
   }
   const ICONES = {
+    minceur: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M8 9a5 5 0 0 1 8 0l-2.5 2.5M12 11.5l1.5-2"/></svg>',
     petitdej: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3c0 1.5 1.5 1.5 1.5 3M12 3c0 1.5 1.5 1.5 1.5 3"/></svg>',
     semaine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     soir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 13h16a8 8 0 0 1-16 0zM12 4v3M7 6l1.5 2M17 6l-1.5 2"/></svg>',
@@ -659,14 +661,14 @@
   }
 
   /* ---------- application ---------- */
-  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['apports', 'journal']], ['', ['profil']]];
-  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', journal: '#6b5ea8', profil: '#5b6b62' };
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
+  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['minceur', 'apports', 'journal']], ['', ['profil']]];
+  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', minceur: '#3f8f5a', journal: '#6b5ea8', profil: '#5b6b62' };
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['minceur', 'Minceur'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${promos.offres.length}</em>`) : ''}</button>`; };
     const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -2343,7 +2345,7 @@
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
         <p class="small muted" style="margin:0">${S.profil.coach ? esc(COACHS[S.profil.coach].accroche) : 'Minceur, sportif, ou femme de 40 ans et plus : vos menus suivent votre objectif.'}</p>
-        <div><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button></div></section>
+        <div class="row" style="gap:8px"><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button></div></section>
       <section class="carte stack"><div class="spread"><h2>Vos goûts</h2><div class="row"><button class="btn btn-petit btn-plein" data-a="test-go" data-depuis="app">Faire le test de goût</button><button class="btn btn-petit" data-a="gouts-effacer">Effacer mes goûts</button></div></div>
         ${blocGouts()}<p class="small muted">Vos notes de recettes affinent aussi vos goûts.</p></section>
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
@@ -2844,6 +2846,176 @@
       ${(S.calcKcal || {}).objectif === 'perdre' ? `<span class="small">Perte douce : environ 400 kcal de moins que vos besoins, soit 1,5 à 2 kg par mois.${r.limite ? ' Le repère est arrêté à ce niveau pour rester au-dessus de vos besoins de base : descendre plus bas n’est pas conseillé sans suivi médical.' : ''}</span>` : ''}
       <button class="btn btn-plein" data-a="kcal-appliquer" data-k="${r.repere}">Utiliser ${nb(r.repere)} kcal comme repère</button></div>`;
   }
+  /* ---------- programme minceur : l'agent qui prépare et ajuste la semaine ---------- */
+  const P = window.Programme;
+  const NUT = (r) => (window.Nutrition && r ? window.Nutrition.de(r, E.ING) : null);
+  const virgule = (x) => String(x).replace('.', ',');
+  let coachMinceur = { tours: [], attente: false, message: '' };
+  function progCalc() { const pr = S.profil.programme; return pr ? P.calculer({ ...pr, poidsActuel: pr.poidsActuel || pr.poidsDepart }, pr.stabilisation ? 0 : pr.ajustement || 0) : null; }
+  function cibleProg() { const pr = S.profil.programme, c = progCalc(); return pr && pr.stabilisation ? c.entretien : c.cible; }
+  /** Ce que l'utilisateur mange chaque jour de la semaine préparée, avec ses portions conseillées. */
+  function journeesMinceur() {
+    if (!S.plan) return [];
+    const rep = P.repartition(cibleProg());
+    return S.plan.jours.map((jp, j) => {
+      const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]);
+      const ligne = (slot) => {
+        const m = jp[slot];
+        if (!m || m.dehors || !E.REC[m.recette]) return m && m.dehors ? { nom: 'Mangé dehors', dehors: true } : null;
+        const n = NUT(E.REC[m.recette]);
+        const po = P.portion(n && n.kcal, rep[slot]);
+        return { nom: E.REC[m.recette].nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus };
+      };
+      const pdK = pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0;
+      const dej = ligne('dejeuner'), din = ligne('diner');
+      const total = pdK + (dej && !dej.dehors ? dej.kcal : 0) + (din && !din.dehors ? din.kcal : 0) + rep.collation;
+      return { j, pd: pd ? { nom: E.REC[pd.recette].nom, recette: pd.recette, kcal: pdK } : null, dej, din, total };
+    });
+  }
+  function preparerSemaineMinceur() {
+    const p = S.profil, pr = p.programme;
+    const cible = cibleProg(), rep = P.repartition(cible);
+    pr.cible = cible; pr.cibleRepas = Math.round((rep.dejeuner + rep.diner) / 2);
+    p.coach = 'minceur';
+    if (!p.objectifs.includes('perte')) p.objectifs = p.objectifs.concat('perte');
+    nouvellePlanification();
+    S.plan.jours.forEach((jp) => { if (jp.gourmand) jp.gourmand = jp.gourmand.filter((g) => g.moment !== 'petitdej'); });
+    const ids = P.choisirPetitsDej(E.gourmandises(), { cible: rep.petitdej, gouts: p.gouts, scoreGout: E.scoreGout, nutrition: NUT, compatible: (r) => E.recetteCompatible(r, p).ok, rassasiant: pr.rassasiant, simple: pr.simple });
+    ids.forEach((id, j) => { const jp = S.plan.jours[j]; jp.gourmand = (jp.gourmand || []).concat([{ recette: id, portions: 1, moment: 'petitdej', programme: true }]); });
+    S.plan.programme = true;
+    const aimes = new Set(Object.entries((p.gouts || {}).ing || {}).filter(([, w]) => w >= 0.9).map(([id]) => id));
+    const repas = S.plan.jours.flatMap((jp) => [jp.dejeuner, jp.diner]).filter((m) => m && E.REC[m.recette]);
+    const platsAimes = repas.filter((m) => E.REC[m.recette].ing.some(([id]) => aimes.has(id))).length;
+    const joursDessus = journeesMinceur().filter((d) => d.total > cible * 1.1).length;
+    const noms = E.resumeGouts(p.gouts).details.aime.filter((x) => x.type === 'ing').map((x) => x.nom);
+    pr.message = P.messageSemaine({ prog: pr, calc: { ...progCalc(), cible }, aime: noms, platsAimes, pdNoms: [...new Set(ids)].map((id) => E.REC[id].nom), joursDessus });
+    pr.semainePrete = true;
+    S.onglet = 'minceur';
+  }
+  function graphePoids(pr) {
+    const pts = [{ kg: pr.poidsDepart }].concat(pr.pesees || []);
+    if (pts.length < 2) return '<p class="small muted" style="margin:0">Votre courbe apparaîtra après la première pesée.</p>';
+    const W = 320, H = 120, min = Math.min(pr.objectif, ...pts.map((x) => x.kg)) - 1, max = Math.max(...pts.map((x) => x.kg)) + 1;
+    const x = (i) => 10 + i * ((W - 20) / Math.max(1, pts.length - 1)), y = (kg) => 10 + (max - kg) / (max - min) * (H - 20);
+    return `<svg viewBox="0 0 ${W} ${H}" class="graphe-poids" role="img" aria-label="Évolution du poids : de ${virgule(pr.poidsDepart)} kg à ${virgule(pts[pts.length - 1].kg)} kg, objectif ${virgule(pr.objectif)} kg">
+      <line x1="10" x2="${W - 10}" y1="${y(pr.objectif)}" y2="${y(pr.objectif)}" class="ligne-objectif"/><text x="${W - 12}" y="${y(pr.objectif) - 4}" text-anchor="end" class="txt-objectif">objectif ${virgule(pr.objectif)} kg</text>
+      <polyline points="${pts.map((p, i) => `${x(i)},${y(p.kg)}`).join(' ')}" class="courbe"/>${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.kg)}" r="3.5" class="point"/>`).join('')}</svg>`;
+  }
+  const STOPS = {
+    mineur: ['Pas de programme minceur avant 18 ans', 'À votre âge, le corps grandit encore : on ne fait pas de régime sans l’avis d’un médecin. Les menus de Budgétable restent équilibrés et bons pour toute la famille. Parlez-en à votre médecin traitant ou à l’infirmière scolaire si votre poids vous préoccupe.'],
+    tca: ['Prenons soin de vous d’abord', 'Merci de l’avoir dit. Avec un trouble du comportement alimentaire, actuel ou passé, un programme de perte de poids risque de faire plus de mal que de bien : c’est pourquoi Budgétable ne vous en propose pas. Votre médecin peut vous accompagner, et la ligne Anorexie Boulimie Info Écoute (09 69 325 900, appel non surtaxé) écoute et oriente, en toute confidentialité. Les menus classiques de Budgétable, sans comptage, restent à votre disposition.'],
+    grossesse: ['Pas de régime pendant la grossesse ou l’allaitement', 'Pendant cette période, le corps a besoin de toutes ses ressources : on ne cherche pas à perdre du poids. Votre sage-femme ou votre médecin peut vous conseiller. Vous pouvez reprendre ce programme plus tard, après l’allaitement.'],
+    imc_bas: ['Votre poids est déjà bas pour votre taille', 'Votre IMC est sous 18,5 : perdre du poids n’est pas conseillé et pourrait nuire à votre santé. Si vous pensez quand même devoir en perdre, parlez-en à votre médecin.'],
+    objectif: ['Le poids visé doit être plus bas que votre poids actuel', 'Vérifiez les deux poids indiqués.']
+  };
+  function vueBilanMinceur() {
+    const f = S.progForm = S.progForm || (() => { const c = S.calcKcal || {}; const pr = S.profil.programme; return pr ? { sexe: pr.sexe, age: pr.age, taille: pr.taille, poids: pr.poidsActuel || pr.poidsDepart, objectif: pr.objectif, activite: pr.activite, rythme: pr.rythme, tca: 'non', grossesse: pr.sexe === 'f' ? 'non' : '', consent: true } : { sexe: c.sexe || '', age: c.age || '', taille: c.taille || '', poids: c.poids || '', objectif: '', activite: c.activite || '1.4', rythme: 'douce', tca: '', grossesse: '', consent: !!S.profil.consentementSante }; })();
+    const radio = (cle, k, v, sous) => `<button class="chip" role="radio" data-a="prog-choix" data-cle="${cle}" data-k="${k}" aria-checked="${f[cle] === k}" aria-pressed="${f[cle] === k}">${esc(v)}${sous ? ` <span class="small muted">${esc(sous)}</span>` : ''}</button>`;
+    const champ = (k, lib, unite, ph, mode) => `<label class="champ" style="max-width:130px"><span>${lib}</span><span class="saisie-euros"><input type="text" inputmode="${mode || 'numeric'}" data-a="prog-champ" data-k="${k}" value="${esc(f[k] || '')}" placeholder="${ph}"><span>${unite}</span></span></label>`;
+    return `<div class="ardoise-minceur"><span class="small">Votre coach personnel</span><h1>Programme minceur</h1><span class="small">perdre du poids en douceur, avec les plats que vous aimez</span></div>
+      <section class="carte stack" style="gap:8px"><h2>Comment ça marche ?</h2>
+        <ol class="etapes-prog small"><li><strong>Un bilan de 1 minute</strong> : je calcule vos besoins et une cible de calories prudente.</li><li><strong>Je prépare votre semaine</strong> : repas légers mais rassasiants, choisis selon vos goûts, petits-déjeuners compris, avec votre portion jour par jour. Le reste de la famille mange normalement.</li><li><strong>Chaque semaine, on fait le point</strong> : pesée et ressenti. J’ajuste tout seul (trop rapide, faim, palier…).</li></ol></section>
+      <section class="carte stack" style="gap:14px"><h2>Votre bilan</h2>
+        <div class="stack" style="gap:6px"><strong>Vous êtes</strong><div class="row" role="radiogroup" style="gap:6px">${radio('sexe', 'f', 'Une femme')}${radio('sexe', 'h', 'Un homme')}</div></div>
+        <div class="row" style="gap:10px">${champ('age', 'Âge', 'ans', '40')}${champ('taille', 'Taille', 'cm', '165')}${champ('poids', 'Poids actuel', 'kg', '75', 'decimal')}${champ('objectif', 'Poids visé', 'kg', '68', 'decimal')}</div>
+        <div class="stack" style="gap:6px"><strong>Votre activité</strong><div class="stack" role="radiogroup" style="gap:6px">${ACTIVITES.map(([k, v, sous]) => radio('activite', k, v, sous)).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Votre rythme</strong><div class="row" role="radiogroup" style="gap:6px">${Object.entries(P.RYTHMES).map(([k, r]) => radio('rythme', k, r.libelle, r.sous)).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Avez-vous, ou avez-vous eu, un trouble du comportement alimentaire ?</strong><span class="small muted">Anorexie, boulimie, hyperphagie… Votre réponse reste sur cet appareil.</span><div class="row" role="radiogroup" style="gap:6px">${radio('tca', 'non', 'Non')}${radio('tca', 'oui', 'Oui')}</div></div>
+        ${f.sexe === 'f' ? `<div class="stack" style="gap:6px"><strong>Êtes-vous enceinte ou allaitez-vous ?</strong><div class="row" role="radiogroup" style="gap:6px">${radio('grossesse', 'non', 'Non')}${radio('grossesse', 'oui', 'Oui')}</div></div>` : ''}
+        <div id="prog-resultat">${resultatBilanMinceur()}</div>
+      </section>
+      <p class="small muted prudence-coach">Programme indicatif pour adultes en bonne santé, qui ne remplace pas l’avis d’un médecin ou d’un diététicien. En cas de maladie (diabète, problème cardiaque, rénal…) ou de traitement, demandez d’abord conseil à votre médecin.</p>`;
+  }
+  function resultatBilanMinceur() {
+    const f = S.progForm || {};
+    const v = P.verifier(f);
+    if (v.stop && STOPS[v.stop]) return `<div class="bandeau-stop stack" style="gap:6px" role="status"><strong>${STOPS[v.stop][0]}</strong><span class="small">${STOPS[v.stop][1]}</span></div>`;
+    if (v.erreurs.length) return `<p class="small muted" style="margin:0">${esc(v.erreurs[0])}</p>`;
+    const c = P.calculer(f);
+    const fin = new Date(Date.now() + (c.semaines || 0) * 6048e5);
+    return `<div class="resultat-kcal stack" style="gap:10px">
+      <div class="chiffres-calc"><div><span class="small muted">Pour garder votre poids</span><strong class="num">${nb(c.entretien)}</strong><span class="small muted">kcal / jour</span></div><div><span class="small muted">Votre cible</span><strong class="num repere-final">${nb(c.cible)}</strong><span class="small muted">kcal / jour</span></div><div><span class="small muted">Perte estimée</span><strong class="num">${virgule(c.kgSemaine)}</strong><span class="small muted">kg / semaine</span></div></div>
+      <span class="small">${virgule(c.aPerdre)} kg à perdre : environ <strong>${c.semaines} semaines</strong>, vers ${fin.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}. Sans se priver : une perte lente tient mieux dans le temps.${c.limite ? ' Votre cible est arrêtée à vos besoins de base : descendre plus bas n’est pas conseillé sans suivi médical.' : ''}</span>
+      <label class="case small"><input type="checkbox" data-a="prog-consent" ${f.consent ? 'checked' : ''}><span>J’accepte que mon poids et ces informations soient enregistrés <strong>sur cet appareil uniquement</strong> (et dans mon compte si je suis connecté). Je peux tout effacer en arrêtant le programme.</span></label>
+      <button class="btn btn-plein btn-grand" data-a="prog-lancer" ${f.consent ? '' : 'disabled'}>${S.profil.programme ? 'Mettre à jour mon programme' : 'Lancer mon programme et préparer ma semaine'}</button></div>`;
+  }
+  function ongletMinceur() {
+    const pr = S.profil.programme;
+    if (!pr || S.progModifier) return vueBilanMinceur();
+    const c = progCalc(), cible = cibleProg(), rep = P.repartition(cible);
+    const actuel = pr.poidsActuel || pr.poidsDepart;
+    const perdu = Math.max(0, Math.round((pr.poidsDepart - actuel) * 10) / 10);
+    const pct = Math.max(0, Math.min(100, Math.round(perdu / Math.max(0.1, pr.poidsDepart - pr.objectif) * 100)));
+    const jours = pr.semainePrete && S.plan && S.plan.programme ? journeesMinceur() : [];
+    const pt = S.progPoint || {};
+    const ressentis = [['bien', '🙂 Bien'], ['facile', '😎 Facile'], ['faim', '😋 J’ai eu faim'], ['difficile', '😓 Difficile à suivre']];
+    const coll = P.collations(S.profil.gouts);
+    return `<div class="ardoise-minceur"><span class="small">Semaine ${pr.semaine || 1}${pr.stabilisation ? ' · stabilisation' : ''}</span><h1>Mon programme minceur</h1><span class="small">${nb(cible)} kcal par jour · rythme ${P.RYTHMES[pr.rythme].libelle.toLowerCase()}</span></div>
+      <section class="carte stack" style="gap:10px"><div class="spread"><h2>Mes progrès</h2><span class="small muted">${pr.pesees.length ? `dernière pesée le ${new Date(pr.pesees[pr.pesees.length - 1].d).toLocaleDateString('fr-FR')}` : 'pas encore de pesée'}</span></div>
+        <div class="chiffres-calc"><div><span class="small muted">Départ</span><strong class="num">${virgule(pr.poidsDepart)}</strong><span class="small muted">kg</span></div><div><span class="small muted">Aujourd’hui</span><strong class="num repere-final">${virgule(actuel)}</strong><span class="small muted">kg</span></div><div><span class="small muted">Objectif</span><strong class="num">${virgule(pr.objectif)}</strong><span class="small muted">kg</span></div></div>
+        <div class="piste-courses" aria-label="${pct} % de l’objectif"><i style="width:${pct}%"></i></div>
+        <span class="small">${perdu ? `<strong>${virgule(perdu)} kg</strong> de moins depuis le début, ${pct} % du chemin.` : 'C’est parti : la première pesée est dans une semaine.'}</span>
+        ${graphePoids(pr)}</section>
+      <section class="carte stack message-coach" style="gap:8px"><div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><span class="avatar-coach" aria-hidden="true">🥗</span><strong>Le mot de votre coach</strong></div>
+        <p style="margin:0">${esc(pr.message || 'Je prépare votre semaine selon vos goûts : touchez le bouton ci-dessous.')}</p>
+        ${pr.semainePrete && S.plan && S.plan.programme ? '' : '<div><button class="btn btn-plein" data-a="prog-semaine">Préparer ma semaine minceur</button></div>'}</section>
+      <section class="carte stack" style="gap:10px"><h2>Ma journée type</h2>
+        <div class="journee-type">${[['🥐', 'Petit-déjeuner', rep.petitdej], ['🍽', 'Déjeuner', rep.dejeuner], ['🍲', 'Dîner', rep.diner], ['🍎', 'Collation', rep.collation]].map(([e, t, k]) => `<div><span aria-hidden="true">${e}</span><strong>${t}</strong><span class="num">${nb(k)} kcal</span></div>`).join('')}</div>
+        ${coll.length ? `<span class="small">Idées de collation selon vos goûts : ${coll.map(esc).join(' · ')}.</span>` : ''}
+        <span class="small muted">Eau à volonté. Légumes à volonté. Une protéine à chaque repas pour tenir jusqu’au suivant.</span></section>
+      ${jours.length ? `<section class="carte stack" style="gap:10px"><div class="spread"><h2>Ma semaine, portion par portion</h2><button class="btn-lien small" data-a="prog-semaine">Refaire la semaine</button></div>
+        <div class="jours-minceur">${jours.map((d) => `<article class="jour-minceur"><div class="spread"><strong>${E.JOURS[d.j]}</strong><span class="small ${d.total > cible * 1.1 ? 'alerte-ing' : 'muted'} num">≈ ${nb(Math.round(d.total / 10) * 10)} kcal</span></div>
+          <ul class="small">${d.pd ? `<li><span aria-hidden="true">🥐</span> <button class="btn-lien" data-a="fiche-g" data-r="${d.pd.recette}" data-n="1">${esc(d.pd.nom)}</button> <span class="muted num">${nb(d.pd.kcal)} kcal</span></li>` : ''}
+          ${[['🍽', d.dej], ['🍲', d.din]].filter(([, x]) => x).map(([e, x]) => `<li><span aria-hidden="true">${e}</span> ${x.dehors ? '<span class="muted">Mangé dehors</span>' : `<span>${esc(x.nom)}</span> <span class="muted num">${nb(x.kcal)} kcal</span>${x.conseil && (x.f !== 1 || x.plus) ? `<br><span class="conseil-portion">→ ${esc(x.conseil)}</span>` : ''}`}</li>`).join('')}</ul></article>`).join('')}</div>
+        <span class="small muted">Estimations pour votre part. Les plats sont dans « Semaine » et leurs ingrédients dans la liste de courses.</span></section>` : ''}
+      <section class="carte stack point-semaine" style="gap:10px"><h2>Le point de la semaine</h2>
+        <span class="small muted">Une fois par semaine, le même jour, le matin à jeun.</span>
+        <label class="champ" style="max-width:170px"><span>Mon poids</span><span class="saisie-euros"><input type="text" inputmode="decimal" data-a="prog-pesee" value="${esc(pt.kg || '')}" placeholder="${virgule(actuel)}"><span>kg</span></span></label>
+        <div class="stack" style="gap:6px"><strong>Comment s’est passée la semaine ?</strong><div class="row" role="radiogroup" style="gap:6px">${ressentis.map(([k, v]) => `<button class="chip" role="radio" data-a="prog-ressenti" data-k="${k}" aria-checked="${pt.ressenti === k}" aria-pressed="${pt.ressenti === k}">${v}</button>`).join('')}</div></div>
+        <div><button class="btn btn-plein" data-a="prog-point">Faire le point avec mon coach</button></div>
+        ${pr.dernierPoint ? `<div class="bandeau bandeau-info small" role="status"><span>${esc(pr.dernierPoint)}</span></div><div><button class="btn btn-plein" data-a="prog-semaine">Préparer ma semaine suivante</button></div>` : ''}</section>
+      <section class="carte stack" style="gap:8px"><h2>Une question pour votre coach ?</h2>
+        <div class="chat" aria-live="polite">${coachMinceur.tours.length ? coachMinceur.tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! J’ai faim le soir, je mange au restaurant samedi, mon poids stagne… Posez-moi votre question.</p>'}${coachMinceur.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
+        ${coachMinceur.message ? `<p class="small" style="color:var(--tomate)">${esc(coachMinceur.message)}</p>` : ''}
+        <div class="row" style="gap:6px">${['J’ai faim le soir', 'Je vais au restaurant', 'Mon poids stagne', 'Quel sport ?'].map((q) => `<button class="chip chip-petit" data-a="coach-m-q" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><label class="champ" style="flex:1;min-width:0"><span class="sr">Votre question</span><input type="text" id="coach-m-texte" placeholder="Votre question…" autocomplete="off" enterkeyhint="send"></label><button class="btn btn-plein" data-a="coach-m-envoyer" ${coachMinceur.attente ? 'disabled' : ''}>Envoyer</button></div></section>
+      <div class="row" style="gap:8px"><button class="btn" data-a="prog-modifier">Modifier mes informations</button><button class="btn ${S.progArret ? 'btn-plein' : ''}" data-a="prog-arreter">${S.progArret ? 'Confirmer : arrêter et effacer' : 'Arrêter le programme'}</button></div>
+      <p class="small muted prudence-coach">Programme indicatif, qui ne remplace pas l’avis d’un médecin. Si vous perdez du poids sans le vouloir, si vous vous sentez faible, ou si la nourriture devient une source d’angoisse, arrêtez et parlez-en à votre médecin.</p>`;
+  }
+  function consignesCoachMinceur() {
+    const p = S.profil, pr = p.programme, cible = cibleProg(), rep = P.repartition(cible);
+    const g = E.resumeGouts(p.gouts);
+    const semaine = S.plan ? S.plan.jours.map((jp, j) => `${E.JOURS[j]} : ${['dejeuner', 'diner'].map((s) => jp[s] && E.REC[jp[s].recette] ? E.REC[jp[s].recette].nom : '—').join(' / ')}`).join(' ; ') : '';
+    return `Tu es le coach minceur de Budgétable, une application française de menus à petit budget. Tu accompagnes une personne adulte dans une perte de poids douce.
+Son programme : cible ${cible} kcal par jour (petit-déjeuner ${rep.petitdej}, déjeuner ${rep.dejeuner}, dîner ${rep.diner}, collation ${rep.collation}), poids de départ ${pr.poidsDepart} kg, aujourd’hui ${pr.poidsActuel || pr.poidsDepart} kg, objectif ${pr.objectif} kg, semaine ${pr.semaine || 1}.
+Elle aime : ${g.aime.join(', ') || 'non renseigné'}. Elle aime moins : ${g.evite.join(', ') || 'non renseigné'}. Régime : ${E.LIBELLES.regime[p.regime] || 'aucun'}. Allergies : ${(p.allergies || []).join(', ') || 'aucune'}.
+Sa semaine : ${semaine}.
+Règles :
+- Réponds en français, en vouvoyant, avec bienveillance, en 4 phrases maximum.
+- Conseils simples, peu chers, compatibles avec ses goûts, son régime et ses allergies.
+- Jamais de régime extrême, de jeûne prolongé, de « brûle-graisses », de médicament ou de complément ; jamais moins de 1 200 kcal par jour.
+- Aucun jugement sur le corps ou le poids. Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, conseille avec douceur d’en parler à son médecin et cite Anorexie Boulimie Info Écoute (09 69 325 900).
+- Pour une question médicale (maladie, traitement, grossesse), renvoie vers le médecin.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
+  }
+  async function envoyerCoachMinceur(question) {
+    const texte = String(question || '').trim().slice(0, 500);
+    if (!texte || coachMinceur.attente || !S.profil.programme) return;
+    const cible = cibleProg();
+    const secours = P.repondreLocal(texte, { cible, repartition: P.repartition(cible), collations: P.collations(S.profil.gouts) });
+    coachMinceur.tours.push({ role: 'user', content: texte });
+    if (!iaDispo) { coachMinceur.tours.push({ role: 'assistant', content: secours }); rendre(); return; }
+    coachMinceur.attente = true; coachMinceur.message = ''; rendre();
+    try {
+      const r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() }, ...coachMinceur.tours.slice(-8)]);
+      coachMinceur.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
+    } catch (e) {
+      if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.';
+      coachMinceur.tours.push({ role: 'assistant', content: secours });
+    }
+    coachMinceur.attente = false; rendre();
+  }
+
   function ongletApports() {
     Object.assign(OBJ, objectifsJour());
     const periode = S.periodeApports || '7';
@@ -2881,6 +3053,7 @@
     }
     const tuile = (k) => { const v = moy(k), e = etat(k, v); return `<div class="tuile-apport rep-${avecRepas.length ? e : 'ok'}"><span class="small muted">${LIB[k][0]}</span><strong class="num">${avecRepas.length ? nb(Math.round(v * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1)) : '–'} <span class="small">${LIB[k][1]}</span></strong><span class="small muted">par jour</span>${avecRepas.length && e !== 'ok' ? `<span class="small etat-${e}">${e === 'bas' ? '↓ pas assez' : '↑ trop'}</span>` : avecRepas.length && OBJ[k][0] != null ? '<span class="small etat-ok">✓ objectif</span>' : ''}</div>`; };
     return `<div><p class="eyebrow">Suivi</p><h1>Mes apports</h1></div>
+      <button class="bandeau-promos" data-a="onglet" data-k="minceur"><span aria-hidden="true">🥗</span><span><strong>${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</strong> <span class="small">${S.profil.programme ? `semaine ${S.profil.programme.semaine || 1} : faire le point, voir ma semaine` : 'perdre du poids en douceur, avec les plats que vous aimez'}</span></span><span aria-hidden="true">→</span></button>
       <p class="muted">Ce que vous avez vraiment mangé : les repas du planning marqués « C’est mangé » et les aliments ajoutés au carnet (petit-déjeuner, collations, boissons, repas dehors). Pour un adulte. Estimations, pas un avis médical.</p>
       ${carnet}
       ${aConfirmer.length ? `<section class="carte stack a-faire" style="gap:8px"><strong>${pluriel(aConfirmer.length, 'repas', 'repas')} à confirmer</strong><span class="small muted">Touchez ceux que vous avez mangés : le suivi et le placard se mettent à jour.</span>
@@ -3091,8 +3264,9 @@
   };
   function blocCoach() {
     const c = COACHS[S.profil.coach];
+    const lienProg = S.profil.programme ? `<button class="btn btn-petit btn-plein" data-a="onglet" data-k="minceur">🥗 Mon programme minceur · semaine ${S.profil.programme.semaine || 1} →</button>` : '<button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 Programme minceur personnalisé →</button>';
     if (!c) {
-      return `<section class="carte stack invite-coach" style="gap:8px"><strong>🎯 Un coach pour vos menus ?</strong>
+      return `<section class="carte stack invite-coach" style="gap:8px"><strong>🎯 Un coach pour vos menus ?</strong><div>${lienProg}</div>
         <span class="small muted">Budgétable prépare votre semaine selon votre objectif.</span>
         <div class="row" style="gap:6px">${Object.entries(COACHS).map(([k, x]) => `<button class="chip" data-a="coach-voir" data-k="${k}">${x.emoji} ${esc(x.court)}</button>`).join('')}</div></section>`;
     }
@@ -3101,6 +3275,7 @@
     const astuces = [0, 1].map((k) => c.astuces[(semaine * 2 + k) % c.astuces.length]);
     return `<section class="carte stack coach-actif" style="gap:10px">
       <div class="spread"><strong>${c.emoji} ${esc(c.nom)}</strong><button class="btn-lien small" data-a="coach-voir" data-k="${S.profil.coach}">Changer</button></div>
+      ${S.profil.coach === 'minceur' ? `<div>${lienProg}</div>` : ''}
       ${b ? `<ul class="objectifs-coach">${c.objectifs(b).map(([txt, ok, cible]) => `<li class="${ok ? 'ok' : 'a-voir'}"><span aria-hidden="true">${ok ? '✓' : '•'}</span><span><strong>${esc(txt)}</strong> <span class="small muted">${esc(cible)}</span></span></li>`).join('')}</ul>` : ''}
       <div class="stack" style="gap:4px"><span class="eyebrow">Les conseils de la semaine</span>${astuces.map((a) => `<span class="small">💡 ${esc(a)}</span>`).join('')}</div>
       <span class="small muted">Estimations par portion adulte, déjeuners et dîners.${S.profil.foyer.enfants.length ? ' Les menus restent bons pour toute la famille : adaptez seulement vos portions.' : ''}</span>
@@ -3828,6 +4003,37 @@
         break;
       }
       case 'pd-filtre': S.filtrePD = el.dataset.k; break;
+      case 'prog-choix': S.progForm[el.dataset.cle] = el.dataset.k; break;
+      case 'prog-consent': S.progForm.consent = el.checked; { const z = document.getElementById('prog-resultat'); if (z) z.innerHTML = resultatBilanMinceur(); } return;
+      case 'prog-lancer': {
+        const f = S.progForm, v = P.verifier(f);
+        if (!v.ok || !f.consent) return;
+        p.consentementSante = true; S.sensibleNonEnregistre = false;
+        const ancien = p.programme;
+        const kg = +String(f.poids).replace(',', '.');
+        p.programme = { debut: ancien ? ancien.debut : ISO(new Date()), sexe: f.sexe, age: +f.age, taille: +f.taille, poidsDepart: ancien ? ancien.poidsDepart : kg, poidsActuel: kg, objectif: +String(f.objectif).replace(',', '.'), activite: f.activite, rythme: f.rythme, ajustement: ancien ? ancien.ajustement || 0 : 0, pesees: ancien ? ancien.pesees : [], bilans: ancien ? ancien.bilans || [] : [], semaine: ancien ? ancien.semaine : 1, rassasiant: ancien ? ancien.rassasiant : false, simple: ancien ? ancien.simple : false };
+        S.progModifier = false; S.progForm = null;
+        preparerSemaineMinceur();
+        toast(ancien ? 'Programme mis à jour et semaine préparée' : '🥗 Votre programme minceur est lancé : votre semaine est prête');
+        break;
+      }
+      case 'prog-semaine': if (!p.programme) return; preparerSemaineMinceur(); p.programme.dernierPoint = null; toast('Votre semaine minceur est prête, selon vos goûts'); break;
+      case 'prog-modifier': S.progModifier = true; S.progForm = null; break;
+      case 'prog-arreter':
+        if (!S.progArret) { S.progArret = true; break; }
+        S.progArret = false; p.programme = null; if (p.coach === 'minceur') p.coach = null; coachMinceur = { tours: [], attente: false, message: '' }; toast('Programme arrêté : vos données de poids sont effacées'); break;
+      case 'prog-ressenti': S.progPoint = { ...(S.progPoint || {}), ressenti: el.dataset.k }; break;
+      case 'prog-point': {
+        const pt = S.progPoint || {};
+        if (!pt.kg && !pt.ressenti) { toast('Indiquez votre poids ou votre ressenti'); return; }
+        const r = P.adapter(p.programme, pt.kg, pt.ressenti);
+        p.programme = { ...r.prog, dernierPoint: r.message, message: r.message, semainePrete: false };
+        S.progPoint = null;
+        toast('Point fait : votre coach a ajusté le programme');
+        break;
+      }
+      case 'coach-m-q': envoyerCoachMinceur(el.dataset.q); return;
+      case 'coach-m-envoyer': { const c = document.getElementById('coach-m-texte'); if (c && c.value.trim()) envoyerCoachMinceur(c.value); return; }
       case 'pd-retirer': S.plan.jours.forEach((jp) => { if (jp.gourmand) jp.gourmand = jp.gourmand.filter((g) => !(g.recette === el.dataset.r && g.moment === 'petitdej')); }); toast('Retiré de la semaine'); break;
       case 'gourmand-jours': if (S.gourmandAjout) S.gourmandAjout.jours = { semaine: [0, 1, 2, 3, 4], weekend: [5, 6], tous: [0, 1, 2, 3, 4, 5, 6] }[el.dataset.k]; break;
       case 'gourmand-ajouter': {
@@ -4001,6 +4207,12 @@
       if (t.length >= 3) minuterieOFF = setTimeout(() => chercherOFF(t), 600);
       return;
     }
+    if (el.dataset.a === 'prog-champ') {
+      S.progForm[el.dataset.k] = el.value.trim();
+      const z = document.getElementById('prog-resultat'); if (z) z.innerHTML = resultatBilanMinceur();
+      return;
+    }
+    if (el.dataset.a === 'prog-pesee') { S.progPoint = { ...(S.progPoint || {}), kg: el.value.trim() }; return; }
     if (el.dataset.a === 'manuel-cherche') {
       const z = document.getElementById('manuel-propositions');
       if (z) z.innerHTML = propositionsManuelles(el.value.trim());
@@ -4123,6 +4335,7 @@
     }
   });
   document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.id === 'coach-m-texte') { ev.preventDefault(); envoyerCoachMinceur(ev.target.value); return; }
     if (ev.key === 'Enter' && ev.target.id === 'manuel-cherche') { ev.preventDefault(); const b = document.querySelector('[data-a="manuel-ajouter-texte"]'); if (b) b.click(); return; }
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
     if (ev.key === 'Escape' && S.aideInstall) { S.aideInstall = false; rendre(); return; }
