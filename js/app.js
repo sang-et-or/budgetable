@@ -342,28 +342,53 @@
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement du test de goût"><i style="width:${pct}%"></i></div>
       <p class="eyebrow">Test de goût</p>
       <article class="carte-test">
-        <div class="carte-test-illu">${V(rec, 220)}</div>
+        <div class="carte-test-illu">${V(rec, t.pourquoi ? 110 : 220)}</div>
         <div class="stack" style="gap:6px;text-align:center">
           <h1 style="font-size:1.45rem">${esc(rec.nom)}</h1>
           <p class="meta" style="justify-content:center"><span>${esc(L.cuisines[rec.cuisine] || 'Maison')}</span><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</p>
         </div>
       </article>
-      <div class="reponses" role="group" aria-label="Votre avis sur ce plat">
+      ${t.pourquoi ? questionPourquoi(rec) : `<div class="reponses" role="group" aria-label="Votre avis sur ce plat">
         <button class="btn rep-non" data-a="test-rep" data-k="non">Pas pour moi</button>
         <button class="btn" data-a="test-rep" data-k="pourquoi">Pourquoi pas</button>
         <button class="btn btn-plein" data-a="test-rep" data-k="adore">J’adore</button>
       </div>
-      <div class="row" style="justify-content:center"><button class="btn-lien btn small" data-a="test-rep" data-k="passer">Je ne sais pas, passer</button></div>
+      <div class="row" style="justify-content:center"><button class="btn-lien btn small" data-a="test-rep" data-k="passer">Je ne sais pas, passer</button></div>`}
     </div></div>`;
+  }
+  const nomCourt = (id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '');
+  function questionPourquoi(rec) {
+    const choix = S.test.raisons || [];
+    const opts = E.ingredientsMarquants(rec).map((id) => ['ing:' + id, nomCourt(id)]).concat(rec.cuisine && L.cuisines[rec.cuisine] ? [['cuisine:' + rec.cuisine, 'La cuisine ' + L.cuisines[rec.cuisine].toLowerCase()]] : []);
+    return `<section class="carte stack pourquoi-non" style="gap:10px" aria-live="polite">
+        <strong>Qu’est-ce qui ne vous plaît pas ?</strong>
+        <span class="small muted">Touchez ce que vous n’aimez pas : le reste ne sera pas compté contre ce plat.</span>
+        <div class="row" style="gap:6px" role="group" aria-label="Ce qui ne vous plaît pas">${opts.map(([k, n]) => `<button class="chip" data-a="test-raison" data-k="${k}" aria-pressed="${choix.includes(k)}">${esc(n)}</button>`).join('')}</div>
+        <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="test-raisons-ok" ${choix.length ? '' : 'disabled'}>Valider</button><button class="btn" data-a="test-raisons-rien">Rien de précis, juste ce plat</button></div>
+        <button class="btn-lien small" data-a="test-raisons-retour" style="justify-self:start">← Changer ma réponse</button>
+      </section>`;
   }
 
   function puces(liste, classe) { return liste.map((t) => `<span class="tag ${classe}" style="text-transform:none;letter-spacing:0;font-size:.85rem;padding:4px 10px">${esc(t)}</span>`).join(' '); }
 
   function blocGouts() {
     const r = E.resumeGouts(S.profil.gouts);
-    if (!r.aime.length && !r.evite.length) return '<p class="muted">Pas encore de goûts enregistrés : faites le test ou parlez à l’assistant.</p>';
-    return `${r.aime.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">Vous aimez</span><div class="row">${puces(r.aime, 'tag-ok')}</div></div>` : ''}
-      ${r.evite.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">Moins pour vous</span><div class="row">${puces(r.evite, 'tag-non')}</div></div>` : ''}`;
+    const d = r.details;
+    const puce = (x, sens) => `<span class="puce-gout ${sens}"><span>${esc(x.nom)}</span>${sens === 'non' ? `<button class="btn-mini" data-a="gout-regler" data-t="${x.type}" data-c="${x.cle}" data-v="aime" aria-label="En fait, j’aime : ${esc(x.nom)}">♥ J’aime</button>` : ''}<button class="btn-mini" data-a="gout-regler" data-t="${x.type}" data-c="${x.cle}" data-v="neutre" aria-label="Retirer ${esc(x.nom)}" title="Retirer">✕</button></span>`;
+    const listes = !d.aime.length && !d.evite.length ? '<p class="muted">Pas encore de goûts enregistrés : faites le test, ou ajoutez-les ci-dessous.</p>'
+      : `${d.aime.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">Vous aimez</span><div class="row" style="gap:6px">${d.aime.map((x) => puce(x, 'oui')).join('')}</div></div>` : ''}
+      ${d.evite.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">Moins pour vous</span><div class="row" style="gap:6px">${d.evite.map((x) => puce(x, 'non')).join('')}</div></div>` : ''}
+      <p class="small muted" style="margin:0">Une erreur ? Touchez ✕ pour retirer, ou « ♥ J’aime » si vous aimez en fait. Pour dire qu’un aliment ne vous plaît pas, cherchez-le ci-dessous.</p>`;
+    return `<div class="stack bloc-gouts" style="gap:12px">${listes}
+      <label class="champ"><span>Ajouter un aliment que vous aimez ou pas</span><input type="search" id="gout-cherche" data-a="gout-cherche" placeholder="Ex. pois chiches, poisson, champignons…" autocomplete="off"></label>
+      <div id="gout-propositions" class="stack" style="gap:6px"></div></div>`;
+  }
+  function propositionsGout(t) {
+    if (t.length < 2) return '';
+    const ids = window.Saisie.chercherIngredients(t, 6).filter((id) => E.ING[id] && !E.ING[id].perso);
+    if (!ids.length) return '<span class="small muted">Aliment inconnu de Budgétable.</span>';
+    const g = S.profil.gouts || {};
+    return ids.map((id) => { const w = (g.ing || {})[id] || 0; return `<div class="spread ligne-gout"><span>${esc(nomCourt(id))}${w >= 0.9 ? ' <span class="small muted">· aimé</span>' : w <= -0.9 ? ' <span class="small muted">· pas aimé</span>' : ''}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="gout-regler" data-t="ing" data-c="${id}" data-v="aime">♥ J’aime</button><button class="btn btn-petit" data-a="gout-regler" data-t="ing" data-c="${id}" data-v="non">Pas pour moi</button></span></div>`; }).join('');
   }
 
   function blocIA() {
@@ -374,7 +399,7 @@
         ${S.ia.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
       ${S.ia.message ? `<p class="small" style="color:var(--tomate)">${esc(S.ia.message)}</p>` : ''}
       <label class="champ"><span class="sr">Votre message à l’assistant</span><textarea id="ia-texte" rows="3" style="min-height:80px;font-family:inherit;font-size:.95rem" placeholder="Ex. : j’adore les plats épicés et le poisson, mais les champignons, très peu pour moi."></textarea></label>
-      <div class="row"><button class="btn btn-plein" data-a="ia-envoyer" ${S.ia.attente ? 'disabled' : ''}>Envoyer</button><span class="small muted">L’assistant utilise votre compte Claude ; il vous demandera votre accord la première fois.</span></div>`;
+      <div class="row"><button class="btn btn-plein" data-a="ia-envoyer" ${S.ia.attente ? 'disabled' : ''}>Envoyer</button><span class="small muted">L’assistant est fourni par Budgétable, sans compte à créer.</span></div>`;
   }
 
   function vueTestFin() {
@@ -3425,8 +3450,22 @@
         S.test = { ids: E.selectionTest(p, 12, Math.floor(Math.random() * 1e9), window.Photos ? (r) => !!window.Photos.photoFidele(r) : null), i: 0, depuis: el.dataset.depuis };
         S.vue = 'test'; window.scrollTo(0, 0); break;
       case 'test-rep':
+        if (el.dataset.k === 'non') { S.test.pourquoi = true; S.test.raisons = []; setTimeout(() => { const z = document.querySelector('.pourquoi-non'); if (z) z.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 30); break; }
         if (el.dataset.k !== 'passer') p.gouts = E.apprendre(p.gouts, S.test.ids[S.test.i], el.dataset.k);
         S.test.i++; break;
+      case 'test-raison': { const k = el.dataset.k, r = S.test.raisons || []; S.test.raisons = r.includes(k) ? r.filter((x) => x !== k) : [...r, k]; break; }
+      case 'test-raisons-ok': case 'test-raisons-rien':
+        p.gouts = E.apprendre(p.gouts, S.test.ids[S.test.i], 'non', a === 'test-raisons-ok' ? S.test.raisons : null);
+        S.test.pourquoi = false; S.test.raisons = []; S.test.i++; break;
+      case 'test-raisons-retour': S.test.pourquoi = false; S.test.raisons = []; break;
+      case 'gout-regler': {
+        const { t, c, v } = el.dataset;
+        p.gouts = E.reglerGout(p.gouts, t, c, v);
+        const nom = t === 'ing' && E.ING[c] ? nomCourt(c) : (t === 'cuisine' ? 'Cuisine ' + (L.cuisines[c] || c).toLowerCase() : c);
+        toast(v === 'aime' ? `Noté : vous aimez ${nom.toLowerCase()}` : v === 'non' ? `Noté : ${nom.toLowerCase()}, moins pour vous` : `${nom} retiré de vos goûts`);
+        const champ = document.getElementById('gout-cherche'); if (champ) champ.value = '';
+        break;
+      }
       case 'test-fin':
         if (S.sensibleNonEnregistre) { S.test = null; allerQuestion('allergies'); break; }
         S.compteLocal = true; nouvellePlanification(); S.test = null; S.vue = 'app'; S.onglet = 'semaine';
@@ -3888,6 +3927,11 @@
       clearTimeout(minuterieOFF);
       if (z) z.innerHTML = resultatsCarnet(t, null);
       if (t.length >= 3) minuterieOFF = setTimeout(() => chercherOFF(t), 600);
+      return;
+    }
+    if (el.dataset.a === 'gout-cherche') {
+      const z = document.getElementById('gout-propositions');
+      if (z) z.innerHTML = propositionsGout(el.value.trim());
       return;
     }
     if (el.dataset.a === 'stock-cherche') {

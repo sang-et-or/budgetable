@@ -55,6 +55,7 @@ with sync_playwright() as p:
     for k in range(12):
         assert page.locator(".carte-test-illu img").count() == 1, "plat du test sans vraie photo"
         cliquer(page, ["J’adore", "Pourquoi pas", "Pas pour moi"][k % 3])
+        if k % 3 == 2: cliquer(page, "Rien de précis, juste ce plat")
     texte = page.inner_text("body")
     assert "vous aimez" in texte.lower(), "résumé des goûts absent"
     assert "pas disponible pour le moment" in texte, "message IA hors ligne absent"

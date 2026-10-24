@@ -1094,20 +1094,48 @@
   /* ---------- goûts : préférences apprises (test de goût, notes, assistant IA) ---------- */
   const POIDS_GROUPE = { P: 1, L: 0.6, F: 0.4, D: 0.4, A: 0.15 };
   const borne = (x) => Math.max(-4, Math.min(4, x));
-  function goutsVides() { return { ing: {}, cuisine: {}, modele: {} }; }
+  function goutsVides() { return { ing: {}, cuisine: {}, modele: {}, plat: {} }; }
   function scoreGout(rec, g) {
     if (!g) return 0;
     let s = 0;
     for (const [id] of rec.ing) { const w = g.ing[id]; if (w) s += w * (POIDS_GROUPE[ING[id].groupe] || 0.2); }
-    s += (g.cuisine[rec.cuisine] || 0) * 0.8 + (g.modele[rec.modele] || 0) * 0.8;
+    s += ((g.cuisine || {})[rec.cuisine] || 0) * 0.8 + ((g.modele || {})[rec.modele] || 0) * 0.8 + ((g.plat || {})[rec.id] || 0);
     return s;
   }
   const REPONSES = { adore: 1.2, pourquoi: 0.25, non: -1.5 };
-  /** Met à jour les goûts après une réponse au test (« adore », « pourquoi », « non »). */
-  function apprendre(gouts, recetteId, reponse) {
-    const g = JSON.parse(JSON.stringify(gouts || goutsVides()));
+  /** Ingrédients qui font un plat (protéine, légumes, féculent, laitages) : ceux qu'on peut aimer ou pas. */
+  function ingredientsMarquants(rec) {
+    if (!rec) return [];
+    const ids = rec.ing.map(([id]) => id).filter((id) => ING[id] && !ING[id].perso && ['P', 'L', 'F', 'D'].includes(ING[id].groupe));
+    return [...new Set([rec.prot, ...ids].filter((id) => id && ids.includes(id)))].slice(0, 7);
+  }
+  /**
+   * Met à jour les goûts après une réponse au test (« adore », « pourquoi », « non »).
+   * Pour « non », `raisons` dit ce qui ne plaît pas : ['ing:feta', 'cuisine:orientale'…].
+   * Sans raison, seul ce plat est écarté et ses ingrédients ne prennent qu'une petite pénalité :
+   * un seul « non » ne suffit pas à décider que vous n'aimez pas un ingrédient.
+   */
+  function apprendre(gouts, recetteId, reponse, raisons) {
+    const g = { ...goutsVides(), ...JSON.parse(JSON.stringify(gouts || goutsVides())) };
+    g.plat = g.plat || {};
     const rec = REC[recetteId], a = REPONSES[reponse];
     if (!rec || a == null) return g;
+    if (reponse === 'non') {
+      g.plat[rec.id] = -3;
+      const r = Array.isArray(raisons) ? raisons : null;
+      if (r && r.length) {
+        for (const x of r) {
+          const [t, k] = String(x).split(':');
+          if (t === 'ing' && ING[k]) g.ing[k] = borne(Math.min(g.ing[k] || 0, 0) - 2.5);
+          if (t === 'cuisine' && LIBELLES.cuisines[k]) g.cuisine[k] = borne((g.cuisine[k] || 0) - 1.5);
+        }
+        return g;
+      }
+      // pas de raison donnée : légère pénalité, jamais assez pour classer un ingrédient « pas aimé » seul
+      for (const id of ingredientsMarquants(rec)) g.ing[id] = borne((g.ing[id] || 0) - 0.3);
+      return g;
+    }
+    if (g.plat[rec.id] < 0) delete g.plat[rec.id];
     for (const [id] of rec.ing) {
       const grp = ING[id].groupe;
       if (grp === 'A') continue;
@@ -1116,6 +1144,16 @@
     }
     g.cuisine[rec.cuisine] = borne((g.cuisine[rec.cuisine] || 0) + a * 0.8);
     g.modele[rec.modele] = borne((g.modele[rec.modele] || 0) + a * 0.8);
+    return g;
+  }
+  /** Correction directe d'un goût : valeur 'aime' | 'non' | 'neutre'. Type : 'ing' | 'cuisine' | 'modele'. */
+  function reglerGout(gouts, type, cle, valeur) {
+    const g = { ...goutsVides(), ...JSON.parse(JSON.stringify(gouts || goutsVides())) };
+    if (!g[type]) return g;
+    if (valeur === 'neutre') delete g[type][cle];
+    else g[type][cle] = valeur === 'aime' ? 2.5 : -2.5;
+    // en aimant un ingrédient, on rouvre les plats écartés qui le contiennent
+    if (type === 'ing' && valeur === 'aime') for (const id of Object.keys(g.plat || {})) if (REC[id] && REC[id].ing.some(([x]) => x === cle)) delete g.plat[id];
     return g;
   }
   /** Ajoute des préférences venues de l'assistant IA (valeurs de -3 à 3, clés vérifiées). */
@@ -1154,18 +1192,18 @@
     }
     return choix.map((x) => x.id);
   }
-  /** Résumé lisible des goûts : ce qui est aimé, ce qui l'est moins. */
+  /** Résumé lisible des goûts : ce qui est aimé, ce qui l'est moins (avec `details` pour corriger). */
   function resumeGouts(g) {
-    if (!g) return { aime: [], evite: [] };
+    if (!g) return { aime: [], evite: [], details: { aime: [], evite: [] } };
+    const nomIng = (id) => ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '');
     const items = [
-      ...Object.entries(g.ing).filter(([id]) => ['P', 'L', 'F', 'D'].includes(ING[id].groupe)).map(([id, w]) => [ING[id].nom, w]),
-      ...Object.entries(g.cuisine).map(([k, w]) => ['Cuisine ' + (LIBELLES.cuisines[k] || k).toLowerCase(), w]),
-      ...Object.entries(g.modele).filter(([k]) => k !== 'maison').map(([k, w]) => [MODELES[k] ? MODELES[k].libelle : k, w])
+      ...Object.entries(g.ing || {}).filter(([id]) => ING[id] && ['P', 'L', 'F', 'D'].includes(ING[id].groupe)).map(([id, w]) => ({ type: 'ing', cle: id, nom: nomIng(id), w })),
+      ...Object.entries(g.cuisine || {}).map(([k, w]) => ({ type: 'cuisine', cle: k, nom: 'Cuisine ' + (LIBELLES.cuisines[k] || k).toLowerCase(), w })),
+      ...Object.entries(g.modele || {}).filter(([k]) => k !== 'maison').map(([k, w]) => ({ type: 'modele', cle: k, nom: MODELES[k] ? MODELES[k].libelle : k, w }))
     ];
-    return {
-      aime: items.filter(([, w]) => w >= 0.9).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t),
-      evite: items.filter(([, w]) => w <= -0.9).sort((a, b) => a[1] - b[1]).slice(0, 6).map(([t]) => t)
-    };
+    const aime = items.filter((x) => x.w >= 0.9).sort((a, b) => b.w - a.w).slice(0, 12);
+    const evite = items.filter((x) => x.w <= -0.9).sort((a, b) => a.w - b.w).slice(0, 12);
+    return { aime: aime.map((x) => x.nom), evite: evite.map((x) => x.nom), details: { aime, evite } };
   }
 
   /* ---------- résumé lisible du profil ---------- */
@@ -1181,7 +1219,7 @@
   };
 
   const api = {
-    JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, RECETTES, MODELES,
+    JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, reglerGout, ingredientsMarquants, RECETTES, MODELES,
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
