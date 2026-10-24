@@ -883,6 +883,7 @@
     const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
     return `${bandeauSensible()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
+      ${bandeauCoachs()}
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
@@ -3248,6 +3249,14 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       coachSport.tours.push({ role: 'assistant', content: secours });
     }
     coachSport.attente = false; rendre();
+  }
+  /** Sur téléphone : les coachs toujours visibles en haut de la semaine. */
+  function bandeauCoachs() {
+    const c = COACHS[S.profil.coach], pr = S.profil.programme, sp = S.profil.sport;
+    return `<nav class="bandeau-coachs" aria-label="Mes coachs">
+      <button class="coach-puce ${pr ? 'actif' : ''}" data-a="onglet" data-k="minceur"><span aria-hidden="true">🥗</span><span><strong>Minceur</strong><small>${pr ? `semaine ${pr.semaine || 1}` : 'programme'}</small></span></button>
+      <button class="coach-puce ${sp ? 'actif' : ''}" data-a="onglet" data-k="sport"><span aria-hidden="true">🏃</span><span><strong>Sport</strong><small>${sp ? `${faitesSemaine().length}/${programmeSport().length} séances` : 'séances guidées'}</small></span></button>
+      <button class="coach-puce ${c ? 'actif' : ''}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}"><span aria-hidden="true">${c ? c.emoji : '🎯'}</span><span><strong>Coach menus</strong><small>${c ? esc(c.court) : 'choisir'}</small></span></button></nav>`;
   }
   function blocMesCoachs() {
     return `<div class="stack" style="gap:8px"><button class="btn ${S.profil.sport ? 'btn-plein' : ''}" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? `Mon coach sportif · ${faitesSemaine().length}/${programmeSport().length} séances` : 'Coach sportif : séances guidées'}</button><button class="btn ${S.profil.programme ? 'btn-plein' : ''}" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? `Mon programme minceur · semaine ${S.profil.programme.semaine || 1}` : 'Programme minceur personnalisé'}</button></div>`;
