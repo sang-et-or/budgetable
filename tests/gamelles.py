@@ -17,6 +17,8 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
+    # ce test suppose une semaine qui commence le lundi : on la cale sur le lundi de cette semaine
+    page.evaluate("() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); const x = new Date(); x.setDate(x.getDate() - (x.getDay() + 6) % 7); d.planDu = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); localStorage.setItem('budgetable.v1', JSON.stringify(d)); }"); page.reload()
     main = page.locator("main")
     total0 = page.evaluate("Engine.listeCourses(JSON.parse(localStorage.getItem('budgetable.v1')).plan, JSON.parse(localStorage.getItem('budgetable.v1')).profil).total")
     clic("Prévoir mes gamelles")

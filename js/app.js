@@ -144,6 +144,28 @@
   const nb = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
   const pluriel = (n, s, p) => `${n} ${n > 1 ? (p || s + 's') : s}`;
   const aujourdhui = () => (new Date().getDay() + 6) % 7;
+  /** Jour (0 = lundi) par lequel commence la semaine du planning : le jour de sa création. */
+  const debutSemaine = () => (S.planDu ? (new Date(S.planDu + 'T12:00:00').getDay() + 6) % 7 : aujourdhui());
+  /** Les jours du planning dans l'ordre de la semaine, à partir du premier jour : [jp, index du jour]. */
+  const ordreJours = () => { const d = debutSemaine(); return [0, 1, 2, 3, 4, 5, 6].map((k) => (d + k) % 7); };
+  /** Repas d'aujourd'hui déjà passés à la création de la semaine : on ne les prévoit pas (déjeuner après 13 h, dîner après 21 h). */
+  function retirerRepasPasses() {
+    if (!S.plan) return;
+    S.plan.jours.forEach((x) => { delete x.passes; });
+    const d = new Date(), h = d.getHours() + d.getMinutes() / 60, jp = S.plan.jours[aujourdhui()];
+    const passes = (h >= 13 ? ['dejeuner'] : []).concat(h >= 21 ? ['diner'] : []);
+    passes.forEach((sl) => { jp[sl] = null; });
+    if (passes.includes('dejeuner')) delete jp.gamelles;
+    if (passes.length) jp.passes = passes;
+  }
+  /** Si la semaine n'a pas commencé aujourd'hui : proposer de la faire démarrer aujourd'hui, sans changer les plats. */
+  function boutonDemarrer() {
+    if (!S.plan || !S.planDu || debutSemaine() === aujourdhui() && S.planDu === ISO(new Date())) return '';
+    const auj = E.JOURS[aujourdhui()].toLowerCase();
+    return `<div class="bandeau bandeau-info small ecran-seul bandeau-demarrer"><span>Votre semaine commence ${E.JOURS[debutSemaine()].toLowerCase()} ${new Date(S.planDu + 'T12:00:00').getDate()}. La faire démarrer aujourd’hui (${auj}) ? Les plats restent les mêmes, dans l’ordre des jours.</span><button class="btn btn-petit btn-plein" data-a="demarrer-auj">Démarrer aujourd’hui</button></div>`;
+  }
+  const joursOrdonnes = () => ordreJours().map((j) => [S.plan.jours[j], j]);
+  const posJour = (j) => ordreJours().indexOf(j);
   const tagDemo = '<span class="tag tag-demo" title="Prix de démonstration : ne viennent d’aucun magasin">Prix démo</span>';
   function quantite(q, unite) {
     if (unite === 'g') return q >= 1000 ? `${nb(q / 1000)} kg` : `${Math.ceil(q)} g`;
@@ -780,7 +802,7 @@
 
   function ligneRepas(m, j, slot) {
     const lab = slot === 'dejeuner' ? 'Déjeuner' : 'Dîner';
-    if (!m) return `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
+    if (!m) return S.plan && S.plan.jours[j] && (S.plan.jours[j].passes || []).includes(slot) && posJour(j) === 0 ? `<div class="repas repas-passe"><span class="eyebrow">${lab}</span><span class="vide">Déjà passé : la semaine commence au ${slot === 'dejeuner' ? 'dîner' : 'déjeuner de demain'}</span></div>` : `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
     const r = E.REC[m.recette];
     const note = S.notes[r.id];
     const th = m.theme && E.THEMES[m.theme];
@@ -854,18 +876,19 @@
       ['nutrition', '🥦', 'Bilan nutritionnel', nut ? `${nut.atteints} repères sur ${nut.reperes.length} atteints` : '—', blocNutritionSemaine],
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
     ];
-    const jours = S.plan.jours.map((jp, x) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
+    const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
     return `${bandeauSensible()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
       ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
-      <div class="jours jours-m">${liste ? S.plan.jours.map((jp, x) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
+      <div class="jours jours-m">${liste ? joursOrdonnes().map(([jp, x]) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
       ${suggestionRituels()}
       <section class="outils-m" aria-label="Réglages de la semaine"><h2 class="titre-outils">Ma semaine en un coup d’œil</h2>
         ${outils.map(([k, ic, titre, resume, f]) => `<div class="outil-m ${ouvert === k ? 'ouvert' : ''}"><button class="outil-tete" data-a="outil-mobile" data-k="${k}" aria-expanded="${ouvert === k}"><span class="outil-ic" aria-hidden="true">${ic}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${titre}</strong><span class="small muted">${esc(resume)}</span></span><span class="chevron" aria-hidden="true">›</span></button>${ouvert === k ? `<div class="outil-corps">${f()}</div>` : ''}</div>`).join('')}
       </section>
+      ${boutonDemarrer()}
       <div class="actions-semaine-m"><button class="btn btn-petit" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer</button><button class="btn btn-petit" data-a="affiche-ouvrir">🖨 Pour le frigo</button><button class="btn btn-petit" data-a="nouvelle">↻ Nouvelle semaine</button></div>
       ${carteRituels()}`;
   }
@@ -876,6 +899,7 @@
     const restants = 'Changez vos plats autant que vous voulez';
     return `${bandeauSensible()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
+      ${boutonDemarrer()}
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${bandeauAlertes()}
@@ -888,7 +912,7 @@
       ${moyenneAssiette()}
       ${suggestionRituels()}
       <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
-      <div class="jours">${S.plan.jours.map((jp, j) => carteJour(jp, j, t)).join('')}</div>
+      <div class="jours">${joursOrdonnes().map(([jp, j]) => carteJour(jp, j, t)).join('')}</div>
       ${carteRituels()}
       <p class="small muted">${restants}.</p>`;
   }
@@ -990,9 +1014,9 @@
   }
   function affiche() {
     const o = optsAffiche(), p = S.plan;
-    const d0 = new Date(dateDuJour(0) + 'T12:00:00'), d6 = new Date(dateDuJour(6) + 'T12:00:00');
+    const o0 = ordreJours(), d0 = new Date(dateDuJour(o0[0]) + 'T12:00:00'), d6 = new Date(dateDuJour(o0[6]) + 'T12:00:00');
     const memeMois = d0.getMonth() === d6.getMonth();
-    const periode = `du lundi ${d0.getDate()}${memeMois ? '' : ' ' + d0.toLocaleDateString('fr-FR', { month: 'long' })} au dimanche ${d6.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    const periode = `du ${E.JOURS[o0[0]].toLowerCase()} ${d0.getDate()}${memeMois ? '' : ' ' + d0.toLocaleDateString('fr-FR', { month: 'long' })} au ${E.JOURS[o0[6]].toLowerCase()} ${d6.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
     const lignes = [['dejeuner', 'Midi', '☀️'], ['diner', 'Soir', '🌙']].filter(([sl]) => p.jours.some((jp) => jp[sl]));
     const douceurs = o.douceurs && p.jours.some((jp) => (jp.gourmand || []).some((g) => E.REC[g.recette]));
     const cases = (j) => (p.jours[j].gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<span class="aff-douceur">${E.REC[g.recette].emoji} ${esc(E.REC[g.recette].nom)}</span>`).join('') || '<span class="aff-meta">—</span>';
@@ -1001,9 +1025,9 @@
       <header class="aff-tete"><div><h1 class="aff-titre">${esc(o.titre || 'Au menu cette semaine')}</h1><p class="aff-periode">${periode}</p></div>
         <div class="aff-marque"><span class="aff-cloche" aria-hidden="true">🍽️</span><span>Budgétable</span></div></header>
       <div class="aff-grille" style="${cols}">
-        <span></span>${p.jours.map((jp, j) => `<div class="aff-jour"><strong>${esc(jp.jour)}</strong><span>${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></div>`).join('')}
-        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${p.jours.map((jp) => celluleAffiche(jp[sl], o, sl === 'dejeuner' ? jp.gamelles : null)).join('')}`).join('')}
-        ${douceurs ? `<div class="aff-moment"><span aria-hidden="true">🍪</span>Douceur</div>${p.jours.map((jp, j) => `<div class="aff-case aff-case-douceur">${cases(j)}</div>`).join('')}` : ''}
+        <span></span>${joursOrdonnes().map(([jp, j]) => `<div class="aff-jour"><strong>${esc(jp.jour)}</strong><span>${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></div>`).join('')}
+        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${joursOrdonnes().map(([jp]) => celluleAffiche(jp[sl], o, sl === 'dejeuner' ? jp.gamelles : null)).join('')}`).join('')}
+        ${douceurs ? `<div class="aff-moment"><span aria-hidden="true">🍪</span>Douceur</div>${joursOrdonnes().map(([jp, j]) => `<div class="aff-case aff-case-douceur">${cases(j)}</div>`).join('')}` : ''}
       </div>
       ${o.notes ? `<footer class="aff-pied"><div class="aff-notes"><strong>À ne pas oublier</strong><i></i><i></i></div><div class="aff-notes"><strong>À racheter</strong><i></i><i></i></div><p class="aff-astuce">Cochez la case quand le plat est mangé ✓</p></footer>` : ''}
     </div>`;
@@ -1425,19 +1449,14 @@
   function repasATraiter() {
     if (!S.plan) return [];
     const t = aujourdhui(), h = new Date().getHours();
-    // repas d'avant la création de la semaine : ignorés (la personne n'utilisait pas encore Budgétable)
-    let debut = 0;
-    if (S.planDu) {
-      const lundi = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x.toDateString(); };
-      const cree = new Date(S.planDu + 'T12:00:00');
-      if (lundi(cree) === lundi(new Date())) debut = (cree.getDay() + 6) % 7;
-    }
+    // la semaine commence le jour de sa création : seuls les repas des jours déjà passés depuis sont à traiter
     const res = [];
-    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => {
+    const pt = posJour(t), ecart = S.planDu ? Math.round((new Date(ISO(new Date()) + 'T12:00:00') - new Date(S.planDu + 'T12:00:00')) / 864e5) : 0;
+    joursOrdonnes().forEach(([jp, j]) => E.SLOTS.forEach((sl) => {
       const m = jp[sl];
       if (!m || S.deduits[j + '-' + sl]) return;
-      if (j < debut) return;
-      if (j < t || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21))) res.push({ j, sl, m });
+      const passe = ecart >= 7 || posJour(j) < pt;
+      if (passe || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21))) res.push({ j, sl, m });
     }));
     return res;
   }
@@ -1786,7 +1805,7 @@
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Mettre au menu</span><h2 id="au-menu-titre">${esc(r.nom)}</h2></div>
         <button class="btn btn-petit" data-a="au-menu-fermer">Fermer</button></div>
       <p class="small muted">Choisissez le repas : le plat prévu est remplacé, la liste de courses suit.</p>
-      <div class="grille-au-menu">${S.plan.jours.map((jp, j) => `<div class="jour-au-menu"><strong>${jp.jour}</strong>${E.SLOTS.map((sl) => {
+      <div class="grille-au-menu">${joursOrdonnes().map(([jp, j]) => `<div class="jour-au-menu"><strong>${jp.jour}</strong>${E.SLOTS.map((sl) => {
         const m = jp[sl];
         const ok = m && r.repas.includes(sl);
         return `<button class="btn btn-petit" data-a="au-menu-placer" data-j="${j}" data-s="${sl}" ${ok ? '' : 'disabled'} title="${m ? esc(E.REC[m.recette].nom) : 'Pris dehors'}">${sl === 'diner' ? 'Soir' : 'Midi'}</button>`;
@@ -2121,7 +2140,7 @@
   /* ---------- envoyer la liste ou le menu (mail, SMS, WhatsApp, partage, lien à ouvrir sur un autre téléphone) ---------- */
   function menuTexte() {
     if (!S.plan) return '';
-    return S.plan.jours.map((jp, j) => {
+    return joursOrdonnes().map(([jp, j]) => {
       const r = (m) => (m && E.REC[m.recette] ? (m.dehors ? 'dehors' : E.REC[m.recette].nom) : null);
       const g = jp.gamelles && jp.gamelles.n && E.REC[jp.gamelles.recette] ? `gamelle : ${E.REC[jp.gamelles.recette].nom}` : null;
       return `${jp.jour} ${new Date(dateDuJour(j) + 'T12:00:00').getDate()}\n` + [r(jp.dejeuner) ? `  Midi : ${r(jp.dejeuner)}` : g ? `  Midi : ${g}` : null, r(jp.diner) ? `  Soir : ${r(jp.diner)}` : null].filter(Boolean).join('\n');
@@ -2584,7 +2603,7 @@
       <div class="row raccourcis-presences" style="gap:6px">${raccourcis.map(([k, v]) => `<button class="chip" data-a="presences-raccourci" data-k="${k}">${esc(v)}</button>`).join('')}</div>
       <div class="grille-presences" role="table" aria-label="Personnes à chaque repas">
         <span role="columnheader"></span><span role="columnheader" class="small muted">Midi</span><span role="columnheader" class="small muted">Soir</span>
-        ${E.JOURS.map((jn, j) => `<span role="rowheader" class="small"><strong>${jn.slice(0, 3)}.</strong></span>${E.SLOTS.map((sl) => { const pr = presenceDe(j, sl); return `<button class="cellule-presence ${S.presenceEdit === j + '-' + sl ? 'sel' : ''}" data-a="presence-editer" data-k="${j}-${sl}" aria-label="${jn} ${sl === 'diner' ? 'soir' : 'midi'} : ${pr.a} adulte${pr.a > 1 ? 's' : ''}${enfants ? `, ${pr.e.filter(Boolean).length} enfant(s)` : ''}${pr.invA + pr.invE ? `, ${pr.invA + pr.invE} invité(s)` : ''}. Modifier">${texteCellule(pr)}</button>`; }).join('')}`).join('')}
+        ${ordreJours().map((j) => [E.JOURS[j], j]).map(([jn, j]) => `<span role="rowheader" class="small"><strong>${jn.slice(0, 3)}.</strong></span>${E.SLOTS.map((sl) => { const pr = presenceDe(j, sl); return `<button class="cellule-presence ${S.presenceEdit === j + '-' + sl ? 'sel' : ''}" data-a="presence-editer" data-k="${j}-${sl}" aria-label="${jn} ${sl === 'diner' ? 'soir' : 'midi'} : ${pr.a} adulte${pr.a > 1 ? 's' : ''}${enfants ? `, ${pr.e.filter(Boolean).length} enfant(s)` : ''}${pr.invA + pr.invE ? `, ${pr.invA + pr.invE} invité(s)` : ''}. Modifier">${texteCellule(pr)}</button>`; }).join('')}`).join('')}
       </div>
       <label class="case small"><input type="checkbox" data-a="presences-garder" ${S.presencesGarder ? 'checked' : ''}><span>Garder ces habitudes pour les semaines suivantes</span></label>
       <span class="small muted">Touchez un repas pour l’ajuster. Les portions, les menus et la liste de courses suivent tout seuls.</span>
@@ -2613,10 +2632,11 @@
   /* ---------- « Mes apports » : suivi réel des repas mangés, avec graphiques ---------- */
   const ISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const lundiDe = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };
-  // date réelle d'un jour du planning (la semaine du planning commence le lundi où il a été créé)
+  // date réelle d'un jour du planning : la semaine commence le jour où elle a été créée (ou démarrée), pour 7 jours
   function dateDuJour(j) {
-    const base = lundiDe(S.planDu ? new Date(S.planDu + 'T12:00:00') : new Date());
-    const d = new Date(base); d.setDate(base.getDate() + j); return ISO(d);
+    const base = S.planDu ? new Date(S.planDu + 'T12:00:00') : new Date();
+    base.setHours(12, 0, 0, 0);
+    const d = new Date(base); d.setDate(base.getDate() + (j - debutSemaine() + 7) % 7); return ISO(d);
   }
   function noterJournal(j, slot, recette, ajouter) {
     S.journal = (S.journal || []).filter((x) => !(x.d === dateDuJour(j) && x.s === slot));
@@ -2873,7 +2893,7 @@
   function journeesMinceur() {
     if (!S.plan) return [];
     const rep = P.repartition(cibleProg());
-    return S.plan.jours.map((jp, j) => {
+    return joursOrdonnes().map(([jp, j]) => {
       const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]);
       const ligne = (slot) => {
         const m = jp[slot];
@@ -3215,7 +3235,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const serie = (k) => liste.map(([d, v]) => ({ v: Math.round(v[k]), lab: labJour(d), vide: !v.repas.length && !v.ajouts.length, tip: `${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${v.repas.length || v.ajouts.length ? `${nb(Math.round(v[k]))} ${LIB[k][1]} (${pluriel(v.repas.length, 'repas', 'repas')}${v.ajouts.length ? `, ${pluriel(v.ajouts.length, 'ajout')}` : ''})` : 'rien de noté'}` }));
     // repas de la semaine à confirmer
     const t = aujourdhui(), h = new Date().getHours();
-    const aConfirmer = S.plan ? S.plan.jours.flatMap((jp, j) => E.SLOTS.map((sl) => ({ j, sl, m: jp[sl] }))).filter(({ j, sl, m }) => m && !S.deduits[j + '-' + sl] && (j < t || (j === t && (sl === 'dejeuner' ? h >= 12 : h >= 19)))) : [];
+    const aConfirmer = S.plan ? S.plan.jours.flatMap((jp, j) => E.SLOTS.map((sl) => ({ j, sl, m: jp[sl] }))).filter(({ j, sl, m }) => m && !S.deduits[j + '-' + sl] && (posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 12 : h >= 19)))) : [];
     // sources de protéines et Nutri-Score des repas mangés
     const sources = { 'Viande rouge': 0, Volaille: 0, Poisson: 0, 'Charcuterie': 0, 'Œufs et laitages': 0, 'Légumineuses et soja': 0, 'Céréales et autres': 0 };
     const cat = (id) => (id === 'boeuf_hache' ? 'Viande rouge' : ['poulet_filet', 'cuisses_poulet'].includes(id) ? 'Volaille' : ['saumon', 'colin', 'thon'].includes(id) ? 'Poisson' : ['jambon', 'lardons', 'saucisse'].includes(id) ? 'Charcuterie' : ['oeufs', 'lait', 'yaourt', 'emmental', 'mozzarella', 'feta', 'creme'].includes(id) ? 'Œufs et laitages' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'pois_casses', 'tofu'].includes(id) ? 'Légumineuses et soja' : 'Céréales et autres');
@@ -3517,7 +3537,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Ajouter à ma semaine</span><h2 id="g-titre">${r.emoji} ${esc(r.nom)}</h2></div>
         <button class="btn btn-petit" data-a="gourmand-fermer">Fermer</button></div>
       <div class="stack" style="gap:8px"><strong>Quels jours ?</strong>
-        <div class="row" style="gap:6px">${E.JOURS.map((jn, j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${jn.slice(0, 3)}.</button>`).join('')}</div>
+        <div class="row" style="gap:6px">${ordreJours().map((j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${E.JOURS[j].slice(0, 3)}.</button>`).join('')}</div>
         <div class="row" style="gap:6px"><button class="btn-lien small" data-a="gourmand-jours" data-k="semaine">Du lundi au vendredi</button><button class="btn-lien small" data-a="gourmand-jours" data-k="weekend">Le week-end</button><button class="btn-lien small" data-a="gourmand-jours" data-k="tous">Tous les jours</button></div></div>
       ${r.type === 'petitdej' ? '' : `<div class="stack" style="gap:8px"><strong>Pour</strong>
         <div class="row" style="gap:6px" role="radiogroup">${[['gouter', 'Le goûter'], ['dessert', 'Le dessert']].map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>`}
@@ -3613,7 +3633,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (manuelsGardes && manuelsGardes.length) S.plan.manuels = manuelsGardes;
     S.coches = {};
     S.ranges = {};
-    S.planDu = new Date().toISOString().slice(0, 10);
+    S.planDu = ISO(new Date());
+    retirerRepasPasses();
     S.deduits = {};
     S.modeCourses = null;
     S.ceSoirOuvert = false;
@@ -3693,6 +3714,16 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'modifier': allerQuestion(el.dataset.q); break;
       case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; break;
       case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; window.scrollTo(0, 0); break;
+      case 'demarrer-auj': {
+        // les jours déjà passés deviennent les derniers de la nouvelle semaine : on les remet à zéro (mangé, placard)
+        const pt = posJour(aujourdhui());
+        const repasses = ordreJours().slice(0, pt);
+        repasses.forEach((j) => E.SLOTS.forEach((sl) => { delete S.deduits[j + '-' + sl]; const m = S.plan.jours[j][sl]; if (m) { delete m.mange; } }));
+        S.planDu = ISO(new Date());
+        retirerRepasPasses();
+        toast(`Votre semaine commence aujourd’hui, ${E.JOURS[aujourdhui()].toLowerCase()}`);
+        break;
+      }
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         nouvellePlanification(); toast('Nouvelle semaine créée'); break;

@@ -18,6 +18,8 @@ with sync_playwright() as p:
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
+    # ce test suppose une semaine qui commence le lundi : on la cale sur le lundi de cette semaine
+    page.evaluate("() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); const x = new Date(); x.setDate(x.getDate() - (x.getDay() + 6) % 7); d.planDu = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); localStorage.setItem('budgetable.v1', JSON.stringify(d)); }"); page.reload()
     avant = page.evaluate(f"{E}.plan.jours[0].diner.recette")
     ing0 = page.evaluate(f"Engine.REC['{avant}'].ing.map(([i]) => i)")
     kcal0 = page.evaluate(f"Nutrition.de(Engine.REC['{avant}'], Engine.ING).kcal")
