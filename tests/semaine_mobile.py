@@ -26,7 +26,7 @@ with sync_playwright() as p:
     main.locator("[data-a=repas-plus]").first.click()
     assert main.locator(".jour [data-a=dehors]").count() == 1 and main.locator(".jour [data-a=choix]").count() == 1
     # outils repliés avec résumé
-    assert main.locator(".outil-m").count() == 5 and main.locator(".presences").count() == 0
+    assert main.locator(".outil-m").count() == 6 and main.locator(".presences").count() == 0
     main.locator("[data-a=outil-mobile][data-k=presences]").click()
     assert main.locator(".presences").count() == 1
     main.locator("[data-a=outil-mobile][data-k=presences]").click()

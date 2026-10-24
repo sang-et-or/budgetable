@@ -296,6 +296,22 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .graphe-poids .txt-objectif { font-size: 10px; fill: var(--encre-douce); }
 .message-coach { border-left: 4px solid var(--poireau); }
 .avatar-coach { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--poireau) 14%, var(--surface)); font-size: 1.3rem; flex: none; }
+.ardoise-sport { background: linear-gradient(135deg, #1f4f8a, #3a86d1); color: #fff; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
+.ardoise-sport h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); color: #fff; }
+.ardoise-sport .small { color: #dbe9f8; }
+.grille-seances { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.seance { background: var(--surface); border: 1px solid var(--trait); border-radius: 16px; padding: 14px; display: grid; gap: 6px; }
+.seance.auj { border: 2px solid #2c6fb5; box-shadow: var(--ombre); }
+.seance.faite { opacity: .85; background: color-mix(in srgb, var(--poireau) 6%, var(--surface)); }
+.liste-ex { margin: 6px 0 0; padding-left: 4px; list-style: none; display: grid; gap: 4px; }
+.voile-seance { background: rgba(10, 25, 45, .72); }
+.fenetre-seance { max-width: 520px; }
+.fenetre-seance.repos { background: color-mix(in srgb, #3a86d1 10%, var(--surface)); }
+.emoji-seance { font-size: 3.4rem; line-height: 1; }
+.consignes-ex { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.anneau { --p: 0; width: 150px; height: 150px; margin: 4px auto; border-radius: 50%; display: grid; place-content: center; text-align: center; background: radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(#2c6fb5 calc(var(--p) * 360deg), color-mix(in srgb, #2c6fb5 15%, transparent) 0); }
+.anneau #seance-chrono { font-size: 2.8rem; font-weight: 800; line-height: 1; }
+.reponses-4 { grid-template-columns: repeat(2, 1fr); }
 .bascule-g { display: flex; gap: 6px; flex-wrap: wrap; }
 .ardoise-matin { background: linear-gradient(135deg, #f6d38b, #f0a85a); color: #3b2410; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
 .ardoise-matin h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }
@@ -692,7 +708,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 
 /* ---------- mes apports ---------- */
-@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"], .nav button[data-k="petitdej"], .nav button[data-k="minceur"] { display: none; } }
+@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"], .nav button[data-k="petitdej"], .nav button[data-k="minceur"], .nav button[data-k="sport"] { display: none; } }
 .tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .tuile-apport strong { font: 800 1.5rem var(--f-titre); }
@@ -1063,6 +1079,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/gourmand.js"></script>
 <script src="js/petitdej.js"></script>
 <script src="js/programme.js"></script>
+<script src="js/sport.js"></script>
 <script src="js/saison.js"></script>
 <script src="js/nutrition.js"></script>
 <script src="js/commis.js"></script>

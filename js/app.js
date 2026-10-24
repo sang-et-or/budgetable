@@ -98,6 +98,7 @@
       p.allergies = [];
       p.objectifs = p.objectifs.filter((o) => o !== 'perte');
       delete p.programme;
+      delete p.sport;
     }
     const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore };
     const texte = JSON.stringify(a);
@@ -158,6 +159,7 @@
     toastTimer = setTimeout(() => t.remove(), 2600);
   }
   const ICONES = {
+    sport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v5M6 12l3-3 4 1 3 3 3-1M11 15l2-5"/></svg>',
     minceur: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M8 9a5 5 0 0 1 8 0l-2.5 2.5M12 11.5l1.5-2"/></svg>',
     petitdej: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3c0 1.5 1.5 1.5 1.5 3M12 3c0 1.5 1.5 1.5 1.5 3"/></svg>',
     semaine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
@@ -661,14 +663,14 @@
   }
 
   /* ---------- application ---------- */
-  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['minceur', 'apports', 'journal']], ['', ['profil']]];
-  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', minceur: '#3f8f5a', journal: '#6b5ea8', profil: '#5b6b62' };
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['minceur', 'Minceur'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
+  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['sport', 'minceur', 'apports', 'journal']], ['', ['profil']]];
+  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', minceur: '#3f8f5a', sport: '#2c6fb5', journal: '#6b5ea8', profil: '#5b6b62' };
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['sport', 'Sport'], ['minceur', 'Minceur'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${promos.offres.length}</em>`) : ''}</button>`; };
     const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, sport: ongletSport, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -848,6 +850,7 @@
       ['presences', '👥', 'Qui mange cette semaine', `${repas} repas · ${couverts} couverts`, blocPresences],
       ['gamelles', '🥡', 'Gamelles et restes', g && g.n && (g.jours || []).length ? `${g.n} par jour, ${g.jours.length} jours` : 'Aucune gamelle prévue', blocGamelles],
       ['coach', '🎯', 'Coach', coach ? `${coach.emoji} ${coach.court}` : 'Choisir un objectif', blocCoach],
+      ['coachs', '🏃', 'Sport et minceur', S.profil.sport ? `${faitesSemaine().length}/${programmeSport().length} séances cette semaine` : S.profil.programme ? `Programme minceur · semaine ${S.profil.programme.semaine || 1}` : 'Coach sportif et programme minceur', blocMesCoachs],
       ['nutrition', '🥦', 'Bilan nutritionnel', nut ? `${nut.atteints} repères sur ${nut.reperes.length} atteints` : '—', blocNutritionSemaine],
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
     ];
@@ -2345,7 +2348,7 @@
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
         <p class="small muted" style="margin:0">${S.profil.coach ? esc(COACHS[S.profil.coach].accroche) : 'Minceur, sportif, ou femme de 40 ans et plus : vos menus suivent votre objectif.'}</p>
-        <div class="row" style="gap:8px"><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button></div></section>
+        <div class="row" style="gap:8px"><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button><button class="btn btn-petit" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? 'Mon coach sportif' : 'Coach sportif'}</button></div></section>
       <section class="carte stack"><div class="spread"><h2>Vos goûts</h2><div class="row"><button class="btn btn-petit btn-plein" data-a="test-go" data-depuis="app">Faire le test de goût</button><button class="btn btn-petit" data-a="gouts-effacer">Effacer mes goûts</button></div></div>
         ${blocGouts()}<p class="small muted">Vos notes de recettes affinent aussi vos goûts.</p></section>
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
@@ -3016,6 +3019,170 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     coachMinceur.attente = false; rendre();
   }
 
+  /* ---------- coach sportif : programme d'entraînement, séance guidée, progression ---------- */
+  const SP = window.Sport;
+  let coachSport = { tours: [], attente: false, message: '' };
+  let minuterieSeance = null;
+  const lundiIso = (d) => ISO(lundiDe(d));
+  const jourSemaine = () => (new Date().getDay() + 6) % 7;
+  function programmeSport() {
+    const sp = S.profil.sport;
+    if (!sp) return [];
+    if (!sp.plan || sp.planSemaine !== sp.semaine || sp.planAjust !== (sp.ajust || 0)) { sp.plan = SP.genererSemaine({ ...sp, douceur: sp.douceur }, sp.semaine || 1, sp.ajust || 0); sp.planSemaine = sp.semaine || 1; sp.planAjust = sp.ajust || 0; }
+    return sp.plan;
+  }
+  const faitesSemaine = () => { const sp = S.profil.sport; return (sp.historique || []).filter((h) => h.semaine === sp.semaine); };
+  function vueBilanSport() {
+    const f = S.sportForm = S.sportForm || (() => { const sp = S.profil.sport; const c = S.calcKcal || {}; return sp ? { ...sp, sante: { ...(sp.sante || {}) }, consent: true } : { age: c.age || '', objectif: S.profil.programme ? 'perte' : '', niveau: '', materiel: [], jours: [], duree: 30, limites: [], sante: {}, accordMedecin: false, consent: !!S.profil.consentementSante }; })();
+    const radio = (cle, k, v, sous) => `<button class="chip" role="radio" data-a="sp-choix" data-cle="${cle}" data-k="${k}" aria-checked="${String(f[cle]) === String(k)}" aria-pressed="${String(f[cle]) === String(k)}">${v}${sous ? ` <span class="small muted">${esc(sous)}</span>` : ''}</button>`;
+    const multi = (cle, k, v) => `<button class="chip" data-a="sp-multi" data-cle="${cle}" data-k="${k}" aria-pressed="${(f[cle] || []).map(String).includes(String(k))}">${v}</button>`;
+    return `<div class="ardoise-sport"><span class="small">Votre coach personnel</span><h1>Coach sportif</h1><span class="small">des séances à votre niveau, chez vous ou en salle, qui progressent avec vous</span></div>
+      <section class="carte stack" style="gap:14px"><h2>Faisons connaissance</h2>
+        <div class="row" style="gap:10px"><label class="champ" style="max-width:120px"><span>Âge</span><span class="saisie-euros"><input type="text" inputmode="numeric" data-a="sp-champ" data-k="age" value="${esc(f.age || '')}" placeholder="35"><span>ans</span></span></label></div>
+        <div class="stack" style="gap:6px"><strong>Votre objectif</strong><div class="row" role="radiogroup" style="gap:6px">${Object.entries(SP.OBJECTIFS).map(([k, o]) => radio('objectif', k, `${o.emoji} ${o.lib}`)).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Votre niveau</strong><div class="row" role="radiogroup" style="gap:6px">${Object.entries(SP.NIVEAUX).map(([k, n]) => radio('niveau', k, n.lib, n.sous)).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Votre matériel</strong><span class="small muted">Rien n’est obligatoire : sans matériel, tout se fait au poids du corps.</span><div class="row" style="gap:6px">${Object.entries(SP.MATERIEL).filter(([k]) => k !== 'aucun').map(([k, l]) => multi('materiel', k, l)).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Vos jours d’entraînement</strong><span class="small muted">${(f.jours || []).length ? pluriel(f.jours.length, 'séance') + ' par semaine' : 'Conseil : 2 ou 3 jours pour commencer, avec un jour de repos entre deux.'}</span><div class="row" style="gap:6px">${E.JOURS.map((jn, j) => multi('jours', j, jn.slice(0, 3) + '.')).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Durée des séances</strong><div class="row" role="radiogroup" style="gap:6px">${[20, 30, 45].map((d) => radio('duree', d, d + ' min')).join('')}</div></div>
+        <div class="stack" style="gap:6px"><strong>Des points fragiles ?</strong><div class="row" style="gap:6px">${Object.entries(SP.LIMITES).map(([k, l]) => multi('limites', k, l)).join('')}</div></div>
+        <div class="stack" style="gap:8px"><strong>Votre santé</strong><span class="small muted">Quatre questions pour faire du sport en sécurité. Vos réponses restent sur cet appareil.</span>
+          ${SP.SANTE.map(([k, q]) => `<div class="stack" style="gap:4px"><span class="small">${esc(q)}</span><div class="row" role="radiogroup" style="gap:6px">${['non', 'oui'].map((r) => `<button class="chip chip-petit" role="radio" data-a="sp-sante" data-k="${k}" data-v="${r}" aria-checked="${(f.sante || {})[k] === r}" aria-pressed="${(f.sante || {})[k] === r}">${r === 'oui' ? 'Oui' : 'Non'}</button>`).join('')}</div></div>`).join('')}</div>
+        <div id="sp-etat" class="stack" style="gap:10px">${etatBilanSport()}</div>
+      </section>
+      <p class="small muted prudence-coach">Programme indicatif, qui ne remplace pas un éducateur sportif ou l’avis d’un médecin. Arrêtez immédiatement en cas de douleur dans la poitrine, de malaise ou d’essoufflement anormal, et appelez le 15.</p>`;
+  }
+  function etatBilanSport() {
+    const f = S.sportForm || {};
+    const v = SP.verifier(f);
+    const stop = v.stop === 'jeune' ? '<div class="bandeau-stop stack" style="gap:6px"><strong>Avant 16 ans, on s’entraîne encadré</strong><span class="small">Le sport, c’est excellent à votre âge ! Mais un programme d’entraînement doit être suivi par un adulte formé : club, professeur d’EPS, éducateur sportif. Parlez-en autour de vous.</span></div>'
+      : v.stop === 'medecin' ? `<div class="bandeau-stop stack" style="gap:6px"><strong>Un avis médical d’abord</strong><span class="small">Vous avez répondu « oui » à une question de santé : avant de commencer, demandez l’accord de votre médecin. Avec son feu vert, je vous préparerai un programme doux, sans sauts.</span><label class="case small"><input type="checkbox" data-a="sp-accord" ${f.accordMedecin ? 'checked' : ''}><span>Mon médecin m’a donné son accord pour faire du sport</span></label></div>` : '';
+    return `${stop}
+        ${v.erreurs.length ? `<p class="small muted" style="margin:0">${esc(v.erreurs[0])}</p>` : ''}
+        ${v.stop === 'jeune' ? '' : `<label class="case small"><input type="checkbox" data-a="sp-consent" ${f.consent ? 'checked' : ''}><span>J’accepte que ces informations soient enregistrées <strong>sur cet appareil uniquement</strong> (et dans mon compte si je suis connecté).</span></label>
+        <button class="btn btn-plein btn-grand" data-a="sp-lancer" ${v.ok && f.consent ? '' : 'disabled'}>${S.profil.sport ? 'Mettre à jour mon programme' : 'Créer mon programme'}</button>`}`;
+  }
+  function carteSeance(s, faite) {
+    const auj = s.j === jourSemaine();
+    const ex = s.blocs.map((x) => `<li>${SP.EX[x.ex].emoji} ${esc(SP.EX[x.ex].nom)} <span class="muted num">${x.reps ? x.reps + ' répétitions' : x.secondes + ' s'}</span></li>`).join('');
+    return `<article class="seance ${auj ? 'auj' : ''} ${faite ? 'faite' : ''}"><div class="spread"><span class="eyebrow">${E.JOURS[s.j]}${auj ? ' · aujourd’hui' : ''}</span>${faite ? `<span class="tag tag-ok">✓ Faite${faite.ressenti ? ' · ' + ({ facile: 'facile', bien: 'bien', dur: 'dure', douleur: 'douleur' })[faite.ressenti] : ''}</span>` : ''}</div>
+      <strong>${esc(s.titre)}</strong><span class="small muted">≈ ${s.minutes} min · ${s.tours > 1 ? s.tours + ' tours · ' : ''}≈ ${s.kcal} kcal</span>
+      <details class="small"><summary>${pluriel(s.blocs.length, 'exercice')}</summary><ul class="liste-ex">${ex}</ul></details>
+      <div><button class="btn ${faite ? '' : 'btn-plein'} btn-petit" data-a="sp-go" data-j="${s.j}">${faite ? '↻ Refaire' : '▶ Commencer la séance'}</button></div></article>`;
+  }
+  function ongletSport() {
+    const sp = S.profil.sport;
+    if (!sp || S.sportModifier) return vueBilanSport();
+    const plan = programmeSport();
+    const faites = faitesSemaine();
+    const minutes = (sp.historique || []).reduce((t, h) => t + (h.minutes || 0), 0);
+    const total = (sp.historique || []).length;
+    const ancienne = sp.semaineDu && sp.semaineDu < lundiIso(new Date());
+    const o = SP.OBJECTIFS[sp.objectif];
+    const coachMsg = sp.message || `Bienvenue ! J’ai préparé ${pluriel(plan.length, 'séance')} cette semaine pour « ${o.lib.toLowerCase()} », au niveau ${SP.NIVEAUX[sp.niveau].lib.toLowerCase()}. Après chaque séance, dites-moi comment c’était : j’ajuste la suite. ${SP.MOTIVATION[(sp.semaine || 1) % SP.MOTIVATION.length]}`;
+    return `<div class="ardoise-sport"><span class="small">Semaine ${sp.semaine || 1} · ${o.emoji} ${esc(o.lib)}</span><h1>Mon coach sportif</h1><span class="small">${pluriel(plan.length, 'séance')} de ${sp.duree} min · niveau ${SP.NIVEAUX[sp.niveau].lib.toLowerCase()}${sp.douceur ? ' · version douce' : ''}</span></div>
+      <div class="chiffres-calc stats-sport"><div><span class="small muted">Cette semaine</span><strong class="num repere-final">${faites.length}/${plan.length}</strong><span class="small muted">séances</span></div><div><span class="small muted">Depuis le début</span><strong class="num">${total}</strong><span class="small muted">séances</span></div><div><span class="small muted">Temps total</span><strong class="num">${minutes >= 60 ? Math.floor(minutes / 60) + ' h ' + String(minutes % 60).padStart(2, '0') : minutes + ' min'}</strong><span class="small muted">d’effort</span></div></div>
+      <section class="carte stack message-coach" style="gap:8px"><div class="row" style="gap:10px;align-items:center;flex-wrap:nowrap"><span class="avatar-coach" aria-hidden="true">🏃</span><strong>Le mot de votre coach</strong></div><p style="margin:0">${esc(coachMsg)}</p></section>
+      ${ancienne || faites.length >= plan.length ? `<section class="carte stack" style="gap:8px"><strong>${faites.length >= plan.length ? '💯 Toutes les séances sont faites !' : 'Une nouvelle semaine commence'}</strong><span class="small">Faisons le bilan : j’adapte l’intensité selon votre ressenti et je prépare les séances de la semaine suivante.</span><div><button class="btn btn-plein" data-a="sp-bilan">Faire le bilan et passer à la semaine ${(sp.semaine || 1) + 1}</button></div></section>` : ''}
+      <section class="stack" style="gap:10px"><h2>Mes séances de la semaine</h2><div class="grille-seances">${plan.map((s) => carteSeance(s, faites.filter((h) => h.j === s.j).pop())).join('')}</div></section>
+      <section class="carte stack" style="gap:8px"><h2>Bien manger pour bien s’entraîner</h2>
+        <span class="small">Les jours de séance, un petit-déjeuner riche en protéines aide à récupérer.${sp.objectif === 'perte' ? ' Pour perdre du poids, le sport aide, mais l’assiette compte le plus.' : ''}</span>
+        <div class="row" style="gap:8px">${S.plan ? '<button class="btn btn-petit btn-plein" data-a="sp-petitdej">🥐 Petits-déj sportifs les jours de séance</button>' : ''}${sp.objectif === 'perte' ? `<button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur'}</button>` : '<button class="btn btn-petit" data-a="coach-voir" data-k="sportif">💪 Menus riches en protéines</button>'}</div></section>
+      <section class="carte stack" style="gap:8px"><h2>Parlez à votre coach</h2>
+        <div class="chat" aria-live="polite">${coachSport.tours.length ? coachSport.tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Salut ! Des courbatures, un coup de mou, pas le temps, une question sur un exercice ? Je suis là.</p>'}${coachSport.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
+        ${coachSport.message ? `<p class="small" style="color:var(--tomate)">${esc(coachSport.message)}</p>` : ''}
+        <div class="row" style="gap:6px">${['J’ai des courbatures', 'Pas motivé aujourd’hui', 'Quoi manger après ?', 'Perdre du ventre'].map((q) => `<button class="chip chip-petit" data-a="coach-s-q" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><label class="champ" style="flex:1;min-width:0"><span class="sr">Votre question</span><input type="text" id="coach-s-texte" placeholder="Votre question…" autocomplete="off" enterkeyhint="send"></label><button class="btn btn-plein" data-a="coach-s-envoyer" ${coachSport.attente ? 'disabled' : ''}>Envoyer</button></div></section>
+      <div class="row" style="gap:8px"><button class="btn" data-a="sp-modifier">Modifier mon programme</button><button class="btn ${S.sportArret ? 'btn-plein' : ''}" data-a="sp-arreter">${S.sportArret ? 'Confirmer : arrêter et effacer' : 'Arrêter le programme'}</button></div>
+      <p class="small muted prudence-coach">Arrêtez immédiatement en cas de douleur dans la poitrine, de malaise ou d’essoufflement anormal, et appelez le 15. Une douleur articulaire qui persiste : consultez avant de reprendre.</p>`;
+  }
+  /* séance guidée : une étape à la fois, minuteur, récupération, fin avec ressenti */
+  function bip(long) {
+    try { if (navigator.vibrate) navigator.vibrate(long ? [200, 80, 200] : 120); } catch (e) { /* */ }
+    try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; bip.ctx = bip.ctx || new C(); const o = bip.ctx.createOscillator(), g = bip.ctx.createGain(); o.frequency.value = long ? 660 : 880; g.gain.value = 0.08; o.connect(g); g.connect(bip.ctx.destination); o.start(); o.stop(bip.ctx.currentTime + (long ? 0.35 : 0.12)); } catch (e) { /* */ }
+  }
+  function lancerMinuterie() {
+    clearInterval(minuterieSeance);
+    minuterieSeance = setInterval(() => {
+      const s = S.seance;
+      if (!s || s.fin) { clearInterval(minuterieSeance); return; }
+      if (s.pause) return;
+      s.ecoule = (s.ecoule || 0) + 1;
+      const et = s.etapes[s.i];
+      if (!et.secondes) return;
+      s.restant = Math.max(0, (s.restant == null ? et.secondes : s.restant) - 1);
+      const z = document.getElementById('seance-chrono'); if (z) z.textContent = s.restant;
+      const anneau = document.getElementById('seance-anneau'); if (anneau) anneau.style.setProperty('--p', 1 - s.restant / et.secondes);
+      if (s.restant <= 3 && s.restant > 0) bip(false);
+      if (s.restant === 0) { bip(true); etapeSuivante(); }
+    }, 1000);
+  }
+  function etapeSuivante() {
+    const s = S.seance; if (!s) return;
+    s.i++; s.restant = null;
+    if (s.i >= s.etapes.length) { s.fin = true; clearInterval(minuterieSeance); }
+    rendre();
+  }
+  function vueSeance() {
+    const s = S.seance;
+    if (!s) return '';
+    if (s.fin) {
+      const min = Math.max(1, Math.round((s.ecoule || 0) / 60));
+      return `<div class="voile voile-seance"><div class="fiche fenetre-seance stack" role="dialog" aria-modal="true" aria-labelledby="seance-titre" style="gap:14px;text-align:center">
+        <div class="emoji-seance" aria-hidden="true">🏆</div><h2 id="seance-titre">Séance terminée, bravo !</h2>
+        <p style="margin:0">${min} min d’effort · environ ${s.kcal} kcal</p>
+        <strong>Comment c’était ?</strong>
+        <div class="reponses reponses-4" role="group" aria-label="Votre ressenti">${[['facile', '😎 Trop facile'], ['bien', '🙂 Bien'], ['dur', '🥵 Dur'], ['douleur', '🤕 J’ai eu mal']].map(([k, v]) => `<button class="btn ${k === 'bien' ? 'btn-plein' : ''}" data-a="sp-fin" data-k="${k}">${v}</button>`).join('')}</div>
+        <span class="small muted">Votre réponse règle l’intensité des prochaines séances.</span></div></div>`;
+    }
+    const et = s.etapes[s.i], ex = et.repos ? SP.EX[et.suivant] : SP.EX[et.ex];
+    const suiv = s.etapes.slice(s.i + 1).find((x) => !x.repos);
+    const pct = Math.round(s.i / s.etapes.length * 100);
+    const restant = s.restant == null ? et.secondes : s.restant;
+    return `<div class="voile voile-seance"><div class="fiche fenetre-seance stack ${et.repos ? 'repos' : ''}" role="dialog" aria-modal="true" aria-labelledby="seance-titre" style="gap:12px">
+      <div class="spread"><span class="eyebrow">${esc(et.phase)}</span><button class="btn btn-petit" data-a="sp-stop">✕ Arrêter</button></div>
+      <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de la séance"><i style="width:${pct}%"></i></div>
+      ${et.repos ? `<div class="stack" style="gap:6px;text-align:center"><div class="emoji-seance" aria-hidden="true">😮‍💨</div><h2 id="seance-titre">Récupérez</h2><span class="small muted">Ensuite : ${ex.emoji} ${esc(ex.nom)}</span></div>`
+        : `<div class="stack" style="gap:6px;text-align:center"><div class="emoji-seance" aria-hidden="true">${ex.emoji}</div><h2 id="seance-titre">${esc(ex.nom)}</h2>${et.reps ? `<p class="gros-chiffre num" style="margin:0">${et.reps} <span class="small">répétitions</span></p>` : ''}</div>
+        <ol class="consignes-ex small">${ex.consignes.map((c) => `<li>${esc(c)}</li>`).join('')}</ol>${ex.facile ? `<p class="small muted" style="margin:0">Trop dur ? ${esc(ex.facile)}</p>` : ''}`}
+      ${et.secondes ? `<div class="anneau" id="seance-anneau" style="--p:${1 - restant / et.secondes}"><span id="seance-chrono" class="num" aria-live="off">${restant}</span><span class="small muted">secondes</span></div>` : ''}
+      <div class="row" style="gap:8px;justify-content:center">${et.secondes ? `<button class="btn" data-a="sp-pause">${s.pause ? '▶ Reprendre' : '⏸ Pause'}</button><button class="btn" data-a="sp-suivant">⏭ ${et.repos ? 'Passer le repos' : 'Suivant'}</button>` : '<button class="btn btn-plein btn-grand" data-a="sp-suivant">✓ C’est fait</button>'}</div>
+      ${suiv && !et.repos ? `<span class="small muted" style="text-align:center">Ensuite : ${SP.EX[suiv.ex].emoji} ${esc(SP.EX[suiv.ex].nom)}</span>` : ''}
+    </div></div>`;
+  }
+  function consignesCoachSport() {
+    const sp = S.profil.sport, plan = programmeSport();
+    const derniers = (sp.historique || []).slice(-5).map((h) => `${h.d} : ${h.titre || 'séance'} (${h.ressenti || '?'})`).join(' ; ');
+    return `Tu es le coach sportif de Budgétable, une application française. Tu parles comme un vrai coach sportif : énergique, motivant, chaleureux, concret, mais toujours prudent.
+La personne : ${sp.age} ans, objectif « ${SP.OBJECTIFS[sp.objectif].lib} », niveau ${SP.NIVEAUX[sp.niveau].lib}, matériel : ${(sp.materiel || []).map((m) => SP.MATERIEL[m]).join(', ') || 'aucun'}, points fragiles : ${(sp.limites || []).map((l) => SP.LIMITES[l]).join(', ') || 'aucun'}${sp.douceur ? ', programme doux (accord médical ou douleur signalée)' : ''}.
+Semaine ${sp.semaine || 1} : ${plan.map((s) => `${E.JOURS[s.j]} ${s.titre} (${s.minutes} min : ${s.blocs.map((x) => SP.EX[x.ex].nom).join(', ')})`).join(' ; ')}.
+Dernières séances : ${derniers || 'aucune pour l’instant'}.${S.profil.programme ? ` Elle suit aussi le programme minceur (cible ${S.profil.programme.cible || '?'} kcal par jour).` : ''}
+Règles :
+- Réponds en français, en vouvoyant, en 4 phrases maximum, avec de l’énergie (un emoji au plus).
+- Explique les mouvements simplement (position, respiration, erreur à éviter) et propose une version plus facile si besoin.
+- Douleur dans la poitrine, malaise, essoufflement anormal : arrêt immédiat et appeler le 15. Douleur articulaire qui dure : médecin avant de reprendre.
+- Jamais de produits dopants, de compléments miracles, de régime extrême ni de culpabilisation.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
+  }
+  async function envoyerCoachSport(question) {
+    const texte = String(question || '').trim().slice(0, 500);
+    if (!texte || coachSport.attente || !S.profil.sport) return;
+    const secours = SP.repondreLocal(texte, { semaine: S.profil.sport.semaine, seances: programmeSport().length });
+    coachSport.tours.push({ role: 'user', content: texte });
+    if (!iaDispo) { coachSport.tours.push({ role: 'assistant', content: secours }); rendre(); return; }
+    coachSport.attente = true; coachSport.message = ''; rendre();
+    try {
+      const r = await iaDispo.json([{ role: 'user', content: consignesCoachSport() }, ...coachSport.tours.slice(-8)]);
+      coachSport.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
+    } catch (e) {
+      if (e && e.code === 'rate_limited') coachSport.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.';
+      coachSport.tours.push({ role: 'assistant', content: secours });
+    }
+    coachSport.attente = false; rendre();
+  }
+  function blocMesCoachs() {
+    return `<div class="stack" style="gap:8px"><button class="btn ${S.profil.sport ? 'btn-plein' : ''}" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? `Mon coach sportif · ${faitesSemaine().length}/${programmeSport().length} séances` : 'Coach sportif : séances guidées'}</button><button class="btn ${S.profil.programme ? 'btn-plein' : ''}" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? `Mon programme minceur · semaine ${S.profil.programme.semaine || 1}` : 'Programme minceur personnalisé'}</button></div>`;
+  }
+
   function ongletApports() {
     Object.assign(OBJ, objectifsJour());
     const periode = S.periodeApports || '7';
@@ -3053,6 +3220,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     }
     const tuile = (k) => { const v = moy(k), e = etat(k, v); return `<div class="tuile-apport rep-${avecRepas.length ? e : 'ok'}"><span class="small muted">${LIB[k][0]}</span><strong class="num">${avecRepas.length ? nb(Math.round(v * (k === 'sel' ? 10 : 1)) / (k === 'sel' ? 10 : 1)) : '–'} <span class="small">${LIB[k][1]}</span></strong><span class="small muted">par jour</span>${avecRepas.length && e !== 'ok' ? `<span class="small etat-${e}">${e === 'bas' ? '↓ pas assez' : '↑ trop'}</span>` : avecRepas.length && OBJ[k][0] != null ? '<span class="small etat-ok">✓ objectif</span>' : ''}</div>`; };
     return `<div><p class="eyebrow">Suivi</p><h1>Mes apports</h1></div>
+      <button class="bandeau-promos" data-a="onglet" data-k="sport"><span aria-hidden="true">🏃</span><span><strong>${S.profil.sport ? 'Mon coach sportif' : 'Coach sportif'}</strong> <span class="small">${S.profil.sport ? `${faitesSemaine().length}/${programmeSport().length} séances cette semaine` : 'des séances guidées à votre niveau, chez vous ou en salle'}</span></span><span aria-hidden="true">→</span></button>
       <button class="bandeau-promos" data-a="onglet" data-k="minceur"><span aria-hidden="true">🥗</span><span><strong>${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</strong> <span class="small">${S.profil.programme ? `semaine ${S.profil.programme.semaine || 1} : faire le point, voir ma semaine` : 'perdre du poids en douceur, avec les plats que vous aimez'}</span></span><span aria-hidden="true">→</span></button>
       <p class="muted">Ce que vous avez vraiment mangé : les repas du planning marqués « C’est mangé » et les aliments ajoutés au carnet (petit-déjeuner, collations, boissons, repas dehors). Pour un adulte. Estimations, pas un avis médical.</p>
       ${carnet}
@@ -3402,7 +3570,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -4004,6 +4172,54 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'pd-filtre': S.filtrePD = el.dataset.k; break;
       case 'prog-choix': S.progForm[el.dataset.cle] = el.dataset.k; break;
+      case 'sp-choix': S.sportForm[el.dataset.cle] = el.dataset.cle === 'duree' ? +el.dataset.k : el.dataset.k; break;
+      case 'sp-multi': { const c = el.dataset.cle, k = c === 'jours' ? +el.dataset.k : el.dataset.k, l = S.sportForm[c] || []; S.sportForm[c] = l.includes(k) ? l.filter((x) => x !== k) : l.concat(k); break; }
+      case 'sp-sante': S.sportForm.sante = { ...(S.sportForm.sante || {}), [el.dataset.k]: el.dataset.v }; break;
+      case 'sp-accord': S.sportForm.accordMedecin = el.checked; { const z = document.getElementById('sp-etat'); if (z) z.innerHTML = etatBilanSport(); } return;
+      case 'sp-consent': S.sportForm.consent = el.checked; { const z = document.getElementById('sp-etat'); if (z) z.innerHTML = etatBilanSport(); } return;
+      case 'sp-lancer': {
+        const f = S.sportForm; if (!SP.verifier(f).ok || !f.consent) return;
+        p.consentementSante = true; S.sensibleNonEnregistre = false;
+        const ancien = p.sport;
+        p.sport = { age: +f.age, objectif: f.objectif, niveau: f.niveau, materiel: f.materiel || [], jours: (f.jours || []).slice().sort((x, y) => x - y), duree: +f.duree, limites: f.limites || [], sante: f.sante, accordMedecin: !!f.accordMedecin, douceur: !!f.accordMedecin || !!(ancien && ancien.douceur), semaine: ancien ? ancien.semaine : 1, ajust: ancien ? ancien.ajust || 0 : 0, historique: ancien ? ancien.historique || [] : [], debut: ancien ? ancien.debut : ISO(new Date()), semaineDu: ancien ? ancien.semaineDu : lundiIso(new Date()), message: ancien ? ancien.message : '' };
+        S.sportModifier = false; S.sportForm = null;
+        toast(ancien ? 'Programme mis à jour' : '🏃 Votre programme sportif est prêt');
+        break;
+      }
+      case 'sp-modifier': S.sportModifier = true; S.sportForm = null; break;
+      case 'sp-arreter': if (!S.sportArret) { S.sportArret = true; break; } S.sportArret = false; p.sport = null; coachSport = { tours: [], attente: false, message: '' }; toast('Programme sportif arrêté et effacé'); break;
+      case 'sp-go': {
+        const s = programmeSport().find((x) => x.j === +el.dataset.j); if (!s) return;
+        S.seance = { j: s.j, titre: s.titre, kcal: s.kcal, etapes: SP.etapes(s), i: 0, restant: null, ecoule: 0, pause: false };
+        lancerMinuterie(); bip(false); break;
+      }
+      case 'sp-pause': S.seance.pause = !S.seance.pause; break;
+      case 'sp-suivant': etapeSuivante(); return;
+      case 'sp-stop': clearInterval(minuterieSeance); if ((S.seance.ecoule || 0) > 120) { S.seance.fin = true; } else { S.seance = null; toast('Séance arrêtée'); } break;
+      case 'sp-fin': {
+        const s = S.seance; const sp = p.sport;
+        sp.historique = (sp.historique || []).concat([{ d: ISO(new Date()), semaine: sp.semaine || 1, j: s.j, titre: s.titre, ressenti: el.dataset.k, minutes: Math.max(1, Math.round((s.ecoule || 0) / 60)) }]).slice(-300);
+        S.seance = null;
+        if (el.dataset.k === 'douleur') { sp.douceur = true; sp.ajust = Math.min(sp.ajust || 0, 0) - 1; sp.message = 'Vous avez eu mal : j’ai allégé vos prochaines séances et retiré les sauts. Reposez la zone douloureuse ; si la douleur est vive ou dure plus de quelques jours, consultez un médecin avant de reprendre.'; }
+        else sp.message = ({ facile: 'Trop facile ? Noté : si ça se confirme, je monte d’un cran au bilan de la semaine. 💪', bien: 'Parfait, c’est exactement le bon niveau. On continue comme ça !', dur: 'C’était dur, et vous l’avez fait : bravo. Si ça reste dur, j’allège au bilan de la semaine.' })[el.dataset.k];
+        toast('Séance enregistrée, bravo !');
+        break;
+      }
+      case 'sp-bilan': {
+        const sp = p.sport, b = SP.bilanSemaine(sp, sp.historique);
+        sp.ajust = b.ajust; sp.semaine = (sp.semaine || 1) + 1; sp.semaineDu = lundiIso(new Date()); sp.message = b.message + ' Vos séances de la semaine ' + sp.semaine + ' sont prêtes.';
+        toast(`Semaine ${sp.semaine} : vos nouvelles séances sont prêtes`); break;
+      }
+      case 'sp-petitdej': {
+        if (!S.plan) return;
+        const sp = p.sport;
+        const sportifs = E.gourmandises().filter((r) => r.type === 'petitdej' && (r.tags || []).includes('sportif') && E.recetteCompatible(r, p).ok).sort((a, b) => E.scoreGout(b, p.gouts) - E.scoreGout(a, p.gouts));
+        if (!sportifs.length) return;
+        sp.jours.forEach((j, k) => { const jp = S.plan.jours[j]; jp.gourmand = (jp.gourmand || []).filter((g) => g.moment !== 'petitdej').concat([{ recette: sportifs[k % Math.min(3, sportifs.length)].id, portions: 1, moment: 'petitdej' }]); });
+        toast(`Petits-déj sportifs ajoutés ${pluriel(sp.jours.length, 'jour')}, et à vos courses`); break;
+      }
+      case 'coach-s-q': envoyerCoachSport(el.dataset.q); return;
+      case 'coach-s-envoyer': { const c = document.getElementById('coach-s-texte'); if (c && c.value.trim()) envoyerCoachSport(c.value); return; }
       case 'prog-consent': S.progForm.consent = el.checked; { const z = document.getElementById('prog-resultat'); if (z) z.innerHTML = resultatBilanMinceur(); } return;
       case 'prog-lancer': {
         const f = S.progForm, v = P.verifier(f);
@@ -4212,6 +4428,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       const z = document.getElementById('prog-resultat'); if (z) z.innerHTML = resultatBilanMinceur();
       return;
     }
+    if (el.dataset.a === 'sp-champ') { S.sportForm[el.dataset.k] = el.value.trim(); const z = document.getElementById('sp-etat'); if (z) z.innerHTML = etatBilanSport(); return; }
     if (el.dataset.a === 'prog-pesee') { S.progPoint = { ...(S.progPoint || {}), kg: el.value.trim() }; return; }
     if (el.dataset.a === 'manuel-cherche') {
       const z = document.getElementById('manuel-propositions');
@@ -4335,6 +4552,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     }
   });
   document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.id === 'coach-s-texte') { ev.preventDefault(); envoyerCoachSport(ev.target.value); return; }
+    if (ev.key === 'Escape' && S.seance && !S.seance.fin) { S.seance.pause = true; rendre(); return; }
     if (ev.key === 'Enter' && ev.target.id === 'coach-m-texte') { ev.preventDefault(); envoyerCoachMinceur(ev.target.value); return; }
     if (ev.key === 'Enter' && ev.target.id === 'manuel-cherche') { ev.preventDefault(); const b = document.querySelector('[data-a="manuel-ajouter-texte"]'); if (b) b.click(); return; }
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
