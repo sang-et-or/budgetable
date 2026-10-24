@@ -222,6 +222,7 @@
   }
 
   function facteurAdulte(p) {
+    if (p.programme) return 1;   // programme minceur : la portion de la personne est ajustée dans son assiette (assietteMinceur)
     if (p.objectifs.includes('muscle')) return 1.2;
     if (p.objectifs.includes('perte')) return 0.9;
     return 1;
@@ -264,6 +265,40 @@
     const total = adultes * fa + enfants.reduce((s, a) => s + (AGE_FACTEUR[a] || 0.7), 0);
     return Math.round(total * 10) / 10;
   }
+  /* ---------- assiette à deux vitesses : même plat pour toute la famille, servi différemment ---------- */
+  // La personne qui suit le programme minceur prend moitié moins de féculents et de matières grasses ou fromage,
+  // et une fois et demie plus de légumes ; les enfants (et le reste de la famille) gardent l'assiette complète.
+  // fromages et crème : ajoutés au moment de servir, donc faciles à réduire dans une seule assiette (l'huile de cuisson, elle, est partagée)
+  const GRAS = new Set(['creme', 'creme_liquide', 'creme_soja', 'emmental', 'mozzarella', 'parmesan', 'comte', 'cheddar', 'feta', 'fromage_frais', 'mascarpone', 'roquefort', 'camembert', 'chevre', 'munster']);
+  const nomCourt = (id) => ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase();
+  const listeNoms = (ids) => { const n = [...new Set(ids.map(nomCourt))]; return n.length <= 1 ? n.join('') : n.slice(0, -1).join(', ') + ' et ' + n[n.length - 1]; };
+  function assietteMinceur(rec) {
+    if (!rec || rec.gourmand || !rec.ing) return null;
+    const aj = [], fec = [], gras = [], leg = [];
+    for (const [id] of rec.ing) {
+      const i = ING[id]; if (!i || i.perso) continue;
+      if (i.groupe === 'F') { aj.push([id, 0.5]); fec.push(id); }
+      else if (GRAS.has(id)) { aj.push([id, 0.5]); gras.push(id); }
+      else if (i.groupe === 'L' && !['citron', 'citron_vert', 'ail', 'persil'].includes(id)) { aj.push([id, 1.5]); leg.push(id); }
+    }
+    const conseils = [];
+    if (fec.length) conseils.push(`moitié moins de ${listeNoms(fec)}`);
+    if (leg.length) conseils.push(`plus de ${listeNoms(leg)} (une fois et demie)`);
+    else conseils.push('une grande salade ou des légumes en plus');
+    if (gras.length) conseils.push(`${listeNoms(gras)} : une petite cuillère pour vous, ajoutés dans les assiettes des autres au moment de servir`);
+    const court = [fec.length ? `½ ${listeNoms(fec)}` : '', leg.length ? 'légumes ×1,5' : '+ salade', gras.length ? `${gras.length > 1 ? 'fromage et crème' : nomCourt(gras[0])} à part` : ''].filter(Boolean).join(' · ');
+    return { aj, feculent: fec.length > 0, conseils, court };
+  }
+  const recetteAdaptee = (rec, a) => (a ? { ...rec, ing: rec.ing.map(([id, q]) => { const x = a.aj.find(([k]) => k === id); return [id, x ? q * x[1] : q]; }) } : rec);
+  /** Complément pour les enfants quand le plat n'a pas de féculent : du pain (¼ de baguette par enfant). */
+  const COMPLEMENT_ENFANT = ['pain', 0.25];
+  function enfantsPresents(p, jour, slot) {
+    if (!p.foyer.enfants.length) return 0;
+    if (p.presences && p.presences[jour + '-' + slot]) return presence(p, jour, slot).e.filter(Boolean).length;
+    if (slot === 'dejeuner' && jour < 5 && p.dejeuners && p.dejeuners.mode === 'dehors') { const em = p.dejeuners.enfantsMaison; return em === 'oui' || (em === 'mercredi' && jour === 2) ? p.foyer.enfants.length : 0; }
+    return p.foyer.enfants.length;
+  }
+  const programmeActif = (p) => !!(p.programme && !p.programme.stabilisation);
   /* ---------- gamelles du midi et restes ---------- */
   // p.gamelles = { n: gamelles par jour, jours: [0..6], mode: 'restes' | 'plat' }
   function nbGamelles(p, jour) {
@@ -405,7 +440,11 @@
     if (p.coach === 'minceur') {
       const pr = p.programme && p.programme.cibleRepas ? p.programme : null;
       const cr = pr ? pr.cibleRepas : 550;
-      let s = n.kcal <= cr ? 3 : n.kcal <= cr * 1.13 ? 1 : -(n.kcal - cr * 1.13) / 40;
+      const famille = pr && p.foyer.enfants.length > 0;
+      // avec des enfants : on juge le plat sur l'assiette adaptée de l'adulte, et on garde des plats familiaux
+      const kcal = famille ? ((N.de(recetteAdaptee(rec, assietteMinceur(rec)), ING) || n).kcal) : n.kcal;
+      let s = kcal <= cr ? 3 : kcal <= cr * 1.13 ? 1 : -(kcal - cr * 1.13) / 40;
+      if (famille) { if (rec.tags.includes('enfants')) s += 1.5; if (ids.some((id) => ING[id].groupe === 'F')) s += 1; }
       if (pr && pr.rassasiant) { if (pp.prot >= 25) s += 1; if (pp.fibres >= 7) s += 1; }
       if (pr && pr.simple) s -= Math.max(0, rec.temps - 30) / 15;
       s += equilibre(rec).grammesLegumes / 100;
@@ -875,6 +914,18 @@
       // desserts et goûters ajoutés à la semaine
       for (const g of jp.gourmand || []) if (REC[g.recette]) for (const [id, q] of REC[g.recette].ing) besoins[id] = (besoins[id] || 0) + q * g.portions;
     });
+    // programme minceur : l'assiette de la personne (moins de féculents, plus de légumes) et le pain des enfants si le plat n'a pas de féculent
+    if (programmeActif(p)) plan.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
+      const m = jp[slot];
+      if (!m || !REC[m.recette] || m.dehors || m.deRestes || aCuisiner(m) <= 0) return;
+      const a = assietteMinceur(REC[m.recette]); if (!a) return;
+      const pr = presence(p, j, slot);
+      const pers = Math.min(Math.max(1, p.programme.personnes || 1), pr.a);
+      if (pers > 0) for (const [id, f] of a.aj) { const q = (REC[m.recette].ing.find(([k]) => k === id) || [0, 0])[1]; besoins[id] = Math.max(0, (besoins[id] || 0) + q * (f - 1) * pers); }
+      const e = enfantsPresents(p, j, slot);
+      if (!a.feculent && e > 0 && ING[COMPLEMENT_ENFANT[0]]) besoins[COMPLEMENT_ENFANT[0]] = (besoins[COMPLEMENT_ENFANT[0]] || 0) + COMPLEMENT_ENFANT[1] * e;
+    }));
+    for (const id of Object.keys(besoins)) if (besoins[id] <= 1e-9) delete besoins[id];
     const stock = stockIds(p);
     const placard = p.stock || {};
     const articles = Object.entries(besoins).map(([id, q]) => {
@@ -1250,7 +1301,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

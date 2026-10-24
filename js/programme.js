@@ -143,13 +143,13 @@
   }
 
   /** Le message de l'agent pour la semaine préparée : pourquoi ces choix, en citant les goûts. */
-  function messageSemaine({ prog, calc, aime, platsAimes, pdNoms, joursDessus }) {
+  function messageSemaine({ prog, calc, aime, platsAimes, pdNoms, joursDessus, enfants }) {
     const r = repartition(calc.cible);
     const l = [];
     l.push(prog.stabilisation ? `Semaine de stabilisation : environ ${calc.cible} kcal par jour pour garder votre poids.` : `Semaine ${prog.semaine || 1} : environ ${calc.cible} kcal par jour, pour perdre autour de ${String(calc.kgSemaine).replace('.', ',')} kg par semaine.`);
     if (aime.length) l.push(`J’ai suivi vos goûts : ${aime.slice(0, 3).join(', ').toLowerCase()}${platsAimes ? ` reviennent dans ${platsAimes} repas` : ''}.`);
     if (pdNoms.length) l.push(`Au petit-déjeuner (environ ${r.petitdej} kcal) : ${pdNoms.slice(0, 2).join(', ').toLowerCase()}${pdNoms.length > 2 ? '…' : '.'}`);
-    l.push(`Pour les repas, je vous indique votre portion jour par jour : le reste de la famille mange normalement.`);
+    l.push(enfants ? `Avec ${enfants > 1 ? 'les enfants' : 'votre enfant'} : un seul plat pour tout le monde, des plats familiaux. Au moment de servir, votre assiette prend moitié moins de féculents et plus de légumes ; ${enfants > 1 ? 'les enfants gardent' : 'votre enfant garde'} l’assiette complète (avec du pain quand le plat n’a pas de féculent, déjà prévu dans les courses).` : `Pour les repas, je vous indique votre assiette jour par jour : le reste de la famille mange normalement.`);
     if (joursDessus) l.push(`${joursDessus} jour${joursDessus > 1 ? 's dépassent' : ' dépasse'} un peu la cible : prenez la portion conseillée et plus de légumes.`);
     if (prog.rassasiant) l.push('J’ai privilégié les plats qui calent bien, puisque vous avez eu faim.');
     return l.join(' ');

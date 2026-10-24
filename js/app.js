@@ -2391,6 +2391,18 @@
       <div class="row"><button class="btn btn-plein btn-petit" data-a="chef-envoyer" ${c.attente ? 'disabled' : ''}>Demander</button><span class="small muted">${iaDispo ? 'Réponses générées par IA' : 'Réponses toutes prêtes du commis'} : en cas de doute sur une allergie, fiez-vous à l’étiquette des produits.</span></div>`;
   }
 
+  /** Dans la fiche d'un repas : l'assiette de la personne au programme minceur et celle des enfants. */
+  function blocAssietteMinceur(r, j, slot) {
+    if (!E.programmeActif(S.profil) || !r || r.gourmand) return '';
+    const a = E.assietteMinceur(r); if (!a) return '';
+    const enf = j != null && slot ? E.enfantsPresents(S.profil, j, slot) : S.profil.foyer.enfants.length;
+    const n = NUT(E.recetteAdaptee(r, a)), n0 = NUT(r);
+    return `<section class="assiette-minceur stack" style="gap:6px"><strong>🥗 Votre assiette minceur</strong>
+      <ul class="small">${a.conseils.map((c) => `<li>${esc(c.charAt(0).toUpperCase() + c.slice(1))}</li>`).join('')}</ul>
+      ${n && n0 ? `<span class="small muted">≈ ${nb(Math.round(n.kcal / 10) * 10)} kcal au lieu de ${nb(Math.round(n0.kcal / 10) * 10)} pour une part normale.</span>` : ''}
+      ${enf ? `<span class="small">👧 ${enf > 1 ? 'Les enfants gardent' : 'L’enfant garde'} l’assiette complète${a.feculent ? '' : ', avec du pain (déjà dans la liste de courses)'} : astuce, servez les féculents et le fromage à part, chacun se sert.</span>` : ''}
+      <span class="small muted">Les quantités de la liste de courses en tiennent compte.</span></section>`;
+  }
   function vueFiche() {
     if (!fiche) return '';
     const m = fiche.recette ? { recette: fiche.recette, portions: fiche.parts || (E.REC[fiche.recette].gourmand ? E.REC[fiche.recette].parts : E.portions(S.profil, aujourdhui(), 'diner')) } : S.plan.jours[fiche.jour][fiche.slot];
@@ -2411,6 +2423,7 @@
       ${r.variante ? (() => { const d = E.differences(r); const lib = (l) => l.map((id) => E.ING[id].nom.toLowerCase()).join(', '); return `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:4px"><strong>✏️ Ma version de ce plat${S.versionsPreferees && S.versionsPreferees[r.base] === r.id ? ' (à chaque fois)' : ''}</strong><span>${[d.ajouts.length ? 'ajouté : ' + lib(d.ajouts) : '', d.retraits.length ? 'retiré : ' + lib(d.retraits) : '', d.quantites.length ? 'quantités changées : ' + lib(d.quantites) : ''].filter(Boolean).join(' · ') || 'quantités ajustées'}</span>${!fiche.recette ? '<div><button class="btn-lien small" data-a="plat-origine">Revenir à la recette d’origine</button></div>' : ''}</div></div>`; })() : ''}
       ${!fiche.recette && !m.deRestes ? blocAmeliorer(m, r) : ''}
       <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite)}</span></li>`).join('')}</ul></div>
+      ${blocAssietteMinceur(r, fiche.jour, fiche.slot)}
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, m.portions)}</section>
@@ -2865,9 +2878,11 @@
       const ligne = (slot) => {
         const m = jp[slot];
         if (!m || m.dehors || !E.REC[m.recette]) return m && m.dehors ? { nom: 'Mangé dehors', dehors: true } : null;
-        const n = NUT(E.REC[m.recette]);
+        const a = E.assietteMinceur(E.REC[m.recette]);
+        const n = NUT(E.recetteAdaptee(E.REC[m.recette], a));
         const po = P.portion(n && n.kcal, rep[slot]);
-        return { nom: E.REC[m.recette].nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus };
+        const enf = E.enfantsPresents(S.profil, j, slot);
+        return { nom: E.REC[m.recette].nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus, assiette: a ? a.conseils : [], court: a ? a.court : '', enfants: enf ? (a && !a.feculent ? 'assiette complète, avec du pain' : 'assiette complète') : '' };
       };
       const pdK = pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0;
       const dej = ligne('dejeuner'), din = ligne('diner');
@@ -2891,7 +2906,7 @@
     const platsAimes = repas.filter((m) => E.REC[m.recette].ing.some(([id]) => aimes.has(id))).length;
     const joursDessus = journeesMinceur().filter((d) => d.total > cible * 1.1).length;
     const noms = E.resumeGouts(p.gouts).details.aime.filter((x) => x.type === 'ing').map((x) => x.nom);
-    pr.message = P.messageSemaine({ prog: pr, calc: { ...progCalc(), cible }, aime: noms, platsAimes, pdNoms: [...new Set(ids)].map((id) => E.REC[id].nom), joursDessus });
+    pr.message = P.messageSemaine({ prog: pr, calc: { ...progCalc(), cible }, aime: noms, platsAimes, pdNoms: [...new Set(ids)].map((id) => E.REC[id].nom), joursDessus, enfants: p.foyer.enfants.length });
     pr.semainePrete = true;
     S.onglet = 'minceur';
   }
@@ -2912,16 +2927,17 @@
     objectif: ['Le poids visé doit être plus bas que votre poids actuel', 'Vérifiez les deux poids indiqués.']
   };
   function vueBilanMinceur() {
-    const f = S.progForm = S.progForm || (() => { const c = S.calcKcal || {}; const pr = S.profil.programme; return pr ? { sexe: pr.sexe, age: pr.age, taille: pr.taille, poids: pr.poidsActuel || pr.poidsDepart, objectif: pr.objectif, activite: pr.activite, rythme: pr.rythme, tca: 'non', grossesse: pr.sexe === 'f' ? 'non' : '', consent: true } : { sexe: c.sexe || '', age: c.age || '', taille: c.taille || '', poids: c.poids || '', objectif: '', activite: c.activite || '1.4', rythme: 'douce', tca: '', grossesse: '', consent: !!S.profil.consentementSante }; })();
+    const f = S.progForm = S.progForm || (() => { const c = S.calcKcal || {}; const pr = S.profil.programme; return pr ? { sexe: pr.sexe, age: pr.age, taille: pr.taille, poids: pr.poidsActuel || pr.poidsDepart, objectif: pr.objectif, activite: pr.activite, rythme: pr.rythme, tca: 'non', grossesse: pr.sexe === 'f' ? 'non' : '', consent: true, personnes: String(pr.personnes || 1) } : { sexe: c.sexe || '', age: c.age || '', taille: c.taille || '', poids: c.poids || '', objectif: '', activite: c.activite || '1.4', rythme: 'douce', tca: '', grossesse: '', consent: !!S.profil.consentementSante, personnes: '1' }; })();
     const radio = (cle, k, v, sous) => `<button class="chip" role="radio" data-a="prog-choix" data-cle="${cle}" data-k="${k}" aria-checked="${f[cle] === k}" aria-pressed="${f[cle] === k}">${esc(v)}${sous ? ` <span class="small muted">${esc(sous)}</span>` : ''}</button>`;
     const champ = (k, lib, unite, ph, mode) => `<label class="champ" style="max-width:130px"><span>${lib}</span><span class="saisie-euros"><input type="text" inputmode="${mode || 'numeric'}" data-a="prog-champ" data-k="${k}" value="${esc(f[k] || '')}" placeholder="${ph}"><span>${unite}</span></span></label>`;
     return `<div class="ardoise-minceur"><span class="small">Votre coach personnel</span><h1>Programme minceur</h1><span class="small">perdre du poids en douceur, avec les plats que vous aimez</span></div>
       <section class="carte stack" style="gap:8px"><h2>Comment ça marche ?</h2>
-        <ol class="etapes-prog small"><li><strong>Un bilan de 1 minute</strong> : je calcule vos besoins et une cible de calories prudente.</li><li><strong>Je prépare votre semaine</strong> : repas légers mais rassasiants, choisis selon vos goûts, petits-déjeuners compris, avec votre portion jour par jour. Le reste de la famille mange normalement.</li><li><strong>Chaque semaine, on fait le point</strong> : pesée et ressenti. J’ajuste tout seul (trop rapide, faim, palier…).</li></ol></section>
+        <ol class="etapes-prog small"><li><strong>Un bilan de 1 minute</strong> : je calcule vos besoins et une cible de calories prudente.</li><li><strong>Je prépare votre semaine</strong> : repas légers mais rassasiants, choisis selon vos goûts, petits-déjeuners compris, avec votre portion jour par jour. ${S.profil.foyer.enfants.length ? ' Les enfants mangent <strong>le même plat, en assiette complète</strong> : seule votre assiette change (moitié moins de féculents, plus de légumes).' : ' Le reste de la famille mange normalement.'}</li><li><strong>Chaque semaine, on fait le point</strong> : pesée et ressenti. J’ajuste tout seul (trop rapide, faim, palier…).</li></ol></section>
       <section class="carte stack" style="gap:14px"><h2>Votre bilan</h2>
         <div class="stack" style="gap:6px"><strong>Vous êtes</strong><div class="row" role="radiogroup" style="gap:6px">${radio('sexe', 'f', 'Une femme')}${radio('sexe', 'h', 'Un homme')}</div></div>
         <div class="row" style="gap:10px">${champ('age', 'Âge', 'ans', '40')}${champ('taille', 'Taille', 'cm', '165')}${champ('poids', 'Poids actuel', 'kg', '75', 'decimal')}${champ('objectif', 'Poids visé', 'kg', '68', 'decimal')}</div>
         <div class="stack" style="gap:6px"><strong>Votre activité</strong><div class="stack" role="radiogroup" style="gap:6px">${ACTIVITES.map(([k, v, sous]) => radio('activite', k, v, sous)).join('')}</div></div>
+        ${S.profil.foyer.adultes > 1 ? `<div class="stack" style="gap:6px"><strong>Qui suit le programme ?</strong><div class="row" role="radiogroup" style="gap:6px">${radio('personnes', '1', 'Moi seul(e)')}${radio('personnes', '2', 'Deux adultes')}</div></div>` : ''}
         <div class="stack" style="gap:6px"><strong>Votre rythme</strong><div class="row" role="radiogroup" style="gap:6px">${Object.entries(P.RYTHMES).map(([k, r]) => radio('rythme', k, r.libelle, r.sous)).join('')}</div></div>
         <div class="stack" style="gap:6px"><strong>Avez-vous, ou avez-vous eu, un trouble du comportement alimentaire ?</strong><span class="small muted">Anorexie, boulimie, hyperphagie… Votre réponse reste sur cet appareil.</span><div class="row" role="radiogroup" style="gap:6px">${radio('tca', 'non', 'Non')}${radio('tca', 'oui', 'Oui')}</div></div>
         ${f.sexe === 'f' ? `<div class="stack" style="gap:6px"><strong>Êtes-vous enceinte ou allaitez-vous ?</strong><div class="row" role="radiogroup" style="gap:6px">${radio('grossesse', 'non', 'Non')}${radio('grossesse', 'oui', 'Oui')}</div></div>` : ''}
@@ -2969,7 +2985,7 @@
       ${jours.length ? `<section class="carte stack" style="gap:10px"><div class="spread"><h2>Ma semaine, portion par portion</h2><button class="btn-lien small" data-a="prog-semaine">Refaire la semaine</button></div>
         <div class="jours-minceur">${jours.map((d) => `<article class="jour-minceur"><div class="spread"><strong>${E.JOURS[d.j]}</strong><span class="small ${d.total > cible * 1.1 ? 'alerte-ing' : 'muted'} num">≈ ${nb(Math.round(d.total / 10) * 10)} kcal</span></div>
           <ul class="small">${d.pd ? `<li><span aria-hidden="true">🥐</span> <button class="btn-lien" data-a="fiche-g" data-r="${d.pd.recette}" data-n="1">${esc(d.pd.nom)}</button> <span class="muted num">${nb(d.pd.kcal)} kcal</span></li>` : ''}
-          ${[['🍽', d.dej], ['🍲', d.din]].filter(([, x]) => x).map(([e, x]) => `<li><span aria-hidden="true">${e}</span> ${x.dehors ? '<span class="muted">Mangé dehors</span>' : `<span>${esc(x.nom)}</span> <span class="muted num">${nb(x.kcal)} kcal</span>${x.conseil && (x.f !== 1 || x.plus) ? `<br><span class="conseil-portion">→ ${esc(x.conseil)}</span>` : ''}`}</li>`).join('')}</ul></article>`).join('')}</div>
+          ${[['🍽', d.dej], ['🍲', d.din]].filter(([, x]) => x).map(([e, x]) => `<li><span aria-hidden="true">${e}</span> ${x.dehors ? '<span class="muted">Mangé dehors</span>' : `<span>${esc(x.nom)}</span> <span class="muted num">${nb(x.kcal)} kcal</span>${x.court ? `<br><span class="conseil-portion">→ Vous : ${esc(x.court)}${x.f < 1 ? ` · ${x.f === 0.5 ? '½' : '¾'} de part` : ''}</span>` : x.conseil && (x.f !== 1 || x.plus) ? `<br><span class="conseil-portion">→ ${esc(x.conseil)}</span>` : ''}${x.enfants ? `<br><span class="small muted">👧 Enfants : ${esc(x.enfants)}</span>` : ''}${x.recette ? ` <button class="btn-lien small" data-a="fiche-g" data-r="${x.recette}" data-n="1">détail</button>` : ''}`}</li>`).join('')}</ul></article>`).join('')}</div>
         <span class="small muted">Estimations pour votre part. Les plats sont dans « Semaine » et leurs ingrédients dans la liste de courses.</span></section>` : ''}
       <section class="carte stack point-semaine" style="gap:10px"><h2>Le point de la semaine</h2>
         <span class="small muted">Une fois par semaine, le même jour, le matin à jeun.</span>
@@ -4227,7 +4243,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         p.consentementSante = true; S.sensibleNonEnregistre = false;
         const ancien = p.programme;
         const kg = +String(f.poids).replace(',', '.');
-        p.programme = { debut: ancien ? ancien.debut : ISO(new Date()), sexe: f.sexe, age: +f.age, taille: +f.taille, poidsDepart: ancien ? ancien.poidsDepart : kg, poidsActuel: kg, objectif: +String(f.objectif).replace(',', '.'), activite: f.activite, rythme: f.rythme, ajustement: ancien ? ancien.ajustement || 0 : 0, pesees: ancien ? ancien.pesees : [], bilans: ancien ? ancien.bilans || [] : [], semaine: ancien ? ancien.semaine : 1, rassasiant: ancien ? ancien.rassasiant : false, simple: ancien ? ancien.simple : false };
+        p.programme = { debut: ancien ? ancien.debut : ISO(new Date()), sexe: f.sexe, age: +f.age, taille: +f.taille, poidsDepart: ancien ? ancien.poidsDepart : kg, poidsActuel: kg, objectif: +String(f.objectif).replace(',', '.'), activite: f.activite, rythme: f.rythme, personnes: Math.min(2, +f.personnes || 1), ajustement: ancien ? ancien.ajustement || 0 : 0, pesees: ancien ? ancien.pesees : [], bilans: ancien ? ancien.bilans || [] : [], semaine: ancien ? ancien.semaine : 1, rassasiant: ancien ? ancien.rassasiant : false, simple: ancien ? ancien.simple : false };
         S.progModifier = false; S.progForm = null;
         preparerSemaineMinceur();
         toast(ancien ? 'Programme mis à jour et semaine préparée' : '🥗 Votre programme minceur est lancé : votre semaine est prête');
