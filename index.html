@@ -315,6 +315,10 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .assiette-minceur { border-left: 4px solid var(--poireau); background: color-mix(in srgb, var(--poireau) 7%, var(--surface)); padding: 10px 12px; border-radius: 12px; }
 .assiette-minceur ul { margin: 0; padding-left: 18px; }
 .repas-passe .vide { color: var(--encre-douce); font-style: italic; }
+.ligne-minceur { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; font-size: .86rem; padding: 6px 10px; margin: 2px 0 4px; border-radius: 10px; background: color-mix(in srgb, var(--poireau) 9%, var(--surface)); border-left: 3px solid var(--poireau); }
+.ligne-minceur.libre { background: var(--surface); border-left-color: var(--trait); color: var(--encre-douce); }
+.total-minceur { color: var(--poireau); font-weight: 700; margin-left: auto; padding: 0 8px; }
+.carte-minceur-semaine { background: linear-gradient(135deg, color-mix(in srgb, #8fcf9f 30%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, var(--poireau) 30%, transparent); border-radius: 16px; padding: 12px 14px; }
 .bascule-g { display: flex; gap: 6px; flex-wrap: wrap; }
 .ardoise-matin { background: linear-gradient(135deg, #f6d38b, #f0a85a); color: #3b2410; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
 .ardoise-matin h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }

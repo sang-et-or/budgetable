@@ -298,7 +298,8 @@
     if (slot === 'dejeuner' && jour < 5 && p.dejeuners && p.dejeuners.mode === 'dehors') { const em = p.dejeuners.enfantsMaison; return em === 'oui' || (em === 'mercredi' && jour === 2) ? p.foyer.enfants.length : 0; }
     return p.foyer.enfants.length;
   }
-  const programmeActif = (p) => !!(p.programme && !p.programme.stabilisation);
+  // le coach minceur s'applique aux plats de la semaine, sauf si on l'a retiré de la semaine (dansSemaine: false)
+  const programmeActif = (p) => !!(p.programme && !p.programme.stabilisation && p.programme.dansSemaine !== false);
   /* ---------- gamelles du midi et restes ---------- */
   // p.gamelles = { n: gamelles par jour, jours: [0..6], mode: 'restes' | 'plat' }
   function nbGamelles(p, jour) {
@@ -917,7 +918,7 @@
     // programme minceur : l'assiette de la personne (moins de féculents, plus de légumes) et le pain des enfants si le plat n'a pas de féculent
     if (programmeActif(p)) plan.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
       const m = jp[slot];
-      if (!m || !REC[m.recette] || m.dehors || m.deRestes || aCuisiner(m) <= 0) return;
+      if (!m || !REC[m.recette] || m.dehors || m.deRestes || m.libre || aCuisiner(m) <= 0) return;
       const a = assietteMinceur(REC[m.recette]); if (!a) return;
       const pr = presence(p, j, slot);
       const pers = Math.min(Math.max(1, p.programme.personnes || 1), pr.a);

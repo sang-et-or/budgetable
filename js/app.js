@@ -819,6 +819,7 @@
       <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
       <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
+      ${ligneMinceur(m, j, slot)}
       ${blocMange(r, j, slot)}</div></div>`;
   }
   // « C'est mangé » : on déduit du placard, puis on note le plat pour apprendre les goûts
@@ -854,7 +855,8 @@
   const mqMobile = window.matchMedia ? window.matchMedia('(max-width: 699px)') : { matches: false };
   if (mqMobile.addEventListener) mqMobile.addEventListener('change', () => rendre());
   function carteJour(jp, j, t) {
-    return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
+    const totalMinceur = minceurDansSemaine() ? (() => { const rep = P.repartition(cibleProg()); const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]); const k = (pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0) + ['dejeuner', 'diner'].reduce((t, sl) => { const x = assietteRepas(jp[sl], j, sl, rep); return t + (x && !x.dehors ? x.kcal : 0); }, 0) + rep.collation; return `<span class="total-minceur small num" title="Total estimé pour vous, collation comprise">🥗 ≈ ${nb(Math.round(k / 10) * 10)} kcal</span>`; })() : '';
+    return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${totalMinceur}${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
         ${lignesGourmandes(jp, true)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false)}</article>`;
   }
   function semaineMobile() {
@@ -888,7 +890,7 @@
       <section class="outils-m" aria-label="Réglages de la semaine"><h2 class="titre-outils">Ma semaine en un coup d’œil</h2>
         ${outils.map(([k, ic, titre, resume, f]) => `<div class="outil-m ${ouvert === k ? 'ouvert' : ''}"><button class="outil-tete" data-a="outil-mobile" data-k="${k}" aria-expanded="${ouvert === k}"><span class="outil-ic" aria-hidden="true">${ic}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${titre}</strong><span class="small muted">${esc(resume)}</span></span><span class="chevron" aria-hidden="true">›</span></button>${ouvert === k ? `<div class="outil-corps">${f()}</div>` : ''}</div>`).join('')}
       </section>
-      ${boutonDemarrer()}
+      ${boutonDemarrer()}${carteMinceurSemaine()}
       <div class="actions-semaine-m"><button class="btn btn-petit" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer</button><button class="btn btn-petit" data-a="affiche-ouvrir">🖨 Pour le frigo</button><button class="btn btn-petit" data-a="nouvelle">↻ Nouvelle semaine</button></div>
       ${carteRituels()}`;
   }
@@ -899,7 +901,7 @@
     const restants = 'Changez vos plats autant que vous voulez';
     return `${bandeauSensible()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
-      ${boutonDemarrer()}
+      ${boutonDemarrer()}${carteMinceurSemaine()}
       <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${bandeauAlertes()}
@@ -2895,20 +2897,43 @@
     const rep = P.repartition(cibleProg());
     return joursOrdonnes().map(([jp, j]) => {
       const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]);
-      const ligne = (slot) => {
-        const m = jp[slot];
-        if (!m || m.dehors || !E.REC[m.recette]) return m && m.dehors ? { nom: 'Mangé dehors', dehors: true } : null;
-        const a = E.assietteMinceur(E.REC[m.recette]);
-        const n = NUT(E.recetteAdaptee(E.REC[m.recette], a));
-        const po = P.portion(n && n.kcal, rep[slot]);
-        const enf = E.enfantsPresents(S.profil, j, slot);
-        return { nom: E.REC[m.recette].nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus, assiette: a ? a.conseils : [], court: a ? a.court : '', enfants: enf ? (a && !a.feculent ? 'assiette complète, avec du pain' : 'assiette complète') : '' };
-      };
+      const ligne = (slot) => assietteRepas(jp[slot], j, slot, rep);
       const pdK = pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0;
       const dej = ligne('dejeuner'), din = ligne('diner');
       const total = pdK + (dej && !dej.dehors ? dej.kcal : 0) + (din && !din.dehors ? din.kcal : 0) + rep.collation;
       return { j, pd: pd ? { nom: E.REC[pd.recette].nom, recette: pd.recette, kcal: pdK } : null, dej, din, total };
     });
+  }
+  /** L'assiette de la personne au programme pour un repas : conseils, calories, enfants ; « repas libre » = part normale. */
+  function assietteRepas(m, j, slot, rep) {
+    if (!m || m.dehors || S.deduits[j + '-' + slot] === 'dehors' || !E.REC[m.recette]) return m && (m.dehors || S.deduits[j + '-' + slot] === 'dehors') ? { nom: 'Mangé dehors', dehors: true } : null;
+    rep = rep || P.repartition(cibleProg());
+    const r = E.REC[m.recette];
+    const enf = E.enfantsPresents(S.profil, j, slot);
+    if (m.libre) { const n0 = NUT(r); return { nom: r.nom, recette: m.recette, kcal: (n0 && n0.kcal) || 0, libre: true, court: 'repas libre, part normale', assiette: [], f: 1, enfants: enf ? 'assiette complète' : '' }; }
+    const a = E.assietteMinceur(r);
+    const n = NUT(E.recetteAdaptee(r, a));
+    const po = P.portion(n && n.kcal, rep[slot]);
+    return { nom: r.nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus, assiette: a ? a.conseils : [], court: a ? a.court : '', enfants: enf ? (a && !a.feculent ? 'assiette complète, avec du pain' : 'assiette complète') : '' };
+  }
+  const minceurDansSemaine = () => !!(S.profil.programme && E.programmeActif(S.profil));
+  /** Sous un plat de la semaine : « Vous : ½ pâtes · légumes ×1,5 · ≈ 420 kcal », et le bouton « repas libre ». */
+  function ligneMinceur(m, j, slot) {
+    if (!minceurDansSemaine() || !m || m.aChoisir) return '';
+    const x = assietteRepas(m, j, slot);
+    if (!x || x.dehors) return '';
+    return `<div class="ligne-minceur ${x.libre ? 'libre' : ''}"><span>🥗 <strong>Vous</strong> : ${esc(x.court)}${!x.libre && x.f < 1 ? ` · ${x.f === 0.5 ? '½' : '¾'} de part` : ''}${!x.libre && x.plus ? ' · + un fruit ou un yaourt' : ''} · <span class="num">≈ ${nb(Math.round(x.kcal / 10) * 10)} kcal</span>${x.enfants ? ` <span class="muted">· 👧 enfants : ${esc(x.enfants)}</span>` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">${x.libre ? 'remettre le coach' : 'repas libre'}</button></div>`;
+  }
+  /** En haut de la semaine : le coach minceur, avec la possibilité de le retirer de la semaine. */
+  function carteMinceurSemaine() {
+    const pr = S.profil.programme;
+    if (!pr) return '';
+    if (pr.dansSemaine === false) return `<div class="bandeau bandeau-info small ecran-seul"><span>🥗 Le coach minceur n’est pas appliqué à vos plats de la semaine.</span><button class="btn btn-petit" data-a="m-semaine">L’ajouter à ma semaine</button></div>`;
+    if (pr.stabilisation) return '';
+    const cible = cibleProg();
+    const msg = String(pr.message || '').split(/(?<=[.!?])\s/)[0];
+    return `<section class="carte-minceur-semaine ecran-seul"><div class="spread" style="gap:8px;align-items:flex-start"><div class="stack" style="gap:2px;min-width:0"><strong>🥗 Coach minceur · semaine ${pr.semaine || 1}</strong><span class="small">${nb(cible)} kcal par jour pour vous${S.profil.foyer.enfants.length ? ', les enfants mangent normalement' : ''}. Votre assiette est indiquée sous chaque plat.</span>${msg ? `<span class="small muted">${esc(msg)}</span>` : ''}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-petit btn-plein" data-a="onglet" data-k="minceur">Faire le point</button><button class="btn btn-petit" data-a="m-semaine">Ne pas l’appliquer</button></div></div></section>`;
   }
   function preparerSemaineMinceur() {
     const p = S.profil, pr = p.programme;
@@ -3018,6 +3043,7 @@
         ${coachMinceur.message ? `<p class="small" style="color:var(--tomate)">${esc(coachMinceur.message)}</p>` : ''}
         <div class="row" style="gap:6px">${['J’ai faim le soir', 'Je vais au restaurant', 'Mon poids stagne', 'Quel sport ?'].map((q) => `<button class="chip chip-petit" data-a="coach-m-q" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
         <div class="row" style="gap:8px;flex-wrap:nowrap"><label class="champ" style="flex:1;min-width:0"><span class="sr">Votre question</span><input type="text" id="coach-m-texte" placeholder="Votre question…" autocomplete="off" enterkeyhint="send"></label><button class="btn btn-plein" data-a="coach-m-envoyer" ${coachMinceur.attente ? 'disabled' : ''}>Envoyer</button></div></section>
+      <label class="case small"><input type="checkbox" data-a="m-semaine-case" ${pr.dansSemaine !== false ? 'checked' : ''}><span>Appliquer le coach à mes plats de la semaine (assiette indiquée sous chaque plat, courses ajustées)</span></label>
       <div class="row" style="gap:8px"><button class="btn" data-a="prog-modifier">Modifier mes informations</button><button class="btn ${S.progArret ? 'btn-plein' : ''}" data-a="prog-arreter">${S.progArret ? 'Confirmer : arrêter et effacer' : 'Arrêter le programme'}</button></div>
       <p class="small muted prudence-coach">Programme indicatif, qui ne remplace pas l’avis d’un médecin. Si vous perdez du poids sans le vouloir, si vous vous sentez faible, ou si la nourriture devient une source d’angoisse, arrêtez et parlez-en à votre médecin.</p>`;
   }
@@ -3714,6 +3740,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'modifier': allerQuestion(el.dataset.q); break;
       case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; break;
       case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; window.scrollTo(0, 0); break;
+      case 'm-libre': { const m = S.plan.jours[+el.dataset.j][el.dataset.s]; if (!m) return; m.libre = !m.libre; toast(m.libre ? 'Repas libre : part normale pour vous, sans le coach' : 'Le coach minceur s’applique à nouveau à ce repas'); break; }
+      case 'm-semaine-case': if (p.programme) { p.programme.dansSemaine = el.checked; toast(el.checked ? 'Coach appliqué à vos plats de la semaine' : 'Coach retiré de vos plats de la semaine'); } break;
+      case 'm-semaine': { const pr = p.programme; if (!pr) return; pr.dansSemaine = pr.dansSemaine === false; toast(pr.dansSemaine ? '🥗 Coach minceur ajouté à vos plats de la semaine' : 'Coach minceur retiré de la semaine : vos plats et vos courses redeviennent normaux'); break; }
       case 'demarrer-auj': {
         // les jours déjà passés deviennent les derniers de la nouvelle semaine : on les remet à zéro (mangé, placard)
         const pt = posJour(aujourdhui());
