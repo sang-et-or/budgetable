@@ -277,6 +277,11 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
   background-color: var(--moutarde-pale); background-image: linear-gradient(90deg, rgb(47 107 71 / .12) 50%, transparent 50%), linear-gradient(rgb(47 107 71 / .12) 50%, transparent 50%); background-size: 20px 20px; }
 .reponses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .reponses .btn { justify-content: center; padding-inline: 8px; }
+.tag-main { display: inline-block; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ciel, #2f6fa3) 12%, transparent); color: var(--encre); }
+.bascule-g { display: flex; gap: 6px; flex-wrap: wrap; }
+.ardoise-matin { background: linear-gradient(135deg, #f6d38b, #f0a85a); color: #3b2410; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
+.ardoise-matin h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.ardoise-matin .small { color: #5b3a18; }
 .pourquoi-non { border-left: 4px solid var(--tomate); }
 .puce-gout { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 4px 3px 12px; font-size: .9rem; border: 1px solid var(--trait); background: var(--surface); }
 .puce-gout.oui { background: color-mix(in srgb, var(--poireau) 12%, var(--surface)); border-color: color-mix(in srgb, var(--poireau) 35%, transparent); }
@@ -669,7 +674,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 
 /* ---------- mes apports ---------- */
-@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"] { display: none; } }
+@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"], .nav button[data-k="petitdej"] { display: none; } }
 .tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .tuile-apport strong { font: 800 1.5rem var(--f-titre); }
@@ -1038,6 +1043,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/codebarre.js"></script>
 <script src="js/catalogue.js"></script>
 <script src="js/gourmand.js"></script>
+<script src="js/petitdej.js"></script>
 <script src="js/saison.js"></script>
 <script src="js/nutrition.js"></script>
 <script src="js/commis.js"></script>

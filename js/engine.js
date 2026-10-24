@@ -103,7 +103,7 @@
         id: r.id, nom: String(r.nom).slice(0, 90), repas: [], temps: r.temps > 0 ? r.temps : 20, niveau: r.niveau || 1, equip: r.equip || [], cuisine: 'francaise', tags: r.tags || [],
         ing: (r.ing || []).filter(([id, q]) => ING[id] && q > 0).concat(extras.map((x) => [idExtra(x.nom), 1])),
         etapes: r.etapes && r.etapes.length ? r.etapes.slice(0, 12) : (r.lien ? ['Suivez la recette sur le site d’origine (lien ci-dessus).'] : ['Votre recette : préparez-la comme d’habitude.']),
-        modele: 'gourmand', gourmand: true, type: r.type === 'dessert' ? 'dessert' : 'gouter', emoji: r.emoji || '🍰', parts: r.parts || 6,
+        modele: 'gourmand', gourmand: true, type: ['dessert', 'petitdej'].includes(r.type) ? r.type : 'gouter', emoji: r.emoji || '🍰', parts: r.parts || 6,
         perso: !!r.perso, lien: r.lien || null, extras, proposer: false, photo: r.photo || null, photoSource: r.photoSource || ''
       };
       rec.sig = rec.id;
@@ -890,11 +890,33 @@
         conditionnements, condLabel: ing.condLabel, cout,
         enStock: stock.has(id), auPlacard, reste: conditionnements * ing.cond - aAcheter
       };
-    }).sort((a, b) => a.rayon.localeCompare(b.rayon, 'fr') || a.nom.localeCompare(b.nom, 'fr'));
+    });
+    // produits ajoutés à la main : [{ id: ingrédient du catalogue, n: paquets }] ou [{ nom: texte libre, n }]
+    for (const x of plan.manuels || []) {
+      const n = Math.max(1, Math.round(+x.n || 1));
+      const ing = x.id && ING[x.id] && !ING[x.id].perso ? ING[x.id] : null;
+      if (ing) {
+        const i = articles.findIndex((a) => a.id === x.id);
+        const ex = i >= 0 ? articles[i] : null;
+        if (ex && !ex.enStock && !ex.couvertParPlacard && !ex.sansPrix) {
+          ex.conditionnements += n; ex.cout = round2(ex.conditionnements * ing.prixDemo); ex.reste += n * ing.cond; ex.manuel = n;
+        } else {
+          if (ex) articles.splice(i, 1);
+          articles.push({ id: x.id, nom: ing.nom, rayon: ing.rayon, unite: ing.unite, quantite: n * ing.cond, conditionnements: n, condLabel: ing.condLabel, cout: round2(n * ing.prixDemo), enStock: false, auPlacard: 0, reste: 0, manuel: n, seulManuel: true });
+        }
+      } else if (x.nom) {
+        const id = 'm-' + slug(x.nom);
+        if (!ING[id]) ING[id] = { id, nom: String(x.nom).slice(0, 60), rayon: 'Divers', unite: 'pièce', cond: 1, condLabel: '', prixDemo: 0, groupe: 'A', tags: [], perso: true, libre: true };
+        const ex = articles.find((a) => a.id === id);
+        if (ex) ex.manuel += n;
+        else articles.push({ id, nom: ING[id].nom, rayon: 'Divers', unite: 'pièce', quantite: 0, conditionnements: n, condLabel: '', cout: 0, enStock: false, reste: 0, sansPrix: true, manuel: n, seulManuel: true, libre: true });
+      }
+    }
+    articles.sort((a, b) => a.rayon.localeCompare(b.rayon, 'fr') || a.nom.localeCompare(b.nom, 'fr'));
     const total = round2(articles.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0));
     const economieStock = round2(articles.filter((a) => a.enStock).reduce((s, a) => s + a.cout, 0));
     // coût de ce qui est réellement mangé cette semaine (le reste des paquets sert ensuite)
-    const consomme = round2(articles.filter((a) => !a.enStock).reduce((s, a) => s + (a.quantite - (a.auPlacard || 0)) * ING[a.id].prixDemo / ING[a.id].cond, 0));
+    const consomme = round2(articles.filter((a) => !a.enStock && !a.libre).reduce((s, a) => s + (a.quantite - (a.auPlacard || 0)) * ING[a.id].prixDemo / ING[a.id].cond, 0));
     return { articles, total, consomme, economieStock, source: DATA.PRIX_SOURCE };
   }
 
@@ -1222,7 +1244,7 @@
     JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, reglerGout, ingredientsMarquants, RECETTES, MODELES,
     goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
-    definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm,
+    definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
     profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,

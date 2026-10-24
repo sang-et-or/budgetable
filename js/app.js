@@ -112,10 +112,11 @@
   }
   // catalogue élargi + produits des desserts et de saison : enregistrés avant les recettes perso qui peuvent les utiliser
   (function catalogueComplet() {
-    const extra = window.CatalogueExtra, G = window.Gourmand, Sa = window.Saison;
-    E.ajouterIngredients([].concat(G ? G.INGREDIENTS : [], Sa ? Sa.INGREDIENTS : [], extra ? extra.INGREDIENTS : []));
-    if (window.Nutrition) for (const src of [Sa && Sa.NUTRITION, extra && extra.NUTRITION]) for (const [k, v] of Object.entries(src || {})) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
+    const extra = window.CatalogueExtra, G = window.Gourmand, Sa = window.Saison, PD = window.PetitDej;
+    E.ajouterIngredients([].concat(G ? G.INGREDIENTS : [], Sa ? Sa.INGREDIENTS : [], extra ? extra.INGREDIENTS : [], PD ? PD.INGREDIENTS : []));
+    if (window.Nutrition) for (const src of [Sa && Sa.NUTRITION, extra && extra.NUTRITION, PD && PD.NUTRITION]) for (const [k, v] of Object.entries(src || {})) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
     if (extra && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(extra.MOTS, extra.Q);
+    if (PD && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(PD.MOTS, { graines_chia: 10, muesli: 50, proteine_poudre: 25 });
   })();
   function charger() {
     try {
@@ -156,6 +157,7 @@
     toastTimer = setTimeout(() => t.remove(), 2600);
   }
   const ICONES = {
+    petitdej: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3c0 1.5 1.5 1.5 1.5 3M12 3c0 1.5 1.5 1.5 1.5 3"/></svg>',
     semaine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     soir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 13h16a8 8 0 0 1-16 0zM12 4v3M7 6l1.5 2M17 6l-1.5 2"/></svg>',
     courses: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11h10.2L20 8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>',
@@ -657,14 +659,14 @@
   }
 
   /* ---------- application ---------- */
-  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['apports', 'journal']], ['', ['profil']]];
-  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', journal: '#6b5ea8', profil: '#5b6b62' };
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
+  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['apports', 'journal']], ['', ['profil']]];
+  const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', journal: '#6b5ea8', profil: '#5b6b62' };
+  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
   function vueApp() {
     const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${promos.offres.length}</em>`) : ''}</button>`; };
     const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
-    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
+    const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
@@ -827,7 +829,7 @@
   if (mqMobile.addEventListener) mqMobile.addEventListener('change', () => rendre());
   function carteJour(jp, j, t) {
     return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${(jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${g.moment === 'gouter' ? 'Goûter' : 'Dessert'} : ${esc(E.REC[g.recette].nom)}</button>`).join('')}</article>`;
+        ${lignesGourmandes(jp, true)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false)}</article>`;
   }
   function semaineMobile() {
     const t = aujourdhui();
@@ -1100,7 +1102,7 @@
       ${tete(esc(a.nom))}
       <div class="article-courses">
         <span class="eyebrow">${esc(a.rayon)}</span>
-        <p class="a-prendre">À prendre : <strong>${a.sansPrix ? 'selon votre recette' : `${a.conditionnements} × ${esc(a.condLabel)}`}</strong></p>
+        <p class="a-prendre">À prendre : <strong>${a.libre ? `${a.manuel} (ajouté à la main)` : a.sansPrix ? 'selon votre recette' : `${a.conditionnements} × ${esc(a.condLabel)}`}</strong></p>
         <p class="small muted">${a.sansPrix ? 'Ingrédient hors catalogue : prix à voir sur le drive' : `${a.unite !== 'pièce' ? `Pour vos recettes : ${quantite(a.quantite, a.unite)} · ` : ''}estimation ${euros(a.cout)}`}</p>
         ${etat ? `<span class="tag ${etat === 'panier' ? 'tag-ok' : 'tag-simu'}">${etat === 'panier' ? 'Dans votre panier' : 'Pas trouvé'}</span>` : ''}
       </div>
@@ -2133,7 +2135,7 @@
   function lienPartage() {
     const liste = E.listeCourses(S.plan, S.profil);
     const par = {};
-    liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push([a.nom, a.sansPrix ? '' : `${a.conditionnements} × ${a.condLabel}`]); });
+    liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push([a.nom, a.libre ? (a.manuel > 1 ? `× ${a.manuel}` : '') : a.sansPrix ? '' : `${a.conditionnements} × ${a.condLabel}`]); });
     const json = JSON.stringify({ t: 'Liste de courses', d: dateDuJour(0), r: Object.entries(par) });
     const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return location.origin + location.pathname.replace(/[^/]*$/, '') + '#liste=' + b64;
@@ -2181,14 +2183,15 @@
   function listeTexte(liste) {
     const par = {};
     liste.articles.filter((a) => !a.enStock).forEach((a) => { (par[a.rayon] = par[a.rayon] || []).push(a); });
-    return Object.entries(par).map(([r, as]) => `${r.toUpperCase()}\n` + as.map((a) => `- ${a.nom} : ${quantite(a.quantite, a.unite)} (${a.conditionnements} × ${a.condLabel})`).join('\n')).join('\n\n');
+    return Object.entries(par).map(([r, as]) => `${r.toUpperCase()}\n` + as.map((a) => a.libre ? `- ${a.nom}${a.manuel > 1 ? ' × ' + a.manuel : ''}` : `- ${a.nom} : ${quantite(a.quantite, a.unite)} (${a.conditionnements} × ${a.condLabel})`).join('\n')).join('\n\n');
   }
 
   // une ligne de la liste : ce qu'on met dans le panier en gros, le besoin réel en petit
   function ligneArticle(a) {
     const piece = a.unite === 'pièce';
     const besoin = piece ? `il en faut ${nb(Math.max(1, Math.ceil(a.quantite - 0.05)))}` : `il vous faut ${quantite(a.quantite, a.unite)}`;
-    const pastille = a.couvertParPlacard ? '<span class="pastille-qte ok">✓ Déjà au placard</span>'
+    const pastille = a.libre ? `<span class="pastille-qte"><strong class="num">${a.manuel}</strong> × à prendre</span>`
+      : a.couvertParPlacard ? '<span class="pastille-qte ok">✓ Déjà au placard</span>'
       : a.enStock ? '<span class="pastille-qte ok">En réserve</span>'
       : a.sansPrix ? '<span class="pastille-qte">Selon la recette</span>'
       : `<span class="pastille-qte"><strong class="num">${a.conditionnements}</strong> × ${esc(a.condLabel)}</span>`;
@@ -2197,9 +2200,28 @@
       <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
       <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
       <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix || (E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo) ? 'prix ?' : euros(a.cout)}</span>
-      <div class="qte-achat">${pastille}${a.sansPrix || a.enStock ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
-      <div class="actions-article ecran-seul"><button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
+      <div class="qte-achat">${pastille}${a.manuel ? `<span class="tag-main small">✍️ ${a.seulManuel ? 'ajouté à la main' : `dont ${a.manuel} ajouté${a.manuel > 1 ? 's' : ''} à la main`}</span>` : ''}${a.sansPrix || a.enStock || a.seulManuel ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
+      <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
+  }
+  function blocAjoutCourses() {
+    return `<section class="carte stack ecran-seul ajout-courses" style="gap:8px"><h2>Ajouter un produit à la liste</h2>
+      <form class="row" style="gap:8px;flex-wrap:nowrap" onsubmit="return false"><label class="champ" style="flex:1;min-width:0"><span class="sr">Produit à ajouter</span><input type="search" id="manuel-cherche" data-a="manuel-cherche" placeholder="Ex. café, papier toilette, pommes…" autocomplete="off" enterkeyhint="done"></label><button class="btn btn-plein" data-a="manuel-ajouter-texte" type="button">Ajouter</button></form>
+      <div id="manuel-propositions" class="row" style="gap:6px"></div>
+      <span class="small muted">Produits du quotidien, hygiène, envies du moment : ils s’ajoutent à la liste et partent avec elle (envoi, impression, drive).</span></section>`;
+  }
+  function propositionsManuelles(t) {
+    if (t.length < 2) return '';
+    const ids = window.Saisie.chercherIngredients(t, 8).filter((id) => E.ING[id] && !E.ING[id].perso);
+    return ids.map((id) => `<button class="chip puce-ajout" data-a="manuel-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)} <span class="small muted">· ${esc(E.ING[id].condLabel)}</span></button>`).join('') + `<button class="chip" data-a="manuel-ajouter-texte">+ « ${esc(t.slice(0, 40))} » tel quel</button>`;
+  }
+  function ajouterManuel(x) {
+    if (!S.plan) { toast('Créez d’abord votre semaine'); return; }
+    const l = S.plan.manuels = S.plan.manuels || [];
+    const ex = l.find((y) => (x.id && y.id === x.id) || (x.nom && y.nom && y.nom.toLowerCase() === x.nom.toLowerCase()));
+    if (ex) ex.n = (ex.n || 1) + 1; else l.push({ ...x, n: 1 });
+    toast(`${x.id ? E.ING[x.id].nom : x.nom} : ajouté à la liste`);
+    const champ = document.getElementById('manuel-cherche'); if (champ) champ.value = '';
   }
   function ongletCourses() {
     const liste = E.listeCourses(S.plan, S.profil);
@@ -2228,6 +2250,7 @@
           <p>Pour les habitués sur ordinateur, l’<a href="extension.html" target="_blank" rel="noopener">extension</a> affiche votre liste directement sur le site du drive. Elle n’est pas nécessaire.</p>
           <div class="row"><button class="btn btn-petit" data-a="export-extension">Envoyer vers l’extension</button></div>${etatEnvoiExtension()}</details>
       </section>
+      ${blocAjoutCourses()}
       <div class="ticket"><div class="ticket-tete"><strong>Budgétable</strong><span class="small muted">Liste de la semaine · ${new Date().toLocaleDateString('fr-FR')}</span><span>${tagDemo}</span></div>
       ${(() => { const aPrendre = liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard); const faits = aPrendre.filter((a) => S.coches[a.id]).length; return `<div class="avancement-courses ecran-seul"><div class="spread" style="align-items:center"><span><strong class="num">${faits}</strong> / ${aPrendre.length} dans le panier</span><span class="row" style="gap:6px"><label class="case small"><input type="checkbox" data-a="masquer-coches" ${S.masquerCoches ? 'checked' : ''}><span>Masquer ce qui est pris</span></label>${faits ? '<button class="btn-lien small" data-a="tout-decocher">Tout décocher</button>' : ''}</span></div><div class="piste-courses" aria-hidden="true"><i style="width:${aPrendre.length ? Math.round(faits / aPrendre.length * 100) : 0}%"></i></div></div>`; })()}
       <div class="colonnes">${Object.entries(par).map(([rayon, as]) => `<section class="rayon"><h3><span>${esc(rayon)}</span><span class="num small muted">${euros(as.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0))}</span></h3>
@@ -3106,7 +3129,7 @@
   /* ---------- grignotages gourmands ---------- */
   function definirGourmand() {
     if (!window.Gourmand) return;
-    E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat((S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
+    E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat(window.PetitDej ? window.PetitDej.RECETTES : [], (S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
     if (window.Saison && E.definirSaison) {
       if (window.Nutrition) for (const [k, v] of Object.entries(window.Saison.NUTRITION)) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
       E.definirSaison(window.Saison.INGREDIENTS, window.Saison.RECETTES);
@@ -3121,7 +3144,7 @@
       <button class="vignette-g" data-a="fiche-g" data-r="${r.id}" aria-label="Voir la recette : ${esc(r.nom)}">${V(r, 72)}</button>
       <div class="stack" style="gap:3px;min-width:0;flex:1">
         <button class="titre-repas" data-a="fiche-g" data-r="${r.id}">${esc(r.nom)}</button>
-        <span class="small muted">${r.type === 'dessert' ? 'Dessert' : 'Goûter'} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
+        <span class="small muted">${r.type === 'petitdej' ? (r.tags || []).filter((t) => TAGS_PD[t]).map((t) => TAGS_PD[t]).slice(0, 2).join(' · ') || 'Petit-déjeuner' : r.type === 'dessert' ? 'Dessert' : 'Goûter'} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
         <span>${nutriMini(r)}</span>
         ${c.ok ? '' : `<span class="small alerte-ing">${esc(libAllergie(c.raison))}</span>`}
         <div class="row" style="gap:6px;margin-top:4px"><button class="btn btn-petit ${c.ok ? 'btn-plein' : ''}" data-a="gourmand-ajouter" data-r="${r.id}">${dejaN ? `✓ Ajouté (${dejaN}) · encore` : '+ Ajouter à ma semaine'}</button></div>
@@ -3135,28 +3158,52 @@
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Ajouter à ma semaine</span><h2 id="g-titre">${r.emoji} ${esc(r.nom)}</h2></div>
         <button class="btn btn-petit" data-a="gourmand-fermer">Fermer</button></div>
       <div class="stack" style="gap:8px"><strong>Quels jours ?</strong>
-        <div class="row" style="gap:6px">${E.JOURS.map((jn, j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${jn.slice(0, 3)}.</button>`).join('')}</div></div>
-      <div class="stack" style="gap:8px"><strong>Pour</strong>
-        <div class="row" style="gap:6px" role="radiogroup">${[['gouter', 'Le goûter'], ['dessert', 'Le dessert']].map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>
-      <div class="row" style="gap:8px;align-items:center"><strong>Combien de parts ?</strong>
+        <div class="row" style="gap:6px">${E.JOURS.map((jn, j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${jn.slice(0, 3)}.</button>`).join('')}</div>
+        <div class="row" style="gap:6px"><button class="btn-lien small" data-a="gourmand-jours" data-k="semaine">Du lundi au vendredi</button><button class="btn-lien small" data-a="gourmand-jours" data-k="weekend">Le week-end</button><button class="btn-lien small" data-a="gourmand-jours" data-k="tous">Tous les jours</button></div></div>
+      ${r.type === 'petitdej' ? '' : `<div class="stack" style="gap:8px"><strong>Pour</strong>
+        <div class="row" style="gap:6px" role="radiogroup">${[['gouter', 'Le goûter'], ['dessert', 'Le dessert']].map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>`}
+      <div class="row" style="gap:8px;align-items:center"><strong>${r.type === 'petitdej' ? 'Pour combien de personnes ?' : 'Combien de parts ?'}</strong>
         <button class="btn btn-petit" data-a="gourmand-parts" data-d="-1" aria-label="Une part de moins" ${a.parts <= 1 ? 'disabled' : ''}>−</button><strong class="num" id="g-parts">${a.parts}</strong><button class="btn btn-petit" data-a="gourmand-parts" data-d="1" aria-label="Une part de plus">+</button>
-        <span class="small muted">${a.parts === r.parts ? 'la recette entière' : `recette prévue pour ${r.parts}`}</span></div>
+        <span class="small muted">${r.type === 'petitdej' ? '' : a.parts === r.parts ? 'la recette entière' : `recette prévue pour ${r.parts}`}</span></div>
       <p class="small">${a.jours.length ? `${pluriel(a.jours.length, 'fois')} · environ <strong class="num">${euros(E.coutPortion(r) * a.parts * a.jours.length)}</strong> ajoutés à vos courses` : 'Choisissez au moins un jour.'}</p>
       <button class="btn btn-plein btn-grand" data-a="gourmand-valider" ${a.jours.length ? '' : 'disabled'}>Ajouter à ma semaine et à mes courses</button>
     </div></div>`;
   }
+  const lignesGourmandes = (jp, matin) => (jp.gourmand || []).filter((g) => E.REC[g.recette] && (g.moment === 'petitdej') === matin).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${momentLib(g.moment)} : ${esc(E.REC[g.recette].nom)}</button>`).join('');
+  const TAGS_PD = { equilibre: 'Équilibré', sportif: 'Sportif', gourmand: 'Gourmand', sale: 'Salé', express: 'Express', enfants: 'Enfants' };
+  const momentLib = (m) => (m === 'petitdej' ? 'Petit-déj' : m === 'gouter' ? 'Goûter' : 'Dessert');
+  const basculeGourmand = (k) => `<div class="bascule-g" role="group" aria-label="Page"><button class="chip" data-a="onglet" data-k="petitdej" aria-pressed="${k === 'petitdej'}">🥐 Petits-déjeuners</button><button class="chip" data-a="onglet" data-k="gourmand" aria-pressed="${k === 'gourmand'}">🍰 Desserts et goûters</button></div>`;
+  function ongletPetitDej() {
+    const toutes = E.gourmandises().filter((r) => r.type === 'petitdej');
+    const f = S.filtrePD || 'tout';
+    const liste = toutes.filter((r) => f === 'tout' || (r.tags || []).includes(f)).sort((a, b) => (E.recetteCompatible(b, S.profil).ok - E.recetteCompatible(a, S.profil).ok) || (E.scoreGout(b, S.profil.gouts) - E.scoreGout(a, S.profil.gouts)) || a.nom.localeCompare(b.nom, 'fr'));
+    const semaine = S.plan ? S.plan.jours.flatMap((jp, j) => (jp.gourmand || []).map((g, k) => ({ ...g, j, k }))).filter((g) => E.REC[g.recette] && g.moment === 'petitdej') : [];
+    const cout = semaine.reduce((t, g) => t + E.coutPortion(E.REC[g.recette]) * g.portions, 0);
+    const filtres = [['tout', 'Tout'], ['equilibre', 'Équilibrés'], ['sportif', 'Sportifs'], ['gourmand', 'Gourmands'], ['sale', 'Salés'], ['express', 'Express (5 min)'], ['enfants', 'Pour les enfants']];
+    const conseils = { equilibre: 'Un petit-déjeuner équilibré : un produit céréalier (pain complet, flocons), un laitage, un fruit, et une boisson.', sportif: 'Les jours de sport : des protéines (œufs, skyr, fromage blanc) et des glucides lents (avoine, pain complet), 1 h 30 à 2 h avant la séance.', gourmand: 'Le plaisir compte aussi : gardez les plus gourmands pour le week-end, avec un fruit à côté.', sale: 'Le salé tient bien jusqu’à midi : œufs, fromage, jambon, avec du pain complet.', express: 'Moins de 5 minutes, ou préparé la veille (overnight oats, pudding de chia).', enfants: 'Pour les enfants : un laitage, un fruit et du pain ou des céréales peu sucrées.' };
+    return `${basculeGourmand('petitdej')}
+      <div class="ardoise-matin"><span class="small">Bien commencer la journée</span><h1>Petits-déjeuners</h1><span class="small">équilibrés, sportifs, gourmands ou salés, à petit prix</span></div>
+      <p class="muted">Choisissez vos petits-déjeuners de la semaine : leurs ingrédients rejoignent la liste de courses, comme les repas.</p>
+      <section class="carte stack" style="gap:8px"><div class="spread"><h2>Cette semaine</h2>${semaine.length ? `<span class="small muted">environ <strong class="num">${euros(cout)}</strong></span>` : ''}</div>
+        ${semaine.length ? `<ul class="liste-gourmande">${Object.values(semaine.reduce((acc, g) => { (acc[g.recette] = acc[g.recette] || []).push(g); return acc; }, {})).map((gs) => { const g = gs[0], jours = gs.map((x) => x.j); const lib = jours.length === 7 ? 'Tous les jours' : jours.join() === '0,1,2,3,4' ? 'Du lundi au vendredi' : jours.join() === '5,6' ? 'Le week-end' : jours.map((j) => E.JOURS[j].slice(0, 3) + '.').join(' '); return `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${lib} · ${pluriel(g.portions, 'personne')}</span><button class="btn-lien small" data-a="pd-retirer" data-r="${g.recette}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} de la semaine">Retirer</button></li>`; }).join('')}</ul>`
+          : '<p class="small muted" style="margin:0">Rien de prévu pour l’instant. Un bol fromage blanc et fruits rouges en semaine, des pancakes le dimanche ?</p>'}
+      </section>
+      <div class="row filtres-g" role="group" aria-label="Filtrer">${filtres.map(([k, v]) => `<button class="chip" data-a="pd-filtre" data-k="${k}" aria-pressed="${f === k}">${v}</button>`).join('')}</div>
+      ${conseils[f] ? `<p class="small bandeau bandeau-info" style="margin:0"><span>💡 ${conseils[f]}</span></p>` : ''}
+      <div class="grille-gourmande">${liste.map(carteGourmande).join('') || '<p class="small muted">Aucun petit-déjeuner dans ce filtre.</p>'}</div>`;
+  }
   function ongletGourmand() {
-    const toutes = E.gourmandises();
+    const toutes = E.gourmandises().filter((r) => r.type !== 'petitdej');
     const f = S.filtreGourmand || 'tout';
     const garde = (r) => f === 'tout' || (f === 'express' ? r.temps <= 15 : f === 'enfants' ? (r.tags || []).includes('enfants') : f === 'miennes' ? r.perso : r.type === f);
     const liste = toutes.filter(garde).sort((a, b) => (b.perso - a.perso) || (E.recetteCompatible(b, S.profil).ok - E.recetteCompatible(a, S.profil).ok) || a.nom.localeCompare(b.nom, 'fr'));
-    const semaine = S.plan ? S.plan.jours.flatMap((jp, j) => (jp.gourmand || []).map((g, k) => ({ ...g, j, k }))).filter((g) => E.REC[g.recette]) : [];
+    const semaine = S.plan ? S.plan.jours.flatMap((jp, j) => (jp.gourmand || []).map((g, k) => ({ ...g, j, k }))).filter((g) => E.REC[g.recette] && g.moment !== 'petitdej') : [];
     const cout = semaine.reduce((t, g) => t + E.coutPortion(E.REC[g.recette]) * g.portions, 0);
     const filtres = [['tout', 'Tout'], ['gouter', 'Goûters'], ['dessert', 'Desserts'], ['express', 'Express'], ['enfants', 'Pour les enfants']].concat(S.gourmandPerso.length ? [['miennes', 'Les miennes']] : []);
-    return `<div class="ardoise ardoise-titre"><span class="craie-petit">Fait maison, petit prix</span><h1 class="craie">Grignotages gourmands</h1><span class="craie-ligne">desserts et goûters de la semaine</span></div>
+    return `${basculeGourmand('gourmand')}<div class="ardoise ardoise-titre"><span class="craie-petit">Fait maison, petit prix</span><h1 class="craie">Grignotages gourmands</h1><span class="craie-ligne">desserts et goûters de la semaine</span></div>
       <p class="muted">Ajoutez des desserts et des goûters à votre semaine : leurs ingrédients rejoignent la liste de courses, comme les repas.</p>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Cette semaine</h2>${semaine.length ? `<span class="small muted">environ <strong class="num">${euros(cout)}</strong></span>` : ''}</div>
-        ${semaine.length ? `<ul class="liste-gourmande">${semaine.map((g) => `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${E.JOURS[g.j]} · ${g.moment === 'gouter' ? 'goûter' : 'dessert'} · ${pluriel(g.portions, 'part')}</span><button class="btn-lien small" data-a="gourmand-retirer" data-j="${g.j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} du ${E.JOURS[g.j].toLowerCase()}">Retirer</button></li>`).join('')}</ul>`
+        ${semaine.length ? `<ul class="liste-gourmande">${semaine.map((g) => `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${E.JOURS[g.j]} · ${momentLib(g.moment).toLowerCase()} · ${pluriel(g.portions, 'part')}</span><button class="btn-lien small" data-a="gourmand-retirer" data-j="${g.j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} du ${E.JOURS[g.j].toLowerCase()}">Retirer</button></li>`).join('')}</ul>`
           : '<p class="small muted" style="margin:0">Rien de prévu pour l’instant. Un gâteau au yaourt pour le goûter de mercredi ?</p>'}
       </section>
       <div class="row filtres-g" role="group" aria-label="Filtrer">${filtres.map(([k, v]) => `<button class="chip" data-a="gourmand-filtre" data-k="${k}" aria-pressed="${f === k}">${v}</button>`).join('')}</div>
@@ -3201,8 +3248,10 @@
   function nouvellePlanification() {
     if (S.plan) S.tourEnfant++;
     const gardees = S.plan ? S.plan.jours.map((jp) => jp.gourmand || []) : null;
+    const manuelsGardes = S.plan && S.plan.manuels ? S.plan.manuels : null;
     S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     if (gardees) S.plan.jours.forEach((jp, j) => { if (gardees[j] && gardees[j].length) jp.gourmand = gardees[j].filter((g) => E.REC[g.recette]); });
+    if (manuelsGardes && manuelsGardes.length) S.plan.manuels = manuelsGardes;
     S.coches = {};
     S.ranges = {};
     S.planDu = new Date().toISOString().slice(0, 10);
@@ -3758,6 +3807,29 @@
       case 'coach-arreter': p.coach = null; S.coachVoir = null; toast('Coach arrêté : vos prochaines semaines redeviennent classiques'); break;
       case 'fiche-g': fiche = { recette: el.dataset.r, parts: el.dataset.n ? +el.dataset.n : null }; break;
       case 'gourmand-filtre': S.filtreGourmand = el.dataset.k; break;
+      case 'manuel-ajouter': ajouterManuel({ id: el.dataset.id }); break;
+      case 'manuel-ajouter-texte': {
+        const champ = document.getElementById('manuel-cherche');
+        const t = champ ? champ.value.trim().replace(/\s+/g, ' ').slice(0, 60) : '';
+        if (!t) { toast('Écrivez d’abord le produit à ajouter'); if (champ) champ.focus(); return; }
+        // un produit connu du catalogue (même orthographe) garde son rayon et son prix
+        const connu = window.Saisie.chercherIngredients(t, 1).find((id) => E.ING[id] && !E.ING[id].perso && E.norm(E.ING[id].nom) === E.norm(t));
+        ajouterManuel(connu ? { id: connu } : { nom: t.charAt(0).toUpperCase() + t.slice(1) });
+        break;
+      }
+      case 'manuel-qte': case 'manuel-suppr': {
+        const l = (S.plan && S.plan.manuels) || [];
+        const id = el.dataset.id;
+        const i = l.findIndex((y) => y.id === id || (y.nom && 'm-' + E.slug(y.nom) === id));
+        if (i < 0) return;
+        if (a === 'manuel-suppr') { l.splice(i, 1); delete S.coches[id]; toast('Retiré de la liste'); break; }
+        l[i].n = (l[i].n || 1) + +el.dataset.d;
+        if (l[i].n <= 0) { l.splice(i, 1); delete S.coches[id]; }
+        break;
+      }
+      case 'pd-filtre': S.filtrePD = el.dataset.k; break;
+      case 'pd-retirer': S.plan.jours.forEach((jp) => { if (jp.gourmand) jp.gourmand = jp.gourmand.filter((g) => !(g.recette === el.dataset.r && g.moment === 'petitdej')); }); toast('Retiré de la semaine'); break;
+      case 'gourmand-jours': if (S.gourmandAjout) S.gourmandAjout.jours = { semaine: [0, 1, 2, 3, 4], weekend: [5, 6], tous: [0, 1, 2, 3, 4, 5, 6] }[el.dataset.k]; break;
       case 'gourmand-ajouter': {
         if (!S.plan) { toast('Créez d’abord votre semaine'); return; }
         const r = E.REC[el.dataset.r];
@@ -3929,6 +4001,11 @@
       if (t.length >= 3) minuterieOFF = setTimeout(() => chercherOFF(t), 600);
       return;
     }
+    if (el.dataset.a === 'manuel-cherche') {
+      const z = document.getElementById('manuel-propositions');
+      if (z) z.innerHTML = propositionsManuelles(el.value.trim());
+      return;
+    }
     if (el.dataset.a === 'gout-cherche') {
       const z = document.getElementById('gout-propositions');
       if (z) z.innerHTML = propositionsGout(el.value.trim());
@@ -4046,6 +4123,7 @@
     }
   });
   document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.id === 'manuel-cherche') { ev.preventDefault(); const b = document.querySelector('[data-a="manuel-ajouter-texte"]'); if (b) b.click(); return; }
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
     if (ev.key === 'Escape' && S.aideInstall) { S.aideInstall = false; rendre(); return; }
     if (ev.key === 'Escape' && S.prospectusOuvert) { S.prospectusOuvert = null; rendre(); return; }
