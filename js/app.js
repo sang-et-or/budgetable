@@ -800,6 +800,8 @@
       <p class="small muted">${esc(a.source.detail)}</p></section>`;
   }
 
+  /** Étoile des favoris : un plat favori revient environ trois fois par semaine, sans se répéter. */
+  const etoileFav = (id) => { const f = S.classiques.includes(id); return `<button class="etoile-fav ${f ? 'on' : ''}" data-a="classique" data-r="${id}" aria-pressed="${f}" aria-label="${f ? 'Retirer des favoris' : 'Ajouter aux favoris'}" title="${f ? 'Dans vos favoris' : 'Ajouter aux favoris'}">${f ? '★' : '☆'}</button>`; };
   function ligneRepas(m, j, slot) {
     const lab = slot === 'dejeuner' ? 'Déjeuner' : 'Dîner';
     if (!m) return S.plan && S.plan.jours[j] && (S.plan.jours[j].passes || []).includes(slot) && posJour(j) === 0 ? `<div class="repas repas-passe"><span class="eyebrow">${lab}</span><span class="vide">Déjà passé : la semaine commence au ${slot === 'dejeuner' ? 'dîner' : 'déjeuner de demain'}</span></div>` : `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
@@ -816,7 +818,7 @@
     const raison = E.pourquoi(r.id, S.plan, j, slot, S.profil, optsMoteur()).find((x) => !th || !x.startsWith(th.libelle));
     const classique = S.classiques.includes(r.id);
     return `<div class="repas repas-illu ${m.dehors ? 'repas-dehors' : ''}"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}${r.variante ? ' · <span class="theme">✏️ ma version</span>' : ''}</span>
-      <button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${classique ? '<span class="coeur" aria-label="Classique de la famille">♥</span> ' : ''}${esc(r.nom)}</button>
+      <div class="titre-fav"><button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${esc(r.nom)}</button>${etoileFav(r.id)}</div>
       <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
       ${ligneMinceur(m, j, slot)}
@@ -1078,7 +1080,7 @@
     const p = S.profil, r = p.rituels || {};
     const nEnfants = p.foyer.enfants.length;
     const prenoms = p.prenomsEnfants || [];
-    return `<details class="carte rituels" ${S.rituelsOuverts ? 'open' : ''}><summary data-a="rituels-ouvrir"><strong>Nos rituels et nos classiques</strong> <span class="small muted">· soirées à thème, plats préférés${nEnfants ? ', choix des enfants' : ''}</span></summary>
+    return `<details class="carte rituels" ${S.rituelsOuverts ? 'open' : ''}><summary data-a="rituels-ouvrir"><strong>Nos rituels et nos favoris</strong> <span class="small muted">· soirées à thème, plats préférés${nEnfants ? ', choix des enfants' : ''}</span></summary>
       <div class="stack" style="gap:14px;margin-top:12px">
         <div class="stack" style="gap:8px"><h3>Les dîners à thème</h3>
           <div class="grille-rituels">${E.JOURS.map((jn, j) => `<label class="champ"><span>${jn}</span><select data-a="rituel" data-j="${j}">${optionsTheme(j, r[j])}</select></label>`).join('')}</div>
@@ -1087,9 +1089,9 @@
         ${nEnfants ? `<div class="stack" style="gap:8px"><h3>Le choix des enfants</h3>
           <p class="small muted">Le soir « Le choix des enfants », c’est un enfant qui choisit le dîner parmi 3 plats en photo, chacun son tour d’une semaine à l’autre. Prénoms facultatifs, gardés sur cet appareil.</p>
           <div class="row">${Array.from({ length: nEnfants }, (_, i) => `<label class="champ" style="max-width:160px"><span>Enfant ${i + 1}</span><input type="text" maxlength="20" data-a="prenom" data-i="${i}" value="${esc(prenoms[i] || '')}" placeholder="Prénom"></label>`).join('')}</div></div>` : ''}
-        <div class="stack" style="gap:8px"><h3>Nos classiques ${S.classiques.length ? `(${S.classiques.length})` : ''}</h3>
+        <div class="stack" style="gap:8px"><h3>⭐ Nos favoris ${S.classiques.length ? `(${S.classiques.length})` : ''}</h3>
           <p class="small muted">Les valeurs sûres de la famille : deux reviennent chaque semaine, entre les découvertes. Ajoutez-en avec le cœur dans une recette (ou en lui donnant 5 étoiles).</p>
-          ${S.classiques.length ? `<div class="row">${S.classiques.filter((id) => E.REC[id]).map((id) => `<span class="tag tag-classique">♥ ${esc(E.REC[id].nom)} <button class="btn-lien" data-a="classique" data-r="${id}" aria-label="Retirer ${esc(E.REC[id].nom)} des classiques">✕</button></span>`).join('')}</div>` : '<p class="small">Aucun classique pour l’instant.</p>'}
+          ${S.classiques.length ? `<div class="row">${S.classiques.filter((id) => E.REC[id]).map((id) => `<span class="tag tag-classique">★ ${esc(E.REC[id].nom)} <button class="btn-lien" data-a="classique" data-r="${id}" aria-label="Retirer ${esc(E.REC[id].nom)} des favoris">✕</button></span>`).join('')}</div>` : '<p class="small">Aucun favori pour l’instant : touchez l’étoile ☆ à côté d’un plat.</p>'}
         </div>
       </div></details>`;
   }
@@ -1781,7 +1783,12 @@
   const domaine = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   function ongletRecettes() {
     const recs = S.bibliotheque.map((r) => E.REC[r.id]).filter(Boolean);
+    const favs = S.classiques.map((id) => E.REC[id]).filter((r) => r && !r.gourmand);
+    const blocFavoris = `<section class="carte stack favoris" style="gap:10px"><div class="spread"><h2>⭐ Mes favoris</h2><span class="small muted">${favs.length ? pluriel(favs.length, 'plat') + ' · ils reviennent environ 3 fois par semaine' : ''}</span></div>
+      ${favs.length ? `<ul class="liste-favoris">${favs.map((r) => `<li><span class="vignette-fav">${V(r, 40)}</span><button class="btn-lien" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button><span class="small muted num">${euros(E.coutPortion(r))} la part</span><span class="row" style="gap:6px;flex-wrap:nowrap">${S.plan ? `<button class="btn btn-petit" data-a="au-menu" data-r="${r.id}">Mettre au menu</button>` : ''}${etoileFav(r.id)}</span></li>`).join('')}</ul>`
+        : '<p class="small muted" style="margin:0">Touchez l’étoile ☆ à côté d’un plat de la semaine ou dans sa fiche : vos favoris reviendront régulièrement dans vos menus, et vous les retrouverez ici.</p>'}</section>`;
     return `<div class="spread"><div><p class="eyebrow">Ma bibliothèque</p><h1>Mes recettes</h1></div><button class="btn btn-plein" data-a="ed-nouveau">+ Ajouter une recette</button></div>
+      ${blocFavoris}
       <p class="muted">Vos recettes préférées : un lien Marmiton, 750g, un blog, ou une recette de famille sans lien. Budgétable vous propose les ingrédients à cocher, puis les glisse dans vos menus et votre liste de courses.</p>
       ${recs.length ? `<div class="jours">${recs.map((r) => {
         const src = S.bibliotheque.find((x) => x.id === r.id);
@@ -1916,7 +1923,7 @@
       ${blocJaiCa()}
       ${blocAvecPlacard(r.avecPlacard, 'Avec ce que vous avez à la maison')}
       <section class="stack"><h2>Pas envie ? Trois idées en 20 minutes</h2>
-        <div class="jours">${r.idees.map((i) => { const rec = E.REC[i.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps"><button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
+        <div class="jours">${r.idees.map((i) => { const rec = E.REC[i.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps"><div class="titre-fav"><button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>${etoileFav(rec.id)}</div>
           <div class="meta"><span>${rec.temps} min</span><span>${i.manquants ? pluriel(i.manquants, 'produit') + ' à acheter' : 'Tout est déjà dans votre liste'}</span></div></div></div></article>`; }).join('')}</div></section>`;
   }
 
@@ -2449,7 +2456,7 @@
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, m.portions)}</section>
       ${!fiche.recette ? (S.deduits[fiche.jour + '-' + fiche.slot] === 'cuisine' ? '<p class="small pourquoi">Cuisiné : déduit de votre placard</p>' : `<div><button class="btn btn-petit" data-a="mange" data-j="${fiche.jour}" data-s="${fiche.slot}">✓ J’ai cuisiné ce plat (mettre à jour mon placard)</button></div>`) : ''}
-      <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '♥ Un classique de la famille' : '♡ Ajouter à nos classiques'}</button></div>
+      <div><button class="btn btn-petit ${S.classiques.includes(r.id) ? 'btn-plein' : ''}" data-a="classique" data-r="${r.id}" aria-pressed="${S.classiques.includes(r.id)}">${S.classiques.includes(r.id) ? '★ Dans mes favoris' : '☆ Ajouter à mes favoris'}</button></div>
       <div class="stack" style="gap:6px"><h3>Votre avis</h3><div class="etoiles" role="radiogroup" aria-label="Noter la recette">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= note ? 'on' : ''}" data-a="noter" data-r="${r.id}" data-n="${n}" role="radio" aria-checked="${n === note}" aria-label="${n} sur 5">★</button>`).join('')}</div>
         <p class="small muted">${note === 1 ? 'Cette recette ne sera plus proposée.' : note ? 'Merci : les recettes bien notées reviendront plus souvent.' : 'Une étoile : on ne la propose plus. Cinq : plus souvent.'}</p></div>
     </div></div>`;
@@ -3835,8 +3842,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'classique': {
         const id = el.dataset.r;
-        if (S.classiques.includes(id)) { S.classiques = S.classiques.filter((x) => x !== id); toast('Retiré de nos classiques'); }
-        else { S.classiques.push(id); toast('Ajouté à nos classiques ♥ : il reviendra régulièrement'); }
+        if (S.classiques.includes(id)) { S.classiques = S.classiques.filter((x) => x !== id); toast('Retiré de vos favoris'); }
+        else { S.classiques.push(id); toast('⭐ Ajouté à vos favoris : il reviendra régulièrement dans vos menus'); }
         break;
       }
       case 'choix': ouvrirChoix(+el.dataset.j, el.dataset.s, el.dataset.enfants === '1'); break;

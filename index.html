@@ -319,6 +319,15 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .ligne-minceur.libre { background: var(--surface); border-left-color: var(--trait); color: var(--encre-douce); }
 .total-minceur { color: var(--poireau); font-weight: 700; margin-left: auto; padding: 0 8px; }
 .carte-minceur-semaine { background: linear-gradient(135deg, color-mix(in srgb, #8fcf9f 30%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, var(--poireau) 30%, transparent); border-radius: 16px; padding: 12px 14px; }
+.titre-fav { display: flex; align-items: flex-start; gap: 4px; }
+.titre-fav .titre-repas { flex: 1; min-width: 0; }
+.etoile-fav { background: none; border: 0; cursor: pointer; font-size: 1.35rem; line-height: 1; padding: 2px 4px; color: #b9a46a; flex: none; border-radius: 8px; }
+.etoile-fav.on { color: #e3a008; }
+.etoile-fav:hover, .etoile-fav:focus-visible { background: color-mix(in srgb, #e3a008 14%, transparent); }
+.liste-favoris { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.liste-favoris li { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; }
+.vignette-fav { width: 40px; height: 40px; display: grid; place-items: center; }
+@media (max-width: 600px) { .liste-favoris li { grid-template-columns: auto 1fr auto; } .liste-favoris li > .small { display: none; } }
 .bascule-g { display: flex; gap: 6px; flex-wrap: wrap; }
 .ardoise-matin { background: linear-gradient(135deg, #f6d38b, #f0a85a); color: #3b2410; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
 .ardoise-matin h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }
