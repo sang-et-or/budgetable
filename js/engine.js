@@ -354,16 +354,20 @@
     if (!plan || !plan.jours) return plan;
     const fa = facteurAdulte(p);
     const J = plan.jours;
+    // la semaine commence le jour de sa création (plan.debut, 0 = lundi) : la veille du premier jour n'en fait pas partie
+    const debut = plan.debut >= 0 && plan.debut <= 6 ? plan.debut : 0;
+    const veille = (j) => (j === debut ? null : (j + 6) % 7);
+    const lendemain = (j) => ((j + 1) % 7 === debut ? null : (j + 1) % 7);
     J.forEach((jp) => SLOTS.forEach((sl) => { const m = jp[sl]; if (m) { delete m.plus; delete m.extra; } }));
     // restes du dîner pour le déjeuner du lendemain (et retour au plat d'origine si on annule)
     J.forEach((jp, j) => {
       const l = jp.dejeuner;
       if (!l) return;
-      const src = j > 0 ? J[j - 1].diner : null;
+      const src = veille(j) != null ? J[veille(j)].diner : null;
       const veut = src && REC[src.recette] && !src.dehors && src.restes && src.restes.vers === 'dejeuner';
       if (veut) {
         if (!l.deRestes) l.recetteAvant = l.recette;
-        l.deRestes = { jour: j - 1, slot: 'diner' };
+        l.deRestes = { jour: veille(j), slot: 'diner' };
         l.recette = src.recette;
       } else if (l.deRestes) {
         if (l.recetteAvant && REC[l.recetteAvant]) l.recette = l.recetteAvant;
@@ -373,12 +377,12 @@
     const pris = [];
     J.forEach((jp, j) => {
       const n = nbGamelles(p, j);
-      if (!n) { delete jp.gamelles; return; }
+      if (!n || (jp.passes || []).includes('dejeuner')) { delete jp.gamelles; return; }
       const voulu = jp.gamelleMode || (p.gamelles.mode === 'plat' ? 'plat' : 'restes');
       if (voulu === 'non') { jp.gamelles = { n: 0, mode: 'non' }; return; }
-      const src = j > 0 ? J[j - 1].diner : null;
+      const src = veille(j) != null ? J[veille(j)].diner : null;
       if (voulu === 'restes' && src && REC[src.recette] && !src.deRestes && !src.dehors) {
-        jp.gamelles = { n, mode: 'restes', source: j - 1, recette: src.recette, portions: Math.round(n * fa * 10) / 10 };
+        jp.gamelles = { n, mode: 'restes', source: veille(j), recette: src.recette, portions: Math.round(n * fa * 10) / 10 };
         return;
       }
       // plat préparé à part (lundi, ou pas de dîner la veille, ou choisi)
@@ -392,7 +396,7 @@
       const m = jp.diner;
       if (!m || !REC[m.recette] || m.deRestes || m.dehors) return;
       const ex = { gamelles: 0, demain: 0, congel: 0 };
-      const suiv = J[j + 1];
+      const suiv = lendemain(j) != null ? J[lendemain(j)] : null;
       if (suiv && suiv.gamelles && suiv.gamelles.mode === 'restes' && suiv.gamelles.source === j) ex.gamelles = suiv.gamelles.portions;
       if (suiv && suiv.dejeuner && suiv.dejeuner.deRestes) ex.demain = suiv.dejeuner.portions;
       if (m.restes && m.restes.vers === 'congel') ex.congel = Math.max(0, Math.min(20, +m.restes.n || 0));
@@ -797,6 +801,7 @@
       const n = { ...jp };
       const aujourdHui = SLOTS.map((sl) => jp[sl] && jp[sl].recette).filter(Boolean);
       for (const slot of SLOTS) {
+        if ((jp.passes || []).includes(slot)) { n[slot] = null; continue; }   // repas déjà passé à la création de la semaine
         const nb = portions(p, j, slot);
         const mis = '_' + slot;
         if (nb <= 0) { if (n[slot]) n[mis] = n[slot]; n[slot] = null; continue; }

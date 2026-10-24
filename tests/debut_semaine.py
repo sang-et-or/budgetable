@@ -30,6 +30,15 @@ with sync_playwright() as p:
     else: assert jp["dejeuner"] is not None
     if h >= 21: assert jp["diner"] is None
     else: assert jp["diner"] is not None
+    # changer les présences ou les gamelles ne remet pas le repas passé ; la veille du premier jour n'est pas dans la semaine
+    r = page.evaluate("""() => { const E = window.Engine, d = JSON.parse(localStorage.getItem('budgetable.v1'));
+      const t = (new Date().getDay() + 6) % 7; const plan = d.plan; plan.jours[t].passes = ['dejeuner']; plan.jours[t].dejeuner = null;
+      const apres = E.appliquerPresences(plan, { ...d.profil, presences: {} }, {});
+      const veille = (t + 6) % 7; const p2 = JSON.parse(JSON.stringify(apres)); p2.debut = t; p2.jours[t].passes = []; p2.jours[t].dejeuner = { recette: p2.jours[veille].diner.recette === p2.jours[t].diner.recette ? p2.jours[t].diner.recette : p2.jours[t].diner.recette, portions: 1 };
+      p2.jours[veille].diner.restes = { vers: 'dejeuner' };
+      E.organiserRestes(p2, { ...d.profil, gamelles: { n: 1, jours: [t], mode: 'restes' } });
+      return { refait: apres.jours[t].dejeuner, restesDuDernierJour: !!p2.jours[t].dejeuner.deRestes, gamelleDepuisVeille: !!(p2.jours[t].gamelles && p2.jours[t].gamelles.mode === 'restes') }; }""")
+    print(r); assert r["refait"] is None and not r["restesDuDernierJour"] and not r["gamelleDepuisVeille"]
     # la liste de courses ne compte pas le repas passé
     if h >= 13: assert page.evaluate("(() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); return window.Engine.listeCourses(d.plan, d.profil).articles.length > 0; })()")
     # semaine créée il y a 3 jours → bandeau, puis démarrage aujourd'hui sans changer les plats

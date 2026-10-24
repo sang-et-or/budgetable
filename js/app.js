@@ -926,6 +926,7 @@
   function majGamelles() {
     if (!S.plan) return;
     S.plan = E.appliquerPresences(S.plan, { ...S.profil, presences: S.plan.presences || S.profil.presences || {} }, optsMoteur());
+    S.plan.debut = debutSemaine();
     E.organiserRestes(S.plan, S.profil);
   }
   function texteGamelle(j) {
@@ -3632,7 +3633,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     document.documentElement.classList.toggle('imprimable', S.imprimable && S.vue === 'app' && S.onglet === 'courses');
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
-    if (S.plan) { appliquerVersions(S.plan); E.organiserRestes(S.plan, S.profil); }
+    if (S.plan) { S.plan.debut = debutSemaine(); appliquerVersions(S.plan); E.organiserRestes(S.plan, S.profil); }
     const html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue]();
     const avantEd = document.querySelector('.fenetre-edition');
     const hautEd = avantEd ? avantEd.scrollTop : 0;
