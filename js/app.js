@@ -341,7 +341,7 @@
         <div class="gros-chiffre num"><output id="budget-val">${euros(p.budget)}</output> <span class="small muted" style="font:500 1rem var(--f-texte)">par semaine</span></div>
         <input class="range" type="range" id="budget" min="20" max="300" step="5" value="${Math.min(300, p.budget)}" data-a="budget" aria-label="Budget hebdomadaire en euros">
         <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="budget-ouvrir">Taper un montant ou calculer mon budget</button></div>
-        <p class="small muted">Si ce budget ne suffit pas, l’appli vous le dira et proposera des ajustements. Les montants de cette version sont des estimations de démonstration.</p></div>`;
+        <p class="small muted">Si ce budget ne suffit pas, l’appli vous le dira et proposera des ajustements. Les montants sont des estimations moyennes : le prix réel dépend de votre magasin.</p></div>`;
       case 'provisions': {
         const courants = ['pates', 'riz', 'semoule', 'farine', 'tomates_concassees', 'oeufs', 'lait', 'beurre', 'pomme_de_terre', 'oignon', 'ail', 'emmental', 'thon', 'lentilles_vertes', 'sauce_soja'].filter((id) => E.ING[id]);
         const opts = Object.fromEntries(courants.map((id) => [id, E.ING[id].nom]));
@@ -985,7 +985,6 @@
         </div>
       </section>
       <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button></section>
-      <div class="bandeau bandeau-demo small"><span class="tag tag-demo">Version de test</span><span>Les menus et listes fonctionnent réellement. Les prix sont des estimations de démonstration.</span></div>
       ${PIED}
     </div>`;
   }
