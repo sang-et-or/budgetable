@@ -383,6 +383,18 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .source-ticket:hover, .source-ticket:focus-within { border-color: var(--poireau); box-shadow: var(--ombre); }
 .source-ticket .ico { font-size: 1.8rem; }
 .table-ticket { display: grid; gap: 6px; flex-shrink: 0; }
+.complements { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; }
+.complement { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.complement .btn-lien { text-align: left; min-width: 0; overflow-wrap: anywhere; }
+.btn-x { border: 0; background: none; color: var(--encre-douce); cursor: pointer; font-size: .85rem; padding: 4px 6px; border-radius: 8px; }
+.btn-x:hover, .btn-x:focus-visible { background: var(--tomate-pale); color: var(--tomate); }
+.btn-ajout-complement { border: 1px dashed var(--trait); background: transparent; border-radius: 99px; padding: 3px 10px; font: inherit; font-size: .8rem; color: var(--encre-douce); cursor: pointer; }
+.btn-ajout-complement:hover, .btn-ajout-complement:focus-visible { border-color: var(--poireau); color: var(--poireau); }
+.liste-complements { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.liste-complements li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 12px; background: var(--surface); }
+.liste-complements li.incompatible { opacity: .6; }
+.emoji-complement { font-size: 1.6rem; width: 2.2rem; text-align: center; flex-shrink: 0; }
+.titre-complement { font-weight: 700; text-align: left; }
 .ligne-ticket.a-verifier { border-color: var(--tomate); background: var(--tomate-pale); }
 .extrait-ticket { grid-column: 1 / -1; display: block; width: 100%; max-width: 640px; height: auto; border-radius: 6px; border: 1px solid var(--trait); background: #fff; }
 .ligne-ticket { display: grid; grid-template-columns: minmax(0, 1.4fr) 92px minmax(0, 1.3fr) auto; gap: 8px; align-items: start; padding: 8px; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); }
@@ -1172,6 +1184,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/codebarre.js"></script>
 <script src="js/catalogue.js"></script>
 <script src="js/gourmand.js"></script>
+<script src="js/entrees.js"></script>
 <script src="js/petitdej.js"></script>
 <script src="js/programme.js"></script>
 <script src="js/sport.js"></script>

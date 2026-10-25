@@ -103,7 +103,7 @@
         id: r.id, nom: String(r.nom).slice(0, 90), repas: [], temps: r.temps > 0 ? r.temps : 20, niveau: r.niveau || 1, equip: r.equip || [], cuisine: 'francaise', tags: r.tags || [],
         ing: (r.ing || []).filter(([id, q]) => ING[id] && q > 0).concat(extras.map((x) => [idExtra(x.nom), 1])),
         etapes: r.etapes && r.etapes.length ? r.etapes.slice(0, 12) : (r.lien ? ['Suivez la recette sur le site d’origine (lien ci-dessus).'] : ['Votre recette : préparez-la comme d’habitude.']),
-        modele: 'gourmand', gourmand: true, type: ['dessert', 'petitdej'].includes(r.type) ? r.type : 'gouter', emoji: r.emoji || '🍰', parts: r.parts || 6,
+        modele: 'gourmand', gourmand: true, type: ['dessert', 'petitdej', 'entree'].includes(r.type) ? r.type : 'gouter', emoji: r.emoji || '🍰', parts: r.parts || 6, mois: Array.isArray(r.mois) ? r.mois : null,
         perso: !!r.perso, lien: r.lien || null, extras, proposer: false, photo: r.photo || null, photoSource: r.photoSource || ''
       };
       rec.sig = rec.id;

@@ -1058,8 +1058,56 @@
       <div class="titre-fav"><button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${esc(r.nom)}</button>${etoileFav(r.id)}</div>
       <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
+      ${m.dehors ? '' : blocComplements(m, j, slot)}
       ${ligneMinceur(m, j, slot)}
       ${blocMange(r, j, slot)}</div></div>`;
+  }
+  /* ---------- entrée et dessert d'un repas (recettes de la page Gourmand) ---------- */
+  const complementsDu = (j, slot) => ((S.plan && S.plan.jours[j] && S.plan.jours[j].gourmand) || []).map((g, k) => ({ ...g, k })).filter((g) => g.slot === slot && (g.moment === 'entree' || g.moment === 'dessert') && E.REC[g.recette]);
+  function blocComplements(m, j, slot) {
+    const l = complementsDu(j, slot);
+    const ligne = (g) => `<span class="complement"><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> <span class="small muted">${g.moment === 'entree' ? 'Entrée' : 'Dessert'} :</span> ${esc(E.REC[g.recette].nom)}</button><button class="btn-x" data-a="complement-suppr" data-j="${j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)}">✕</button></span>`;
+    const ent = l.filter((g) => g.moment === 'entree'), des = l.filter((g) => g.moment === 'dessert');
+    return `<div class="complements">${ent.map(ligne).join('')}${des.map(ligne).join('')}
+      <span class="row" style="gap:6px">${ent.length ? '' : `<button class="btn-ajout-complement" data-a="complement-ouvrir" data-j="${j}" data-s="${slot}" data-k="entree">+ Entrée</button>`}${des.length ? '' : `<button class="btn-ajout-complement" data-a="complement-ouvrir" data-j="${j}" data-s="${slot}" data-k="dessert">+ Dessert</button>`}</span></div>`;
+  }
+  // idées d'entrées ou de desserts pour un repas : de saison, compatibles avec le profil, variées dans la semaine
+  function ideesComplement(moment, filtre, plat) {
+    const mois = new Date().getMonth() + 1;
+    const dejaSemaine = new Set((S.plan ? S.plan.jours : []).flatMap((jp) => (jp.gourmand || []).map((g) => g.recette)));
+    const deSaison = (r) => !r.mois || r.mois.includes(mois);
+    const garde = (r) => filtre === 'tout' ? true : filtre === 'saison' ? deSaison(r) && !!r.mois : filtre === 'express' ? r.temps <= 15 : filtre === 'chaud' ? (r.tags || []).includes('chaud') : filtre === 'froid' ? !(r.tags || []).includes('chaud') : filtre === 'leger' ? (r.tags || []).includes('leger') || (NUT(r) || {}).kcal < 180 : filtre === 'maison' ? r.temps > 15 : filtre === 'miennes' ? r.perso : true;
+    // accord avec le plat : pas de soupe avant une soupe, pas le même légume deux fois, dessert léger après un plat copieux
+    const BASE = new Set(['huile_olive', 'huile_tournesol', 'sel', 'beurre', 'oignon', 'ail', 'citron', 'vinaigre', 'moutarde', 'sucre', 'farine', 'lait', 'oeufs', 'creme', 'bouillon', 'persil', 'pain', 'echalote', 'epices']);
+    const ingPlat = new Set(plat ? plat.ing.map(([id]) => id).filter((id) => !BASE.has(id)) : []);
+    const platSoupe = plat && /soupe|velout|potage|bouillon|gaspacho/i.test(plat.nom);
+    const platCopieux = plat && ((NUT(plat) || {}).kcal || 0) > 550;
+    const note = (r, ok) => {
+      let n = (ok ? 100 : 0) + (r.perso ? 6 : 0) - (dejaSemaine.has(r.id) ? 4 : 0) + (r.mois ? 2 : 0) - r.temps / 30;
+      if (platSoupe && (/soupe|velout|potage|gaspacho/i.test(r.nom) || (r.tags || []).includes('chaud'))) n -= 25;
+      n -= 6 * r.ing.filter(([id]) => ingPlat.has(id)).length;
+      if (moment === 'dessert' && platCopieux) n += (r.tags || []).includes('leger') ? 5 : -2;
+      return n;
+    };
+    return E.gourmandises().filter((r) => r.type === moment && deSaison(r) && garde(r))
+      .map((r) => { const ok = E.recetteCompatible(r, S.profil).ok; return { r, ok, n: note(r, ok) }; })
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 14);
+  }
+  function vueComplement() {
+    const c = S.complement;
+    if (!c || !S.plan || !S.plan.jours[c.j]) return '';
+    const m = S.plan.jours[c.j][c.slot];
+    const parts = m ? Math.max(1, Math.round(m.portions || 1)) : nbFoyer();
+    const filtres = c.moment === 'entree' ? [['tout', 'Toutes'], ['saison', 'De saison'], ['froid', 'Froides'], ['chaud', 'Chaudes'], ['express', 'Express']] : [['tout', 'Tous'], ['leger', 'Légers'], ['express', 'Express'], ['maison', 'Faits maison']];
+    const idees = ideesComplement(c.moment, c.filtre || 'tout', m && E.REC[m.recette]);
+    return `<div class="voile" data-a="complement-fermer"><div class="fiche fenetre-complement" role="dialog" aria-modal="true" aria-labelledby="comp-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(E.JOURS[c.j])} · ${c.slot === 'dejeuner' ? 'déjeuner' : 'dîner'}${m ? ' · ' + esc(E.REC[m.recette].nom) : ''}</span><h2 id="comp-titre">${c.moment === 'entree' ? 'Ajouter une entrée' : 'Ajouter un dessert'}</h2><span class="small muted">Pour ${pluriel(parts, 'part')} · ingrédients ajoutés à la liste de courses</span></div>
+        <button class="btn btn-petit" data-a="complement-fermer">Fermer</button></div>
+      <div class="row" role="group" aria-label="Filtrer" style="gap:6px">${filtres.map(([k, v]) => `<button class="chip chip-petit" data-a="complement-filtre" data-k="${k}" aria-pressed="${(c.filtre || 'tout') === k}">${v}</button>`).join('')}</div>
+      <ul class="liste-complements">${idees.map(({ r, ok }) => `<li class="${ok ? '' : 'incompatible'}"><span class="emoji-complement" aria-hidden="true">${r.emoji}</span><span class="stack" style="gap:1px;min-width:0;flex:1"><button class="btn-lien titre-complement" data-a="fiche-g" data-r="${r.id}" data-n="${parts}">${esc(r.nom)}</button><span class="small muted">${r.temps} min · <span class="num">${euros(E.coutPortion(r) * parts)}</span>${r.mois ? ' · de saison' : ''}${ok ? '' : ` · ${esc(libAllergie(E.recetteCompatible(r, S.profil).raison))}`}</span></span><button class="btn btn-petit ${ok ? 'btn-plein' : ''}" data-a="complement-choisir" data-r="${r.id}">Choisir</button></li>`).join('') || '<li class="small muted">Aucune idée avec ce filtre.</li>'}</ul>
+      <p class="small muted">Plus de choix (gâteaux, goûters, vos recettes à vous) dans la page <button class="btn-lien" data-a="complement-gourmand">Gourmand</button>.</p>
+    </div></div>`;
   }
   // « C'est mangé » : on déduit du placard, puis on note le plat pour apprendre les goûts
   const AVIS = [[5, '😋', 'Adoré'], [4, '🙂', 'Bon'], [3, '😐', 'Moyen'], [1, '😕', 'Pas aimé']];
@@ -1250,7 +1298,7 @@
   /* ---------- affiche du frigo : la semaine en une page A4 paysage à imprimer ---------- */
   const STYLES_AFFICHE = [['papier', 'Papier crème'], ['ardoise', 'Ardoise'], ['eco', 'Économie d’encre']];
   function optsAffiche() { return { style: 'papier', images: true, douceurs: true, notes: true, titre: '', ...(S.afficheOpts || {}) }; }
-  function celluleAffiche(m, o, g) {
+  function celluleAffiche(m, o, g, j, sl) {
     const gam = g && g.n && E.REC[g.recette] ? `<span class="aff-tag">🥡 ${pluriel(g.n, 'gamelle')}${m ? '' : ''}</span>` : '';
     if (!m && gam) { const r = E.REC[g.recette]; return `<div class="aff-case">${o.images && o.style !== 'eco' ? `<div class="aff-img">${V(r, 64).replace(/ loading="lazy"/g, '')}</div>` : ''}${gam}<strong>${esc(r.nom)}</strong><span class="aff-meta">${g.mode === 'restes' ? 'restes d’hier soir' : 'préparée la veille'}</span><span class="aff-coche" aria-hidden="true"></span></div>`; }
     if (!m) return '<div class="aff-case aff-vide"><span>Repas libre</span></div>';
@@ -1258,7 +1306,7 @@
     if (!r) return '<div class="aff-case aff-vide"><span>—</span></div>';
     if (m.aChoisir) { const pr = prenomDuTour(); return `<div class="aff-case aff-enfants"><span class="aff-surprise" aria-hidden="true">?</span><strong>${pr ? 'Le choix de ' + esc(pr) : 'Le choix des enfants'}</strong><span class="aff-meta">surprise !</span></div>`; }
     const img = o.images && o.style !== 'eco' ? `<div class="aff-img">${V(r, 64).replace(/ loading="lazy"/g, '')}</div>` : '';
-    return `<div class="aff-case">${img}${m.deRestes ? '<span class="aff-tag">♻ restes</span>' : ''}<strong>${esc(r.nom)}</strong><span class="aff-meta">${m.deRestes ? 'd’hier soir' : r.temps + ' min'}${m.choisiPar ? ' · choisi par ' + esc(m.choisiPar) : ''}${m.plus ? ` · +${nb(m.plus)} pour les restes` : ''}</span>${gam}<span class="aff-coche" aria-hidden="true"></span></div>`;
+    return `<div class="aff-case">${img}${m.deRestes ? '<span class="aff-tag">♻ restes</span>' : ''}<strong>${esc(r.nom)}</strong><span class="aff-meta">${m.deRestes ? 'd’hier soir' : r.temps + ' min'}${m.choisiPar ? ' · choisi par ' + esc(m.choisiPar) : ''}${m.plus ? ` · +${nb(m.plus)} pour les restes` : ''}</span>${j != null ? complementsDu(j, sl).map((x) => `<span class="aff-meta">${E.REC[x.recette].emoji} ${esc(E.REC[x.recette].nom)}</span>`).join('') : ''}${gam}<span class="aff-coche" aria-hidden="true"></span></div>`;
   }
   function affiche() {
     const o = optsAffiche(), p = S.plan;
@@ -1266,15 +1314,15 @@
     const memeMois = d0.getMonth() === d6.getMonth();
     const periode = `du ${E.JOURS[o0[0]].toLowerCase()} ${d0.getDate()}${memeMois ? '' : ' ' + d0.toLocaleDateString('fr-FR', { month: 'long' })} au ${E.JOURS[o0[6]].toLowerCase()} ${d6.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
     const lignes = [['dejeuner', 'Midi', '☀️'], ['diner', 'Soir', '🌙']].filter(([sl]) => p.jours.some((jp) => jp[sl]));
-    const douceurs = o.douceurs && p.jours.some((jp) => (jp.gourmand || []).some((g) => E.REC[g.recette]));
-    const cases = (j) => (p.jours[j].gourmand || []).filter((g) => E.REC[g.recette]).map((g) => `<span class="aff-douceur">${E.REC[g.recette].emoji} ${esc(E.REC[g.recette].nom)}</span>`).join('') || '<span class="aff-meta">—</span>';
+    const douceurs = o.douceurs && p.jours.some((jp) => (jp.gourmand || []).some((g) => E.REC[g.recette] && !g.slot));
+    const cases = (j) => (p.jours[j].gourmand || []).filter((g) => E.REC[g.recette] && !g.slot).map((g) => `<span class="aff-douceur">${E.REC[g.recette].emoji} ${esc(E.REC[g.recette].nom)}</span>`).join('') || '<span class="aff-meta">—</span>';
     const cols = `grid-template-columns: 74px repeat(7, minmax(0, 1fr))`;
     return `<div class="affiche aff-${o.style}" lang="fr">
       <header class="aff-tete"><div><h1 class="aff-titre">${esc(o.titre || 'Au menu cette semaine')}</h1><p class="aff-periode">${periode}</p></div>
         <div class="aff-marque"><span class="aff-cloche" aria-hidden="true">🍽️</span><span>Budgétable</span></div></header>
       <div class="aff-grille" style="${cols}">
         <span></span>${joursOrdonnes().map(([jp, j]) => `<div class="aff-jour"><strong>${esc(jp.jour)}</strong><span>${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></div>`).join('')}
-        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${joursOrdonnes().map(([jp]) => celluleAffiche(jp[sl], o, sl === 'dejeuner' ? jp.gamelles : null)).join('')}`).join('')}
+        ${lignes.map(([sl, lib, ic]) => `<div class="aff-moment"><span aria-hidden="true">${ic}</span>${lib}</div>${joursOrdonnes().map(([jp, jj]) => celluleAffiche(jp[sl], o, sl === 'dejeuner' ? jp.gamelles : null, jj, sl)).join('')}`).join('')}
         ${douceurs ? `<div class="aff-moment"><span aria-hidden="true">🍪</span>Douceur</div>${joursOrdonnes().map(([jp, j]) => `<div class="aff-case aff-case-douceur">${cases(j)}</div>`).join('')}` : ''}
       </div>
       ${o.notes ? `<footer class="aff-pied"><div class="aff-notes"><strong>À ne pas oublier</strong><i></i><i></i></div><div class="aff-notes"><strong>À racheter</strong><i></i><i></i></div><p class="aff-astuce">Cochez la case quand le plat est mangé ✓</p></footer>` : ''}
@@ -2418,9 +2466,10 @@
   function menuTexte() {
     if (!S.plan) return '';
     return joursOrdonnes().map(([jp, j]) => {
-      const r = (m) => (m && E.REC[m.recette] ? (m.dehors ? 'dehors' : E.REC[m.recette].nom) : null);
+      const comp = (sl) => { const l = complementsDu(j, sl); const e = l.find((x) => x.moment === 'entree'), d = l.find((x) => x.moment === 'dessert'); return (e ? `${E.REC[e.recette].nom}, puis ` : '') + '%' + (d ? `, et ${E.REC[d.recette].nom} en dessert` : ''); };
+      const r = (m, sl) => (m && E.REC[m.recette] ? (m.dehors ? 'dehors' : comp(sl).replace('%', E.REC[m.recette].nom)) : null);
       const g = jp.gamelles && jp.gamelles.n && E.REC[jp.gamelles.recette] ? `gamelle : ${E.REC[jp.gamelles.recette].nom}` : null;
-      return `${jp.jour} ${new Date(dateDuJour(j) + 'T12:00:00').getDate()}\n` + [r(jp.dejeuner) ? `  Midi : ${r(jp.dejeuner)}` : g ? `  Midi : ${g}` : null, r(jp.diner) ? `  Soir : ${r(jp.diner)}` : null].filter(Boolean).join('\n');
+      return `${jp.jour} ${new Date(dateDuJour(j) + 'T12:00:00').getDate()}\n` + [r(jp.dejeuner, 'dejeuner') ? `  Midi : ${r(jp.dejeuner, 'dejeuner')}` : g ? `  Midi : ${g}` : null, r(jp.diner, 'diner') ? `  Soir : ${r(jp.diner, 'diner')}` : null].filter(Boolean).join('\n');
     }).join('\n');
   }
   function texteEnvoi(quoi) {
@@ -4267,7 +4316,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   /* ---------- grignotages gourmands ---------- */
   function definirGourmand() {
     if (!window.Gourmand) return;
-    E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat(window.PetitDej ? window.PetitDej.RECETTES : [], (S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
+    E.definirGourmand(window.Gourmand.INGREDIENTS, window.Gourmand.RECETTES.concat(window.PetitDej ? window.PetitDej.RECETTES : [], window.Entrees ? window.Entrees.RECETTES : [], (S.gourmandPerso || []).map((x) => ({ ...x, perso: true }))));
     if (window.Saison && E.definirSaison) {
       if (window.Nutrition) for (const [k, v] of Object.entries(window.Saison.NUTRITION)) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
       E.definirSaison(window.Saison.INGREDIENTS, window.Saison.RECETTES);
@@ -4282,7 +4331,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       <button class="vignette-g" data-a="fiche-g" data-r="${r.id}" aria-label="Voir la recette : ${esc(r.nom)}">${V(r, 72)}</button>
       <div class="stack" style="gap:3px;min-width:0;flex:1">
         <button class="titre-repas" data-a="fiche-g" data-r="${r.id}">${esc(r.nom)}</button>
-        <span class="small muted">${r.type === 'petitdej' ? (r.tags || []).filter((t) => TAGS_PD[t]).map((t) => TAGS_PD[t]).slice(0, 2).join(' · ') || 'Petit-déjeuner' : r.type === 'dessert' ? 'Dessert' : 'Goûter'} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
+        <span class="small muted">${r.type === 'petitdej' ? (r.tags || []).filter((t) => TAGS_PD[t]).map((t) => TAGS_PD[t]).slice(0, 2).join(' · ') || 'Petit-déjeuner' : r.type === 'dessert' ? 'Dessert' : r.type === 'entree' ? 'Entrée' : 'Goûter'}${r.mois ? ' de saison' : ''} · ${r.temps} min · <span class="num">${euros(E.coutPortion(r))}</span> la part${r.perso ? ' · <span class="tag tag-ok">à moi</span>' : ''}</span>
         <span>${nutriMini(r)}</span>
         ${c.ok ? '' : `<span class="small alerte-ing">${esc(libAllergie(c.raison))}</span>`}
         <div class="row" style="gap:6px;margin-top:4px"><button class="btn btn-petit ${c.ok ? 'btn-plein' : ''}" data-a="gourmand-ajouter" data-r="${r.id}">${dejaN ? `✓ Ajouté (${dejaN}) · encore` : '+ Ajouter à ma semaine'}</button></div>
@@ -4299,7 +4348,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         <div class="row" style="gap:6px">${ordreJours().map((j) => `<button class="chip" data-a="gourmand-jour" data-j="${j}" aria-pressed="${a.jours.includes(j)}">${E.JOURS[j].slice(0, 3)}.</button>`).join('')}</div>
         <div class="row" style="gap:6px"><button class="btn-lien small" data-a="gourmand-jours" data-k="semaine">Du lundi au vendredi</button><button class="btn-lien small" data-a="gourmand-jours" data-k="weekend">Le week-end</button><button class="btn-lien small" data-a="gourmand-jours" data-k="tous">Tous les jours</button></div></div>
       ${r.type === 'petitdej' ? '' : `<div class="stack" style="gap:8px"><strong>Pour</strong>
-        <div class="row" style="gap:6px" role="radiogroup">${[['gouter', 'Le goûter'], ['dessert', 'Le dessert']].map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>`}
+        <div class="row" style="gap:6px" role="radiogroup">${(r.type === 'entree' ? [['entree-dejeuner', 'Entrée du déjeuner'], ['entree-diner', 'Entrée du dîner']] : [['dessert-dejeuner', 'Dessert du déjeuner'], ['dessert-diner', 'Dessert du dîner'], ['gouter', 'Le goûter']]).map(([k, v]) => `<button class="chip" role="radio" data-a="gourmand-moment" data-k="${k}" aria-checked="${a.moment === k}" aria-pressed="${a.moment === k}">${v}</button>`).join('')}</div></div>`}
       <div class="row" style="gap:8px;align-items:center"><strong>${r.type === 'petitdej' ? 'Pour combien de personnes ?' : 'Combien de parts ?'}</strong>
         <button class="btn btn-petit" data-a="gourmand-parts" data-d="-1" aria-label="Une part de moins" ${a.parts <= 1 ? 'disabled' : ''}>−</button><strong class="num" id="g-parts">${a.parts}</strong><button class="btn btn-petit" data-a="gourmand-parts" data-d="1" aria-label="Une part de plus">+</button>
         <span class="small muted">${r.type === 'petitdej' ? '' : a.parts === r.parts ? 'la recette entière' : `recette prévue pour ${r.parts}`}</span></div>
@@ -4307,9 +4356,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       <button class="btn btn-plein btn-grand" data-a="gourmand-valider" ${a.jours.length ? '' : 'disabled'}>Ajouter à ma semaine et à mes courses</button>
     </div></div>`;
   }
-  const lignesGourmandes = (jp, matin) => (jp.gourmand || []).filter((g) => E.REC[g.recette] && (g.moment === 'petitdej') === matin).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${momentLib(g.moment)} : ${esc(E.REC[g.recette].nom)}</button>`).join('');
+  const lignesGourmandes = (jp, matin) => (jp.gourmand || []).filter((g) => E.REC[g.recette] && !g.slot && (g.moment === 'petitdej') === matin).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${momentLib(g.moment)} : ${esc(E.REC[g.recette].nom)}</button>`).join('');
   const TAGS_PD = { equilibre: 'Équilibré', sportif: 'Sportif', gourmand: 'Gourmand', sale: 'Salé', express: 'Express', enfants: 'Enfants' };
-  const momentLib = (m) => (m === 'petitdej' ? 'Petit-déj' : m === 'gouter' ? 'Goûter' : 'Dessert');
+  const momentLib = (m, slot) => (m === 'petitdej' ? 'Petit-déj' : m === 'gouter' ? 'Goûter' : (m === 'entree' ? 'Entrée' : 'Dessert') + (slot === 'dejeuner' ? ' du midi' : slot === 'diner' ? ' du soir' : ''));
   const basculeGourmand = (k) => `<div class="bascule-g" role="group" aria-label="Page"><button class="chip" data-a="onglet" data-k="petitdej" aria-pressed="${k === 'petitdej'}">🥐 Petits-déjeuners</button><button class="chip" data-a="onglet" data-k="gourmand" aria-pressed="${k === 'gourmand'}">🍰 Desserts et goûters</button></div>`;
   function ongletPetitDej() {
     const toutes = E.gourmandises().filter((r) => r.type === 'petitdej');
@@ -4337,11 +4386,11 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const liste = toutes.filter(garde).sort((a, b) => (b.perso - a.perso) || (E.recetteCompatible(b, S.profil).ok - E.recetteCompatible(a, S.profil).ok) || a.nom.localeCompare(b.nom, 'fr'));
     const semaine = S.plan ? S.plan.jours.flatMap((jp, j) => (jp.gourmand || []).map((g, k) => ({ ...g, j, k }))).filter((g) => E.REC[g.recette] && g.moment !== 'petitdej') : [];
     const cout = semaine.reduce((t, g) => t + E.coutPortion(E.REC[g.recette]) * g.portions, 0);
-    const filtres = [['tout', 'Tout'], ['gouter', 'Goûters'], ['dessert', 'Desserts'], ['express', 'Express'], ['enfants', 'Pour les enfants']].concat(S.gourmandPerso.length ? [['miennes', 'Les miennes']] : []);
-    return `${basculeGourmand('gourmand')}<div class="ardoise ardoise-titre"><span class="craie-petit">Fait maison, petit prix</span><h1 class="craie">Grignotages gourmands</h1><span class="craie-ligne">desserts et goûters de la semaine</span></div>
+    const filtres = [['tout', 'Tout'], ['entree', 'Entrées'], ['dessert', 'Desserts'], ['gouter', 'Goûters'], ['express', 'Express'], ['enfants', 'Pour les enfants']].concat(S.gourmandPerso.length ? [['miennes', 'Les miennes']] : []);
+    return `${basculeGourmand('gourmand')}<div class="ardoise ardoise-titre"><span class="craie-petit">Fait maison, petit prix</span><h1 class="craie">Entrées, desserts et goûters</h1><span class="craie-ligne">pour compléter les repas de la semaine</span></div>
       <p class="muted">Ajoutez des desserts et des goûters à votre semaine : leurs ingrédients rejoignent la liste de courses, comme les repas.</p>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Cette semaine</h2>${semaine.length ? `<span class="small muted">environ <strong class="num">${euros(cout)}</strong></span>` : ''}</div>
-        ${semaine.length ? `<ul class="liste-gourmande">${semaine.map((g) => `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${E.JOURS[g.j]} · ${momentLib(g.moment).toLowerCase()} · ${pluriel(g.portions, 'part')}</span><button class="btn-lien small" data-a="gourmand-retirer" data-j="${g.j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} du ${E.JOURS[g.j].toLowerCase()}">Retirer</button></li>`).join('')}</ul>`
+        ${semaine.length ? `<ul class="liste-gourmande">${semaine.map((g) => `<li><span aria-hidden="true">${E.REC[g.recette].emoji}</span><button class="btn-lien" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}">${esc(E.REC[g.recette].nom)}</button><span class="small muted">${E.JOURS[g.j]} · ${momentLib(g.moment, g.slot).toLowerCase()} · ${pluriel(g.portions, 'part')}</span><button class="btn-lien small" data-a="gourmand-retirer" data-j="${g.j}" data-k="${g.k}" aria-label="Retirer ${esc(E.REC[g.recette].nom)} du ${E.JOURS[g.j].toLowerCase()}">Retirer</button></li>`).join('')}</ul>`
           : '<p class="small muted" style="margin:0">Rien de prévu pour l’instant. Un gâteau au yaourt pour le goûter de mercredi ?</p>'}
       </section>
       <div class="row filtres-g" role="group" aria-label="Filtrer">${filtres.map(([k, v]) => `<button class="chip" data-a="gourmand-filtre" data-k="${k}" aria-pressed="${f === k}">${v}</button>`).join('')}</div>
@@ -4385,7 +4434,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -4606,6 +4655,21 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'fiche': fiche = { jour: +el.dataset.j, slot: el.dataset.s }; break;
       case 'fiche-r': fiche = { recette: el.dataset.r }; break;
       case 'fermer': case 'fermer-fond': fiche = null; edPlat = null; break;
+      case 'complement-ouvrir': S.complement = { j: +el.dataset.j, slot: el.dataset.s, moment: el.dataset.k, filtre: 'tout' }; break;
+      case 'complement-filtre': if (S.complement) S.complement.filtre = el.dataset.k; break;
+      case 'complement-fermer': if (el.classList.contains('voile') && ev.target !== el) return; S.complement = null; break;
+      case 'complement-gourmand': S.complement = null; S.vue = 'app'; S.onglet = 'gourmand'; break;
+      case 'complement-choisir': {
+        const c = S.complement; if (!c || !S.plan) return;
+        const jp = S.plan.jours[c.j], m = jp[c.slot], r = E.REC[el.dataset.r]; if (!r) return;
+        const parts = m ? Math.max(1, Math.round(m.portions || 1)) : nbFoyer();
+        // un seul plat par entrée / dessert : on remplace l'éventuel précédent
+        jp.gourmand = (jp.gourmand || []).filter((g) => !(g.slot === c.slot && g.moment === c.moment)).concat([{ recette: r.id, portions: parts, moment: c.moment, slot: c.slot }]);
+        S.complement = null;
+        toast(`${r.nom} : ajouté au ${c.slot === 'dejeuner' ? 'déjeuner' : 'dîner'} de ${E.JOURS[c.j].toLowerCase()}, et aux courses`);
+        break;
+      }
+      case 'complement-suppr': { const jp = S.plan && S.plan.jours[+el.dataset.j]; if (!jp || !jp.gourmand) return; const k = +el.dataset.k; jp.gourmand = jp.gourmand.filter((_, i) => i !== k); break; }
       case 'fermer-erreur': fiche = null; edPlat = null; choix = null; auMenu = null; break;
       case 'mange': {
         const k = el.dataset.j + '-' + el.dataset.s;
@@ -5194,7 +5258,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         const r = E.REC[el.dataset.r];
         const c = E.recetteCompatible(r, p);
         if (!c.ok) toast(`Attention : ${libAllergie(c.raison)}`);
-        S.gourmandAjout = { id: r.id, jours: [], moment: r.type, parts: r.parts === 1 ? nbFoyer() : r.parts };
+        S.gourmandAjout = { id: r.id, jours: [], moment: r.type === 'entree' ? 'entree-diner' : r.type === 'dessert' ? 'dessert-diner' : r.type, parts: r.parts === 1 ? nbFoyer() : r.parts };
         fiche = null;
         break;
       }
@@ -5205,7 +5269,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'gourmand-valider': {
         const a = S.gourmandAjout;
         if (!a || !a.jours.length) return;
-        for (const j of a.jours) { const jp = S.plan.jours[j]; jp.gourmand = (jp.gourmand || []).concat([{ recette: a.id, portions: a.parts, moment: a.moment }]); }
+        const [mom, slot] = String(a.moment).split('-');
+        for (const j of a.jours) {
+          const jp = S.plan.jours[j];
+          // entrée ou dessert d'un repas : un seul par repas (le nouveau remplace l'ancien)
+          jp.gourmand = (jp.gourmand || []).filter((g) => !(slot && g.slot === slot && g.moment === mom)).concat([slot ? { recette: a.id, portions: a.parts, moment: mom, slot } : { recette: a.id, portions: a.parts, moment: mom }]);
+        }
         toast(`${E.REC[a.id].nom} : ajouté ${pluriel(a.jours.length, 'fois')}, et à vos courses`);
         S.gourmandAjout = null;
         break;
