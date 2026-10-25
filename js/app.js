@@ -1904,9 +1904,10 @@
 
   /* ---------- fenêtre « 3 idées pour ce repas » (et choix des enfants) ---------- */
   function ouvrirChoix(j, slot, enfants) {
-    choix = { jour: j, slot, enfants: !!enfants, exclure: [], tour: 0, idees: [] };
-    choix.idees = E.propositions(S.plan, j, slot, S.profil, optsMoteur());
+    choix = { jour: j, slot, enfants: !!enfants, exclure: [], tour: 0, idees: [], filtre: '' };
+    choix.idees = E.propositions(S.plan, j, slot, S.profil, { ...optsMoteur(), n: enfants ? 2 : 5 });
   }
+  const FILTRES_CHOIX = [['', 'Toutes les idées'], ['saison', '🍂 De saison'], ['chaud', '🍲 Plat chaud'], ['rapide', '⏱ Rapide (20 min)'], ['pascher', '💶 Petit prix'], ['leger', '🥗 Léger'], ['vege', '🌱 Végétarien'], ['favoris', '⭐ Mes favoris']];
   function vueChoix() {
     if (!choix || !S.plan) return '';
     const m = S.plan.jours[choix.jour][choix.slot];
@@ -1937,6 +1938,8 @@
       ${enf ? '' : `<div class="recherche-plat stack" style="gap:8px">
         <label class="champ"><span>Chercher un plat ou saisir le vôtre</span><input type="search" id="recherche-plat" data-a="recherche-plat" placeholder="Ex. lasagnes, poulet coco, soupe de potiron…" autocomplete="off" value="${esc(choix.recherche || '')}"></label>
         <div id="resultats-plat" aria-live="polite">${resultatsRecherche()}</div></div>`}
+      ${enf ? '' : `<div class="row filtres-choix" role="group" aria-label="Filtrer les idées">${FILTRES_CHOIX.map(([k, v]) => `<button class="chip" data-a="choix-filtre" data-k="${k}" aria-pressed="${(choix.filtre || '') === k}">${v}</button>`).join('')}</div>`}
+      ${!enf && !choix.idees.length ? '<p class="small muted">Aucun autre plat avec ce filtre pour ce repas : essayez-en un autre.</p>' : ''}
       <div class="grille-choix ${enf ? 'enfants' : ''}">${cartes}</div>
       ${enf ? '' : `<div class="row"><button class="btn" data-a="autres-idees">Encore d’autres idées</button><span class="small muted">Autant que vous voulez. Le budget et la liste de courses se mettent à jour tout seuls.</span></div>`}
     </div></div>`;
@@ -4033,10 +4036,15 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         choix = null;
         break;
       }
+      case 'choix-filtre': {
+        choix.filtre = el.dataset.k; choix.exclure = []; choix.tour = 0;
+        choix.idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), n: 5, filtre: choix.filtre || undefined });
+        break;
+      }
       case 'autres-idees': {
         choix.exclure.push(...choix.idees);
         choix.tour++;
-        const idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), exclure: choix.exclure, tour: choix.tour });
+        const idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), exclure: choix.exclure, tour: choix.tour, n: choix.enfants ? 2 : 5, filtre: choix.filtre || undefined });
         if (!idees.length) { toast('Pas d’autre plat compatible pour ce repas'); return; }
         choix.idees = idees;
         S.plan = { ...S.plan, remplacements: S.plan.remplacements + 1 };

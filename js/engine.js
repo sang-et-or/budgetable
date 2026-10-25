@@ -187,6 +187,23 @@
     }
     return { dans: [...new Set(dans)], hors: [...new Set(hors)] };
   }
+  /* plats de saison : chauds et réconfortants quand il fait froid, frais et légers l'été */
+  const NOM_CHAUD = /soupe|velout|potee|potée|mijot|gratin|hachis|parmentier|raclette|tartiflette|pot-au-feu|pot au feu|blanquette|chili|ragout|ragoût|daube|lasagne|bourguignon|choucroute|cassoulet|bouillon|tajine|dahl|curry|risotto|croziflette|gratine|four/;
+  const NOM_FROID = /^salade|^tabou|gaspacho|carpaccio|tartare|^bowl .*cru|poke|froid/;
+  function styleRecette(rec) {
+    const n = norm(rec.nom || '');
+    if (rec.modele === 'salade' || NOM_FROID.test(n)) return 'frais';
+    if (['veloute', 'mijote', 'gratin', 'curry'].includes(rec.modele) || NOM_CHAUD.test(n)) return 'chaud';
+    return '';
+  }
+  /** Saison de cuisine du mois : 'froide' (octobre à mars), 'chaude' (juin à août), sinon 'douce'. */
+  const saisonCuisine = (mois = moisCourant()) => ([10, 11, 12, 1, 2, 3].includes(mois) ? 'froide' : [6, 7, 8].includes(mois) ? 'chaude' : 'douce');
+  function bonusStyleSaison(rec) {
+    const st = styleRecette(rec), sc = saisonCuisine();
+    if (sc === 'froide') return st === 'chaud' ? 2.2 : st === 'frais' ? -3 : 0;
+    if (sc === 'chaude') return st === 'frais' ? 2.2 : st === 'chaud' ? (rec.modele === 'veloute' || /soupe|potee|mijot|pot-au-feu|choucroute|cassoulet|raclette|tartiflette/.test(norm(rec.nom)) ? -3 : -1) : 0;
+    return 0;
+  }
   const bonusSaison = (rec) => { const s = saisonRecette(rec); return Math.min(1.6, s.dans.length * 0.8) - s.hors.length * 1.6; };
   /** Les idées de saison gardées par l'utilisateur entrent dans les menus proposés. */
   function saisonActives(ids) {
@@ -579,7 +596,7 @@
   function score(rec, p, ctx, r) {
     let s = r() * 3;
     s += bonusCoach(rec, p) * 1.6;
-    s += bonusSaison(rec);
+    s += bonusSaison(rec) + bonusStyleSaison(rec);
     if (p.cuisines.includes(rec.cuisine)) s += 1.5;
     if (p.foyer.enfants.length && p.enfantsMode === 'simple' && rec.tags.includes('enfants')) s += 2;
     if ((p.objectifs.includes('muscle') || p.seancesSport >= 2) && rec.tags.includes('proteines')) s += 2;
@@ -798,6 +815,16 @@
     if (!actuel) return [];
     const n = opts.n || 2;
     const ctx = contexteDepuisPlan(plan, opts.notes, { jour, slot }, opts.classiques);
+    const FILTRES = {
+      saison: (x) => { const z = saisonRecette(x); return !z.hors.length && (z.dans.length > 0 || bonusStyleSaison(x) > 0); },
+      rapide: (x) => x.temps <= 20,
+      pascher: (x) => coutPortion(x) <= 1.2,
+      leger: (x) => { const N = NUTRI(); const v = N && N.de(x, ING); return v ? v.kcal <= 520 : (x.tags || []).includes('leger'); },
+      vege: (x) => !contientViande(x) && !x.ing.some(([id]) => (ING[id].tags || []).includes('poisson')),
+      favoris: (x) => (opts.classiques || []).includes(x.id),
+      chaud: (x) => styleRecette(x) === 'chaud'
+    };
+    const filtre = FILTRES[opts.filtre];
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
     const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
     // « encore d'autres idées » : on écarte les plats déjà montrés, leurs variantes (même plat, autre féculent),
@@ -808,6 +835,12 @@
     const modelesDeja = compte((x) => (x.modele !== 'maison' ? x.modele : null)), protDeja = compte((x) => x.prot);
     const legDeja = compte((x) => (x.ing.find(([id]) => ING[id] && ING[id].groupe === 'L' && !['oignon', 'ail', 'citron', 'persil'].includes(id)) || [])[0]);
     let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    if (filtre) {
+      // un filtre (rapide, petit prix, végétarien…) cherche dans tous les plats compatibles, pas seulement les mieux classés
+      liste = recettesCompatibles(p).filter((x) => x.repas.includes(slot) && x.id !== actuel.recette && !memeJour.includes(x.id) && !(opts.exclure || []).includes(x.id) && !contientDeteste(x, p.gouts) && filtre(x));
+      const deSaison = liste.filter((x) => !saisonRecette(x).hors.length);
+      if (deSaison.length >= n) liste = deSaison;
+    }
     const neuves = liste.filter((x) => !sigsDeja.has(x.sig || x.id));
     if (neuves.length >= n) liste = neuves;
     const r = rng((plan.seed * 17 + jour * 13 + (slot === 'diner' ? 5 : 2) + (opts.tour || 0) * 977) >>> 0);
@@ -964,6 +997,9 @@
     if (rec.perso) raisons.push('Dans votre bibliothèque');
     if (classiques.includes(rec.id)) raisons.push('⭐ Un de vos favoris');
     const sa = saisonRecette(rec);
+    const sCuis = saisonCuisine(), sStyle = styleRecette(rec);
+    if (sCuis === 'froide' && sStyle === 'chaud') raisons.push('Un plat chaud de saison');
+    else if (sCuis === 'chaude' && sStyle === 'frais') raisons.push('Frais, pour l’été');
     if (sa.dans.length && !sa.hors.length) raisons.push(`De saison : ${sa.dans.slice(0, 2).map((id) => ING[id].nom.replace(/\s*\([^)]*\)$/, '').toLowerCase()).join(', ')}`);
     const note = (opts.notes || {})[rec.id];
     if (note >= 4) raisons.push(`Vous l’avez noté ${note} ★`);
@@ -1406,7 +1442,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    saisonRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };
