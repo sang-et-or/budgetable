@@ -73,3 +73,14 @@ TOTAL A PAYER                            9,08`);
   assert.ok(l['LENTILLES VERTES 500G'] && l['LENTILLES VERTES 500G'].prix === 1.49, Object.keys(l).join(' | '));
   assert.equal(r.total, 9.08);
 });
+
+test('lecture réelle d’une photo (texte rendu par le lecteur)', () => {
+  const lu = 'LIDL\nLid! France SNC\n\nCOQUILLETTES 5006        0,59 A\nLAIT DEMT ECRÈME 1L       1,90 À\n2 x 0,95\nBANANES                       A\n1,234 kg x 1,49 EUR/kg 1,84\nOEUFS PLEIN AIR X6        1,99 À\nFILETS POULET 450G       4,79 A\nTOMATES CONCASSEES 460G 0,65 À\nEMMENTAL RAPE 200G        1,89 À\nLESSIVE LIQUIDE          5,99 B\nTOTAL                   19,63\ncB                      19,63\n\n24/10/2026 18:42\n';
+  const r = T.analyser(lu);
+  assert.equal(r.lignes.length, 8, r.lignes.map((l) => l.libelle + '=' + l.prix).join(' | '));
+  const somme = Math.round(r.lignes.reduce((s, l) => s + l.prix, 0) * 100) / 100;
+  assert.ok(Math.abs(somme - r.total) < 0.02, somme + ' / ' + r.total);
+  assert.ok(r.lignes.find((l) => /COQUILLETTES 500G/.test(l.libelle)));
+  const lait = r.lignes.find((l) => /LAIT/.test(l.libelle)); assert.equal(lait.prix, 1.9); assert.equal(lait.qte, 2);
+  assert.ok(r.lignes.find((l) => /OEUFS PLEIN AIR X6/.test(l.libelle)));
+});

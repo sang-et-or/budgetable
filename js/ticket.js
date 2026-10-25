@@ -54,6 +54,10 @@
   const enChiffres = (t) => t.replace(/[OoQDe@SslIiBZz]/g, (c) => CHIFFRE[c]);
   function corrigerLecture(texte) {
     return String(texte || '').split(/\r?\n/).map((l) => l
+      // code TVA en fin de ligne lu avec un accent (« À », « Â ») ou en minuscule
+      .replace(/\s[àáâä](\s*)$/i, ' A$1').replace(/\s[éèê](\s*)$/i, ' B$1')
+      // « 5006 » pour « 500G » : un G lu comme un 6 après un poids rond
+      .replace(/\b([1-9]\d?0)6\b(?!\s*[x×*])/g, '$1G')
       // prix en fin de ligne : « e,89 » → « 0,89 », « 1,S9 » → « 1,59 »
       .replace(/(^|\s)([0-9OoQDe@SslIiBZz]{1,4})\s?[,.]\s?([0-9OoQDe@SslIiBZz]{2})(\s*(?:€|eur|[A-D*])?\s*)$/i, (m, a, e, d, f) => (/\d/.test(e + d) ? `${a}${enChiffres(e)},${enChiffres(d)}${f}` : m))
       // poids et volumes : « 5O0G » → « 500G »
