@@ -18,6 +18,7 @@
     notes: {},
     coches: {},
     premium: false,
+    essaiDebut: null,        // premier jour d'utilisation (essai gratuit tant qu'on n'a pas de compte)
     compteLocal: false,
     sensibleNonEnregistre: false,
     ceSoirOuvert: false,
@@ -100,7 +101,7 @@
       delete p.programme;
       delete p.sport;
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2 };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -144,7 +145,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2 });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
@@ -637,6 +638,7 @@
       compte.sync = { t: Date.now(), ok: true };
     } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
     rendre();
+    chargerAbonnement(true);
     if (compte.conflit) setTimeout(() => { const z = document.querySelector('[aria-label="Choisir les données à garder"]'); if (z && z.scrollIntoView) z.scrollIntoView({ block: 'start' }); }, 50);
   }
   function blocConflit() {
@@ -733,6 +735,73 @@
     compte.charge = true; rendreCompte();
     try { await C.lienMagique(email); compte = { ...compte, vue: 'envoye', msg: `Un lien de connexion vient de partir à ${email}.` }; } catch (e) { compte.erreur = e.message; }
     compte.charge = false; rendreCompte();
+  }
+  /* ---------- abonnement : 7 jours d'essai gratuit, puis 2,99 € par mois (paiement Stripe, géré par le serveur) ---------- */
+  let abo = { etat: null, charge: false, erreur: '', ouvert: false, attente: false };
+  const PRIX_ABO = '2,99 €';
+  async function chargerAbonnement(force) {
+    if (abo.charge && !force) return;
+    abo.charge = true;
+    try {
+      let jeton = null;
+      if (C.connecte() && C.jetonValide) jeton = await C.jetonValide();
+      const rep = await fetch(`${LECTEUR}/abonnement/etat`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ jeton }), signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined });
+      const j = await rep.json().catch(() => ({}));
+      if (rep.ok) abo.etat = { ...j, t: Date.now() };
+      else if (rep.status === 401) abo.etat = { disponible: true, sansCompte: true, t: Date.now() };   // paiement ouvert, mais pas (ou plus) connecté
+    } catch (e) { /* hors ligne : on garde l'état précédent */ }
+    abo.charge = false;
+    rendre();
+  }
+  const JOUR = 86400000;
+  /** Où en est-on ? libre (paiement pas encore ouvert), essai (jours restants), abonne, expire. */
+  function droitsAbo() {
+    const e = abo.etat;
+    if (!e || e.disponible === false) return { mode: 'libre' };
+    if (e.abonne) return { mode: 'abonne', fin: e.finPeriode, resiliation: e.resiliation };
+    const finEssai = !e.sansCompte && e.finEssai ? Date.parse(e.finEssai) : (S.essaiDebut ? Date.parse(S.essaiDebut + 'T00:00:00') : Date.now()) + 7 * JOUR;
+    const reste = Math.ceil((finEssai - Date.now()) / JOUR);
+    return reste > 0 ? { mode: 'essai', reste } : { mode: 'expire' };
+  }
+  // ce qui demande l'abonnement une fois l'essai terminé (la semaine en cours, la liste, le placard et les recettes restent consultables)
+  const ACTIONS_ABONNES = new Set(['commencer', 'nouvelle', 'refaire-plats', 'choix', 'plat-editer', 'complement-ouvrir', 'ticket-ouvrir', 'gourmand-ajouter', 'jaica-ouvrir', 'coach-envoyer', 'chef-envoyer', 'ed-nouveau', 'ed-nouveau-g', 'deplacer-ouvrir', 'test-go']);
+  function etiquetteAbo() {
+    const d = droitsAbo();
+    return d.mode === 'abonne' ? '<span class="tag tag-ok">Abonné</span>' : d.mode === 'essai' ? `<button class="tag tag-simu btn-tag" data-a="abo-ouvrir">Essai gratuit · ${pluriel(d.reste, 'jour')}</button>` : d.mode === 'expire' ? '<button class="tag tag-alerte btn-tag" data-a="abo-ouvrir">Essai terminé</button>' : '';
+  }
+  function bandeauAbo() {
+    const d = droitsAbo();
+    if (d.mode === 'essai' && d.reste <= 3) return `<div class="bandeau bandeau-info small bandeau-abo"><span>🎁 Plus que ${pluriel(d.reste, 'jour')} d’essai gratuit. Ensuite, ${PRIX_ABO} par mois, sans engagement.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">Voir l’abonnement</button></div>`;
+    if (d.mode === 'expire') return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>Votre semaine d’essai est terminée. Vos menus, votre liste et votre placard restent là ; pour préparer de nouvelles semaines : ${PRIX_ABO} par mois.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">M’abonner</button></div>`;
+    return '';
+  }
+  function blocAbonnement() {
+    const d = droitsAbo(), e = abo.etat || {};
+    const avantages = '<ul class="small"><li>Menus de la semaine selon vos goûts, la saison et votre budget</li><li>Liste de courses, placard, tickets de caisse et comparaison des magasins</li><li>Coach menus, coach minceur et coach sportif</li><li>Entrées, desserts, petits-déjeuners et vos propres recettes</li><li>Vos données sauvegardées dans votre compte</li></ul>';
+    let corps;
+    if (d.mode === 'libre') corps = `<p class="small">Budgétable est en accès libre pendant son lancement. L’abonnement (${PRIX_ABO} par mois après 7 jours d’essai gratuit) ouvrira bientôt.</p>`;
+    else if (d.mode === 'abonne') corps = `<p><strong>✓ Vous êtes abonné(e)</strong> · ${PRIX_ABO} par mois.</p><p class="small muted">${e.statut === 'trialing' ? `Essai gratuit en cours : premier prélèvement le ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.` : d.resiliation ? `Résiliation demandée : accès jusqu’au ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.` : `Prochain renouvellement le ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.`}</p>
+      <div><button class="btn btn-petit" data-a="abo-gerer" ${abo.attente ? 'disabled' : ''}>Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
+    else corps = `<p>${d.mode === 'essai' ? `🎁 <strong>Essai gratuit</strong> : encore ${pluriel(d.reste, 'jour')}, sans carte bancaire.` : '<strong>Votre essai gratuit est terminé.</strong>'}</p>
+      <div class="offre active"><span class="prix-offre num">${PRIX_ABO}<span class="small muted" style="font:500 .9rem var(--f-texte)"> / mois</span></span>${avantages}<span class="small muted">Sans engagement : résiliable à tout moment en deux clics. Paiement sécurisé par Stripe (carte, Apple Pay, Google Pay).${d.mode === 'essai' ? ' En vous abonnant maintenant, les jours d’essai restants sont offerts : aucun prélèvement avant la fin de l’essai.' : ''}</span></div>
+      ${C.connecte() ? `<div><button class="btn btn-plein btn-grand" data-a="abo-payer" ${abo.attente ? 'disabled' : ''}>${abo.attente ? 'Ouverture du paiement…' : `M’abonner — ${PRIX_ABO} par mois`}</button></div>` : '<p class="small">Pour vous abonner, créez d’abord votre compte gratuit : l’abonnement vous suit sur tous vos appareils.</p><div class="row" style="gap:8px"><button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">Se connecter</button></div>'}`;
+    return `<section class="stack bloc-abonnement" style="gap:10px"><div class="spread"><h2>Mon abonnement</h2>${etiquetteAbo()}</div>${abo.erreur ? `<p class="bandeau bandeau-alerte small" role="alert">${esc(abo.erreur)}</p>` : ''}${corps}</section>`;
+  }
+  function vueAbonnement() {
+    if (!abo.ouvert) return '';
+    return `<div class="voile" data-a="abo-fermer"><div class="fiche fenetre-abo" role="dialog" aria-modal="true" aria-label="Abonnement"><div class="spread"><span class="eyebrow">Budgétable</span><button class="btn btn-petit" data-a="abo-fermer-btn">Fermer</button></div>${blocAbonnement()}</div></div>`;
+  }
+  async function ouvrirPaiement(gerer) {
+    abo.erreur = ''; abo.attente = true; rendre();
+    try {
+      const jeton = C.jetonValide ? await C.jetonValide() : null;
+      if (!jeton) throw new Error('Session expirée : reconnectez-vous.');
+      const rep = await fetch(`${LECTEUR}/abonnement/${gerer ? 'gerer' : 'payer'}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ jeton }), signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined });
+      const j = await rep.json().catch(() => ({}));
+      if (!rep.ok || !j.url || !/^https:\/\/(checkout|billing)\.stripe\.com\//.test(j.url)) throw new Error(j.erreur || 'Paiement indisponible pour le moment.');
+      sauver();
+      location.href = j.url;   // page sécurisée de Stripe
+    } catch (e) { abo.erreur = e.message; abo.attente = false; rendre(); }
   }
   /* ---------- sauvegarde : toutes les données dans un fichier, à garder ou à ouvrir sur un autre téléphone ---------- */
   let restaurationEnAttente = null;   // données lues dans un fichier, en attente de confirmation (jamais enregistrées telles quelles)
@@ -909,7 +978,7 @@
       </section>
       <section class="stack" style="gap:10px"><div class="titre-section"><p class="eyebrow">Questions fréquentes</p><h2>Bon à savoir</h2></div>
         <div class="faq">
-          <details><summary>Est-ce vraiment gratuit ?</summary><p>Oui : menus, recettes, liste de courses, placard et suivi sont gratuits. Une formule Premium pourra s’ajouter plus tard pour des options en plus.</p></details>
+          <details><summary>Combien ça coûte ?</summary><p>La première semaine est gratuite, sans carte bancaire. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement : vous pouvez résilier à tout moment depuis votre profil. Si vous ne vous abonnez pas, vos menus, votre liste et votre placard restent consultables.</p></details>
           <details><summary>Faut-il créer un compte ?</summary><p>Non. Le compte sert seulement à retrouver vos données sur plusieurs appareils. Sans compte, tout reste sur votre appareil.</p></details>
           <details><summary>Les prix sont-ils ceux de mon magasin ?</summary><p>Ce sont des prix moyens estimés, pour comparer et tenir un budget. Les promotions du moment viennent des enseignes et sont à vérifier en magasin.</p></details>
           <details><summary>Et mes allergies ?</summary><p>Budgétable ne propose jamais un plat qui contient un aliment que vous avez signalé. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
@@ -931,7 +1000,7 @@
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, sport: ongletSport, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
-      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${S.premium ? '<span class="tag tag-ok">Premium (test)</span>' : '<span class="tag tag-simu">Formule Découverte</span>'}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
+      <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${etiquetteAbo()}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
   }
 
@@ -1167,7 +1236,7 @@
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
     ].concat(C.connecte() ? [] : [['sauvegarde', '💾', 'Sauvegarde', resumeSauvegarde(), blocSauvegarde]]);
     const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
-    return `${bandeauSensible()}
+    return `${bandeauSensible()}${bandeauAbo()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${bandeauCoachs()}
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
@@ -1189,7 +1258,7 @@
     if (mqMobile.matches) return semaineMobile();
     const t = aujourdhui();
     const restants = 'Changez vos plats autant que vous voulez';
-    return `${bandeauSensible()}
+    return `${bandeauSensible()}${bandeauAbo()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       ${boutonDemarrer()}${carteMinceurSemaine()}
       ${bandeauRefaire()}
@@ -3113,14 +3182,7 @@
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
       ${window.Photos ? `<details class="carte"><summary><strong>Crédits photos</strong> <span class="small muted">· photos d’illustration sous licence libre, via Wikimedia Commons</span></summary>
         <ul class="credits">${window.Photos.credits().map((ph) => `<li><a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(decodeURIComponent(ph.page.split('File:')[1]).replace(/_/g, ' '))}</a> — ${esc(ph.auteur)} — ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}</li>`).join('')}</ul></details>` : ''}
-      <section class="stack"><div class="spread"><h2>Formules</h2><span class="tag tag-simu">Aucun paiement</span></div>
-        <div class="offres">
-          <div class="offre ${S.premium ? '' : 'active'}"><span class="eyebrow">Découverte</span><span class="prix-offre">Gratuit</span>
-            <ul><li>Menus de la semaine, changements illimités</li><li>Mes recettes : vos liens Marmiton et recettes de famille</li><li>Liste de courses, budget estimé, courses guidées sur le drive</li></ul></div>
-          <div class="offre ${S.premium ? 'active' : ''}"><span class="eyebrow">Premium</span><span class="prix-offre num">4,99 €<span class="small muted" style="font:500 .9rem var(--f-texte)"> / mois (indicatif)</span></span>
-            <ul><li>Plusieurs semaines à l’avance</li><li>Ajustement automatique au budget</li><li>Comparaison des drives, dès que les vrais prix seront disponibles</li></ul>
-            <label class="case"><input type="checkbox" id="premium-test" data-a="premium" ${S.premium ? 'checked' : ''}><span>Activer Premium en mode test (aucun paiement : Stripe sera branché plus tard)</span></label></div>
-        </div></section>
+      ${blocAbonnement()}
       ${blocConflit()}${blocCompte()}${blocSauvegarde()}
       <section class="stack"><h2>L’application</h2>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
@@ -4445,7 +4507,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -4551,6 +4613,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
+    // essai terminé sans abonnement : les nouvelles fonctions ouvrent la page d'abonnement
+    if (ACTIONS_ABONNES.has(a) && droitsAbo().mode === 'expire') { abo.ouvert = true; abo.erreur = ''; rendre(); return; }
     if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond' || a === 'deplacer-fond' || a === 'ticket-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
@@ -4948,7 +5012,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'compte-reprendre': S.vue = S.plan ? 'app' : 'questionnaire'; if (!S.plan) S.etape = 0; break;
       case 'compte-sync': compte.sync = null; rendre(); synchroniserConnexion(); return;
       case 'compte-vue-mdp': compte = { ...compte, vue: 'nouveau-mdp', msg: '', erreur: '' }; break;
-      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); toast('Déconnecté : vos données restent sur cet appareil'); break;
+      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); toast('Déconnecté : vos données restent sur cet appareil'); chargerAbonnement(true); break;
       case 'compte-supprimer': S.confirmerSupprCompte = true; break;
       case 'compte-supprimer-non': S.confirmerSupprCompte = false; break;
       case 'compte-supprimer-ok': try { await C.supprimerCompte(); S.confirmerSupprCompte = false; toast('Compte supprimé'); } catch (e) { toast(e.message); } break;
@@ -5380,7 +5444,11 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'courses-fermer': case 'courses-fond': S.modeCourses.ouvert = false; break;
       case 'courses-zero': aAcheter(E.listeCourses(S.plan, p)).forEach((x) => { S.coches[x.id] = false; }); S.modeCourses = { absents: {}, prix: {}, ouvert: true, i: 0 }; break;
-      case 'premium': S.premium = el.checked; toast(el.checked ? 'Premium activé en mode test, sans paiement' : 'Retour à la formule Découverte'); break;
+      case 'abo-ouvrir': abo.ouvert = true; abo.erreur = ''; chargerAbonnement(true); break;
+      case 'abo-fermer': if (ev.target !== el) return; abo.ouvert = false; break;
+      case 'abo-fermer-btn': abo.ouvert = false; break;
+      case 'abo-payer': ouvrirPaiement(false); return;
+      case 'abo-gerer': ouvrirPaiement(true); return;
       case 'supprimer': S.confirmerSuppression = true; break;
       case 'suppr-non': S.confirmerSuppression = false; break;
       case 'suppr-oui':
@@ -5760,6 +5828,16 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     } catch (e) { /* on garde la semaine telle quelle */ }
   }
   detecterIA();
+  // essai gratuit : à partir du premier jour d'utilisation (puis de la création du compte, tenue par le serveur)
+  if (!S.essaiDebut) { S.essaiDebut = ISO(new Date()); sauver(); }
+  (() => {
+    const q = new URLSearchParams(location.search), r = q.get('abonnement');
+    if (!r) return;
+    history.replaceState(null, '', location.pathname + location.hash);
+    if (r === 'merci') { setTimeout(() => toast('Merci ! Votre abonnement est activé'), 800); S.onglet = 'profil'; }
+    else if (r === 'annule') setTimeout(() => toast('Paiement annulé : rien n’a été prélevé'), 800);
+  })();
+  chargerAbonnement(true);
   if (S.vue === 'app' && !S.plan) S.vue = 'accueil';
   rendre();
   if ('serviceWorker' in navigator && !DANS_UN_CADRE && (location.protocol === 'https:' || location.hostname === 'localhost')) {

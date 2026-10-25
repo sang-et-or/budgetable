@@ -14,6 +14,7 @@ with sync_playwright() as p:
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click(); page.wait_for_timeout(300)
+    page.locator("main [data-a=jour-mobile]").nth(1).click(); page.wait_for_timeout(300)   # demain : ce soir peut déjà être passé
     L = lambda: page.evaluate("(() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); return window.Engine.listeCourses(d.plan, d.profil).articles.map(a => a.id); })()")
     avant = set(L())
     # + Entrée sur le premier repas visible

@@ -16,6 +16,7 @@ const net = require('net');
 const { extraireRecette } = require('./extraire.js');
 const { promosDuMoment } = require('./promos.js');
 const { lireTicketAgent } = require('./ticket-agent.js');
+const Abonnement = require('./abonnement.js');
 
 const PORT = process.env.PORT || 10000;
 // intelligence artificielle de Budgétable (commis de cuisine, goûts, photo du placard) : hébergée ici,
@@ -290,6 +291,21 @@ const serveur = http.createServer(async (req, res) => {
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
       return repondre(res, code, { erreur: e.code ? e.message : 'Lecture du ticket impossible pour le moment' }, origine);
+    }
+  }
+  // abonnement : état, page de paiement, espace client (le jeton de session voyage dans le corps : pas de pré-requête CORS)
+  if (u.pathname === '/abonnement/etat' || u.pathname === '/abonnement/payer' || u.pathname === '/abonnement/gerer') {
+    if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
+    if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes' }, origine);
+    try {
+      const o = JSON.parse(await lireCorps(req, 16 * 1024) || '{}');
+      const f = u.pathname === '/abonnement/etat' ? Abonnement.etat : u.pathname === '/abonnement/payer' ? Abonnement.paiement : Abonnement.portail;
+      return repondre(res, 200, await f(o.jeton), origine);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : 502;
+      return repondre(res, code, { erreur: e.code ? e.message : 'Paiement indisponible pour le moment' }, origine);
     }
   }
   if (u.pathname === '/sante' || u.pathname === '/') return repondre(res, 200, { ok: true }, origine);

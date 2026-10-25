@@ -101,5 +101,5 @@
     garder(null);
   }
 
-  root.Compte = { actif, connecte: () => !!session, utilisateur: () => (session && session.user) || null, inscrire, connecter, lienMagique, motDePasseOublie, changerMotDePasse, deconnecter, lireRetour, moi, lireDonnees, ecrireDonnees, supprimerCompte, traduire };
+  root.Compte = { jetonValide, actif, connecte: () => !!session, utilisateur: () => (session && session.user) || null, inscrire, connecter, lienMagique, motDePasseOublie, changerMotDePasse, deconnecter, lireRetour, moi, lireDonnees, ecrireDonnees, supprimerCompte, traduire };
 })(typeof window !== 'undefined' ? window : globalThis);

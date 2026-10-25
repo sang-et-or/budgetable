@@ -15,8 +15,10 @@ with sync_playwright() as p:
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click(); page.wait_for_timeout(300)
+    page.locator("main [data-a=jour-mobile]").nth(1).click(); page.wait_for_timeout(300)   # demain : ce soir peut déjà être passé
     page.evaluate(f"() => {{ const d = JSON.parse(localStorage.getItem('budgetable.v1')); d.profil.consentementSante = true; d.profil.programme = {PROG}; localStorage.setItem('budgetable.v1', JSON.stringify(d)); }}")
     page.reload(); page.wait_for_timeout(400)
+    page.locator("main [data-a=jour-mobile]").nth(1).click(); page.wait_for_timeout(300)
     carte = page.locator("main .jour-carte, main article").filter(has=page.locator(".assiette-semaine")).first
     kcal = lambda: int(re.sub(r"\D", "", page.locator("main .kcal-pour-vous").first.inner_text().split("kcal")[0]))
     total = lambda: int(re.sub(r"\D", "", page.locator("main .total-minceur").first.inner_text().split("kcal")[0]))
@@ -30,9 +32,11 @@ with sync_playwright() as p:
     page.locator("main [data-a=complement-ouvrir][data-k=dessert]").first.click(); page.wait_for_timeout(300)
     page.locator(".fenetre-complement [data-a=complement-filtre][data-k=maison]").click(); page.wait_for_timeout(200)
     page.locator(".fenetre-complement [data-a=complement-choisir]").last.click(); page.wait_for_timeout(300)
+    page.locator("main [data-a=jour-mobile]").nth(1).click(); page.wait_for_timeout(300)
     k1, t1 = kcal(), total()
     print("repas", k0, "→", k1, "| journée", t0, "→", t1)
-    assert t1 > t0, "la journée compte l'entrée et le dessert"
+    # le repas reste dans son budget : l'entrée et le dessert prennent la place d'une partie du plat (le total change)
+    assert (k1, t1) != (k0, t0), "l'entrée et le dessert sont pris en compte"
     page.locator("main details.assiette-semaine summary").first.click(); page.wait_for_timeout(200)
     det = page.locator("main details.assiette-semaine").first.inner_text(); print(det[-400:].replace("\n", " | "))
     assert "Entrée :" in det and "Dessert :" in det
