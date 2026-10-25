@@ -15,7 +15,7 @@
   const prixNum = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.'));
   // lignes qui ne sont pas des articles
   const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|n[°o]\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|lot \d|\bqte\b|\bpu\b|prix unit|eur\/kg$|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
-  const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
+  const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\d?\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
   const RE_QTE = /^\s*(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})/i;
   const RE_POIDS_PRIX = /(\d+[,.]\d{1,3})\s*kg\s*[x×*]\s*(\d+[,.]\d{2})/i;
   const RE_POIDS = /(\d+(?:[,.]\d+)?)\s*(kg|g|gr|l|cl|ml)\b/i;
@@ -57,6 +57,10 @@
   const enChiffres = (t) => t.replace(/[OoQDe@SslIiBZz]/g, (c) => CHIFFRE[c]);
   function corrigerLecture(texte) {
     return String(texte || '').split(/\r?\n/).map((l) => l
+      // « 5,   49 » : espaces après la virgule
+      .replace(/(\d)\s*([,.])\s+(\d{2})(?!\d)/g, '$1$2$3')
+      // « BEURRE  115A » : virgule perdue sur le prix en fin de ligne d'article
+      .replace(/^(.*[a-z].*\s)(\d{1,2})(\d{2})(\s*(?:€|eur)?\s*[A-D*]?\s*)$/i, (m, a, e, d, f) => (/\d[,.]\d{2}/.test(a) || /\b(caisse|tel|n°|siret|ticket|magasin)\b/i.test(a) || /\d\s*$/.test(a.trim()) && !/[a-z]\s*$/i.test(a.trim()) ? m : `${a}${e},${d}${f}`))
       // code TVA en fin de ligne lu avec un accent (« À », « Â ») ou en minuscule
       .replace(/\s[àáâä](\s*)$/i, ' A$1').replace(/\s[éèê](\s*)$/i, ' B$1')
       // « 5006 » pour « 500G » : un G lu comme un 6 après un poids rond
@@ -101,26 +105,100 @@
     }).sort((x, y) => y.note - x.note);
     return notes[0] || null;
   }
+  // chiffres que la lecture confond le plus souvent (zéro barré ou pointé des tickets, 1 et 7…)
+  const CONFUS = { 0: '689', 1: '74', 2: '7', 3: '89', 4: '1', 5: '683', 6: '085', 7: '12', 8: '06359', 9: '08' };
+  /** Montants voisins d'un prix mal lu : un seul chiffre changé. */
+  function variantes(v) {
+    const s = Math.abs(v).toFixed(2), res = new Set();
+    for (let i = 0; i < s.length; i++) { const c = s[i]; if (!CONFUS[c]) continue; for (const r of CONFUS[c]) { const x = Number(s.slice(0, i) + r + s.slice(i + 1)); if (x > 0) res.add(Math.round(x * 100) / 100); } }
+    return [...res];
+  }
+  const r2 = (x) => Math.round(x * 100) / 100;
+  /**
+   * Corrige les chiffres mal lus par le calcul :
+   * - quantité × prix unitaire = montant de la ligne ; poids × prix au kilo = montant ;
+   * - si la somme des lignes ne tombe pas sur le total, et qu'UN seul chiffre changé sur UNE seule ligne la fait tomber pile, on le corrige.
+   */
+  function reconcilier(lignes, total) {
+    for (const l of lignes) {
+      if (!(l.prixUnitaire > 0)) continue;
+      const attendu = l.auKilo && l.poids ? r2(l.poids.q / 1000 * l.prixUnitaire) : l.qte > 1 ? r2(l.qte * l.prixUnitaire) : null;
+      if (attendu == null || Math.abs(attendu - l.prix) < 0.015) continue;
+      if (variantes(l.prix).some((x) => Math.abs(x - attendu) < 0.015)) { l.prix = attendu; l.corrige = true; continue; }
+      if (!l.auKilo) { const pu = variantes(l.prixUnitaire).find((x) => Math.abs(r2(x * l.qte) - l.prix) < 0.015); if (pu) { l.prixUnitaire = pu; l.corrige = true; continue; } }
+      if (!(l.prix > 0)) { l.prix = attendu; l.corrige = true; }
+    }
+    if (total == null || !lignes.length) return;
+    const ecart = r2(lignes.reduce((x, l) => x + l.prix, 0) - total);
+    if (Math.abs(ecart) < 0.005) return;
+    const cand = [];
+    lignes.forEach((l, i) => { for (const x of variantes(l.prix)) if (Math.abs(r2(l.prix - x) - ecart) < 0.005) cand.push([i, x]); });
+    const uniques = [...new Set(cand.map(([i, x]) => i + ':' + x))];
+    const appliquer = (i, x) => { lignes[i].prix = x; lignes[i].corrige = true; if (lignes[i].qte > 1 && !lignes[i].auKilo) lignes[i].prixUnitaire = r2(x / lignes[i].qte); };
+    if (uniques.length === 1) { appliquer(cand[0][0], cand[0][1]); return; }
+    if (uniques.length) return;
+    // deux prix mal lus : seulement le chiffre des euros (0 ↔ 6 ↔ 8 ↔ 9, le cas le plus fréquent), et une seule solution possible
+    const euros = (p) => { const e = Math.floor(p + 1e-9), c = r2(p - e); return (CONFUS[e] || '').split('').map((d) => r2(+d + c)).filter((x) => x > 0); };
+    const sols = [];
+    for (let i = 0; i < lignes.length; i++) for (const xi of euros(lignes[i].prix)) for (let j = i + 1; j < lignes.length; j++) for (const xj of euros(lignes[j].prix)) if (Math.abs(r2(lignes[i].prix - xi + lignes[j].prix - xj) - ecart) < 0.005) sols.push([i, xi, j, xj]);
+    if (sols.length === 1) { const [i, xi, j, xj] = sols[0]; appliquer(i, xi); appliquer(j, xj); }
+  }
   /** Texte d'un ticket (ou d'un récapitulatif de drive) → { enseigne, date, total, lignes: [{ libelle, prix, qte, prixUnitaire, poids }] } */
   function analyser(texte) {
     texte = corrigerLecture(texte);
     const lignesBrutes = String(texte || '').split(/\r?\n/).map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean);
     const lignes = [];
-    let total = null;
+    let total = null, sousTotal = null, paiement = null;
     let attente = null; // « 2 x 1,15 » sur la ligne suivant le libellé (ou le précédant)
+    // ligne suivante réduite à un montant (lecture en colonnes : le prix est passé à la ligne)
+    const prixSeulSuivant = (k) => { const b = lignesBrutes[k + 1]; if (!b) return null; const mm = RE_PRIX.exec(b); return mm && norm(b).replace(/eur|[^a-z]/g, '').length < 2 ? prixNum(mm[1]) : null; };
+    let apresTotal = false;
     for (let k = 0; k < lignesBrutes.length; k++) {
       const brut = lignesBrutes[k], n = norm(brut).replace(/\s+/g, ' ');
-      if (/t[o0][t7y][a@4]l|net a payer|a payer|montant du|a regler/.test(n)) { const m = RE_PRIX.exec(brut); if (m && !/sous.?total|tva/.test(n)) total = prixNum(m[1]); continue; }
+      // après le total à payer, plus aucun article (paiement, TVA, fidélité…)
+      if (apresTotal) { if (/^\s*(cb|carte|paiement|esp[eè]ces)\b/.test(n)) { const m = RE_PRIX.exec(brut); if (m && paiement == null) paiement = prixNum(m[1]); } continue; }
+      if (/t[o0][t7y][a@4]l|net a payer|a payer|montant du|a regler/.test(n)) {
+        const m = RE_PRIX.exec(brut);
+        if (/sous\s*-?\s*t[o0]t/.test(n)) { if (m) sousTotal = prixNum(m[1]); continue; }
+        if (/tva/.test(n)) continue;
+        if (m) total = prixNum(m[1]);
+        else if (total == null) {
+          const ps = prixSeulSuivant(k); if (ps != null) total = ps; // « TOTAL A PAYER      EUR » : le montant est sur une des lignes suivantes
+          for (let j = k + 1; j < Math.min(lignesBrutes.length, k + 4); j++) {
+            const mj = RE_PRIX.exec(lignesBrutes[j]);
+            const reste = norm(lignesBrutes[j]).replace(/cb|carte|bancaire|sans|contact|eur|euros?|especes|paiement|[^a-z]/g, '');
+            if (total != null) break;
+            if (mj && reste.length < 3) { total = prixNum(mj[1]); break; }
+          }
+        }
+        if (total != null && lignes.length >= 3) apresTotal = true;
+        continue;
+      }
+      if (/^\s*(cb|carte|paiement|esp[eè]ces)\b/.test(n)) { const m = RE_PRIX.exec(brut); if (m && paiement == null) paiement = prixNum(m[1]); continue; }
       const pp = RE_POIDS_PRIX.exec(brut);
       const q = RE_QTE.exec(brut) || /\s(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})(?!\d)/i.exec(brut);
       const m = RE_PRIX.exec(brut);
-      if (/remise|reduction|r[eé]duc|promo|coupon|bon de r/.test(n) && m && lignes.length) { const v = Math.abs(prixNum(m[1])); const der = lignes[lignes.length - 1]; der.prix = Math.max(0, Math.round((der.prix - v) * 100) / 100); der.remise = (der.remise || 0) + v; continue; }
+      if (/remise|reduction|r[eé]duc|promo|coupon|bon de r/.test(n) && lignes.length) {
+        let mi = m || /(-?\d{1,3})\s*(?:€|eur)?\s*$/i.exec(brut);    // « REMISE  -30 » : virgule perdue → 0,30
+        let suivant = false;
+        if (!mi) { const ps = prixSeulSuivant(k); if (ps != null) { mi = [String(ps), String(ps)]; suivant = true; } }
+        if (mi) {
+          let v = m ? Math.abs(prixNum(m[1])) : suivant ? Math.abs(Number(mi[1])) : Math.abs(+mi[1]) / 100;
+          if (suivant) k++;
+          const der = lignes[lignes.length - 1];
+          if (der.prix > 0 && v >= der.prix) { const alt = variantes(v).filter((x) => x > 0 && x < der.prix).sort((a, b) => b - a)[0]; if (alt) v = alt; }
+          der.prix = Math.max(0, Math.round((der.prix - v) * 100) / 100); der.remise = Math.round(((der.remise || 0) + v) * 100) / 100;
+          continue;
+        }
+      }
       if (HORS.test(n)) continue;
       // ligne « 2 x 1,15     2,30 » sans libellé : elle complète le dernier article (ou le prochain)
       const libelleSeul = nettoyerLibelle(brut.replace(RE_QTE, '').replace(/\s\d{1,3}\s*[x×*]\s*\d{1,4}[,.]\d{2}(?!\d)/i, ' ').replace(RE_POIDS_PRIX, '').replace(/eur\/kg|€\/kg/i, ''));
       if ((q || pp) && libelleSeul.replace(/[^a-z]/gi, '').length < 3) {
         const info = pp ? { qte: 1, poids: { q: prixNum(pp[1]) * 1000, unite: 'g' }, prixUnitaire: prixNum(pp[2]), auKilo: true } : { qte: +q[1], prixUnitaire: prixNum(q[2]) };
-        const prix = m ? prixNum(m[1]) : Math.round(info.qte * info.prixUnitaire * 100) / 100;
+        let prix = m ? prixNum(m[1]) : null;
+        if (prix == null) { const ps = prixSeulSuivant(k); if (ps != null) { prix = ps; k++; } }
+        if (prix == null) prix = Math.round((info.auKilo ? info.poids.q / 1000 : info.qte) * info.prixUnitaire * 100) / 100;
         // le détail (« 2 x 0,95 » ou « 1,234 kg x 1,49 €/kg ») se rapporte à l'article juste au-dessus
         const der = lignes[lignes.length - 1];
         if (der) { Object.assign(der, info, { prix: der.attendQte || !der.prix ? prix : der.prix }); der.attendQte = false; } else attente = { ...info, prix };
@@ -150,8 +228,12 @@
     // un libellé lisible : des lettres en majorité, au moins un vrai mot (sinon c'est du bruit de lecture)
     const lisible = (t) => { const lettres = (t.match(/[a-zà-ÿ]/gi) || []).length; return lettres >= 3 && lettres / Math.max(1, t.replace(/\s/g, '').length) >= 0.5 && /[a-zà-ÿ]{3,}/i.test(t); };
     let ok = lignes.filter((l) => l.prix > 0 && l.prix <= 80 && lisible(l.libelle)).map(({ attendQte, ...l }) => ({ ...l, prixUnitaire: l.prixUnitaire || Math.round(l.prix / (l.qte || 1) * 100) / 100 }));
+    if (total == null) total = sousTotal != null ? sousTotal : paiement;
+    // total, sous-total et paiement : deux qui concordent l'emportent sur un total mal lu
+    else if (paiement != null && sousTotal != null && Math.abs(paiement - sousTotal) < 0.005 && Math.abs(total - paiement) > 0.005) total = paiement;
     // le total relu sur une autre ligne (paiement, rendu…) n'est pas un article
     if (total) ok = ok.filter((l) => !(ok.length > 2 && Math.abs(l.prix - total) < 0.011));
+    reconcilier(ok, total);
     // contrôle avec le total : si la somme dépasse nettement, les prix les plus improbables sont mis de côté (à vérifier)
     if (ok.length) {
       const tri = ok.map((l) => l.prix).sort((a, b) => a - b), med = tri[Math.floor(tri.length / 2)];
@@ -227,7 +309,7 @@
     }
     return best.score >= 3.2 ? { id: best.id, score: best.score } : { id: null, score: Math.max(0, best.score) };
   }
-  const api = { indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  const api = { variantes, reconcilier, indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2438,19 +2438,19 @@
     const t = S.ticket; t.lecture = { etat: 'encours', pct: 0, texte: 'Préparation de la photo…' }; rendre();
     try {
       const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(fichier); });
-      // un ticket est étroit et long : on vise ~1400 px de large pour que les caractères fassent 25 à 35 px de haut
-      const k = Math.max(0.5, Math.min(3, 1600 / Math.min(img.width, img.height), 4500 / Math.max(img.width, img.height)));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
-      const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
-      // niveaux de gris, puis étirement du contraste entre les 2 % les plus sombres et les 10 % les plus clairs (papier)
-      const hist = new Uint32Array(256);
-      for (let i = 0; i < px.length; i += 4) { const v = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) | 0; px[i] = v; hist[v]++; }
-      const n = px.length / 4; let acc = 0, bas = 0, haut = 255;
-      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.02) { bas = v; break; } }
-      acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.10) { haut = v; break; } }
-      const ech = 255 / Math.max(30, haut - bas);
-      for (let i = 0; i < px.length; i += 4) { const w = Math.max(0, Math.min(255, (px[i] - bas) * ech)); px[i] = px[i + 1] = px[i + 2] = w; }
+      // photo d'origine (2 600 px au plus) : c'est elle qu'on envoie à l'assistant
+      const k0 = Math.min(1, 2600 / Math.max(img.width, img.height));
+      const o = document.createElement('canvas'); o.width = Math.round(img.width * k0); o.height = Math.round(img.height * k0);
+      const go = o.getContext('2d'); go.imageSmoothingQuality = 'high'; go.drawImage(img, 0, 0, o.width, o.height);
+      // lecture sur l'appareil : ticket repéré sur la table, remis à plat (perspective, inclinaison, papier gondolé), éclairage corrigé
+      const od = go.getImageData(0, 0, o.width, o.height).data, gris = new Uint8ClampedArray(o.width * o.height);
+      for (let i = 0, j = 0; j < gris.length; i += 4, j++) gris[j] = 0.3 * od[i] + 0.59 * od[i + 1] + 0.11 * od[i + 2];
+      let pre;
+      try { pre = window.TicketImage.pretraiter(gris, o.width, o.height); } catch (e) { pre = null; }
+      if (!pre) { const k = Math.max(0.5, Math.min(3, 1100 / Math.min(o.width, o.height))); const im = window.TicketImage.redim({ w: o.width, h: o.height, d: gris }, k); pre = { gris: im.d, largeur: im.w, hauteur: im.h }; }
+      const c = document.createElement('canvas'); c.width = pre.largeur; c.height = pre.hauteur;
+      const g = c.getContext('2d'), d = g.createImageData(c.width, c.height), px = d.data;
+      for (let i = 0, j = 0; j < pre.gris.length; i += 4, j++) { px[i] = px[i + 1] = px[i + 2] = pre.gris[j]; px[i + 3] = 255; }
       g.putImageData(d, 0, 0);
       let r = null;
       // 1. l'assistant du site, plus fiable sur les tickets froissés (quand il est configuré)
@@ -2458,7 +2458,7 @@
         const etat = await etatAssistant();
         if (etat && (etat.ticket || etat.vision)) {
           t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit chaque ligne et vérifie le total…' }; rendre();
-          const j = await agentTicket({ image: c.toDataURL('image/jpeg', 0.82) });
+          const j = await agentTicket({ image: o.toDataURL('image/jpeg', 0.85) });
           if (j && j.lignes && j.lignes.length) { r = j; if (j.texte) t.texte = (t.suite && t.texte ? t.texte + '\n' : '') + j.texte; }
         }
       } catch (e) { /* on lit sur l'appareil */ }
@@ -2553,7 +2553,7 @@
         const pp = ing ? TK.prixPaquet(l, ing) : null, ref = ing ? E.prixReference(l.id) : 0;
         const doute = pp && !TK.plausible(pp, ref);
         return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''}" role="row">
-          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.doute ? '<strong class="alerte-ing">à vérifier · </strong>' : ''}${[l.nom && TK.norm(l.nom) !== TK.norm(l.libelle) ? esc(l.nom) : '', l.remise ? `remise ${euros(l.remise)}` : '', l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)}` : '', l.poids && !(l.nom && /\d\s*(g|kg|l|cl|ml)\b/i.test(l.nom) && !l.auKilo) ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''].filter(Boolean).join(' · ')}</span></div>
+          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.doute ? '<strong class="alerte-ing">à vérifier · </strong>' : ''}${l.corrige ? '<strong>chiffre corrigé d’après le total · </strong>' : ''}${[l.nom && TK.norm(l.nom) !== TK.norm(l.libelle) ? esc(l.nom) : '', l.remise ? `remise ${euros(l.remise)}` : '', l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)}` : '', l.poids && !(l.nom && /\d\s*(g|kg|l|cl|ml)\b/i.test(l.nom) && !l.auKilo) ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''].filter(Boolean).join(' · ')}</span></div>
           <label class="prix-ticket"><input type="text" inputmode="decimal" value="${String(l.prix).replace('.', ',')}" data-a="ticket-prix" data-i="${i}" aria-label="Prix payé"> €</label>
           <div class="stack" style="gap:2px;min-width:0">${S.ticketCherche === i ? `<input type="search" id="ticket-cherche" data-a="ticket-cherche" data-i="${i}" placeholder="Chercher le produit…" autocomplete="off"><div id="ticket-propositions" class="row" style="gap:4px"></div>`
             : `<button class="produit-ticket ${ing ? '' : 'inconnu'}" data-a="ticket-produit" data-i="${i}">${ing ? esc(ing.nom.replace(/\s*\([^)]*\)\s*$/, '')) : 'Choisir le produit'}</button>`}
