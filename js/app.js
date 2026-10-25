@@ -2418,20 +2418,68 @@
     if (!rep.ok) return null;
     return rep.json();
   }
-  /** PDF du drive (ou de l'e-mail de commande) : lu par l'agent du serveur. */
+  let pdfjsCharge = null;
+  function chargerPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfjsCharge) pdfjsCharge = new Promise((ok, ko) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'; sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(window.pdfjsLib); }; sc.onerror = () => { pdfjsCharge = null; ko(new Error('chargement')); }; document.head.appendChild(sc); });
+    return pdfjsCharge;
+  }
+  /** Texte d'un PDF (ticket dématérialisé, facture de drive) lu sur l'appareil : le texte exact, lignes remises en ordre par leur position. */
+  async function texteDuPdf(fichier) {
+    const pdfjs = await chargerPdfJs();
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()) }).promise;
+    const mots = []; let dy = 0, largeur = 0;
+    for (let p = 1; p <= Math.min(doc.numPages, 12); p++) {
+      const page = await doc.getPage(p), vp = page.getViewport({ scale: 1 }), tc = await page.getTextContent();
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const [, , c2, d2, e2, f2] = it.transform, h = Math.hypot(c2, d2) || 10, y1 = dy + vp.height - f2;
+        mots.push({ text: it.str.trim(), bbox: { x0: e2, x1: e2 + (it.width || it.str.length * h * 0.5), y0: y1 - h, y1 } });
+      }
+      dy += vp.height; largeur = Math.max(largeur, vp.width);
+    }
+    return TK.reconstruire(mots, largeur);
+  }
+  /** Ticket dématérialisé ou facture du drive en PDF : texte exact lu sur l'appareil, ou par l'agent du serveur quand il est là. */
   async function lirePdfTicket(fichier) {
-    const t = S.ticket; t.lecture = { etat: 'encours', pct: 20, texte: 'L’assistant lit votre commande et vérifie le total…' }; rendre();
+    const t = S.ticket; t.lecture = { etat: 'encours', pct: 20, texte: 'Lecture du PDF…' }; rendre();
     try {
-      const etat = await etatAssistant();
-      if (!etat || !etat.pdf) { t.lecture = null; t.erreur = 'La lecture des PDF n’est pas encore disponible. Ouvrez le PDF, copiez son texte et utilisez « Coller le récapitulatif », ou faites une capture d’écran et importez-la comme photo.'; rendre(); return; }
       if (fichier.size > 6 * 1024 * 1024) { t.lecture = null; t.erreur = 'PDF trop lourd (6 Mo au plus).'; rendre(); return; }
-      const b64 = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = ko; fr.readAsDataURL(fichier); });
-      const j = await agentTicket({ pdf: 'data:application/pdf;base64,' + b64 });
+      const etat = await etatAssistant();
+      if (etat && etat.pdf) {
+        try {
+          t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit votre commande et vérifie le total…' }; rendre();
+          const b64 = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = ko; fr.readAsDataURL(fichier); });
+          const j = await agentTicket({ pdf: 'data:application/pdf;base64,' + b64 });
+          if (j && j.lignes && j.lignes.length) { t.lecture = null; t.type = 'drive'; if (j.texte) t.texte = j.texte; preparerLignes(j); rendre(); return; }
+        } catch (e) { /* lecture sur l'appareil */ }
+      }
+      let txt = '';
+      try { txt = await texteDuPdf(fichier); } catch (e) { txt = ''; }
       t.lecture = null;
-      if (!j || !j.lignes || !j.lignes.length) { t.erreur = 'Je n’ai pas trouvé d’article dans ce PDF. Copiez son texte et collez-le, ou saisissez les articles.'; rendre(); return; }
-      t.type = 'drive'; if (j.texte) t.texte = j.texte;
-      preparerLignes(j); rendre();
+      const r = TK.analyser(txt);
+      if (!r.lignes.length) { t.erreur = txt.trim() ? 'Je n’ai pas trouvé d’article dans ce PDF. Collez son texte avec « Coller le récapitulatif », ou saisissez les articles.' : 'Ce PDF est une image (ticket scanné) : importez plutôt une capture d’écran ou une photo du ticket.'; rendre(); return; }
+      t.type = /drive|commande|livraison|retrait/i.test(txt) ? 'drive' : t.type; t.texte = txt;
+      if (r.enseigne && !t.enseigne) t.enseigne = r.enseigne.id;
+      preparerLignes(r); rendre();
     } catch (e) { t.lecture = null; t.erreur = 'Lecture impossible (connexion ?). Vous pouvez coller le texte de la commande.'; rendre(); }
+  }
+  // extraits de la photo, ligne par ligne, pour vérifier d'un coup d'œil (gardés en mémoire seulement, jamais enregistrés)
+  const EXTRAITS = new Map();
+  let numExtrait = 0;
+  function decouperExtraits(c, lignes, boites) {
+    for (const l of lignes) {
+      const bs = (l.src || []).map((i) => boites[i]).filter(Boolean);
+      if (!bs.length) continue;
+      const y0 = Math.max(0, Math.min(...bs.map((b) => b.y0)) - 8), y1 = Math.min(c.height, Math.max(...bs.map((b) => b.y1)) + 8);
+      if (y1 - y0 < 8 || y1 - y0 > c.height / 3) continue;
+      const k = Math.min(1, 700 / c.width), e = document.createElement('canvas');
+      e.width = Math.round(c.width * k); e.height = Math.round((y1 - y0) * k);
+      e.getContext('2d').drawImage(c, 0, y0, c.width, y1 - y0, 0, 0, e.width, e.height);
+      const id = 'x' + (++numExtrait); EXTRAITS.set(id, e.toDataURL('image/jpeg', 0.75)); l.extrait = id;
+      // lecture peu sûre sur cette ligne : à vérifier en priorité
+      if (Math.min(...bs.map((b) => b.conf)) < 70) l.incertain = true;
+    }
   }
   /** Photo du ticket : redressée en niveaux de gris et contrastée, lue par l'assistant du site s'il est là, sinon sur l'appareil. */
   async function lirePhotoTicket(fichier) {
@@ -2475,23 +2523,26 @@
         const lireTout = async (psm) => { await worker.setParameters({ tessedit_pageseg_mode: psm, preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_char_whitelist: '' }); const res = await worker.recognize(c, {}, { text: true, blocks: true }); etape++; return { mots: motsDe(res), texte: res.data ? res.data.text : '' }; };
         const x0 = Math.round(c.width * 0.6);
         const sansPrix = (mots) => mots.filter((w) => !(w.bbox.x0 > x0 && /^[-\d.,€]+$/.test(String(w.text).trim())));
-        const textes = [];
+        const textes = [], boitesDe = [];
+        const ajouterLecture = (mots, brut) => { for (const rb of [TK.reconstruireBoites(sansPrix(mots).concat(B), c.width), TK.reconstruireBoites(mots, c.width)]) { textes.push(rb.texte); boitesDe.push(rb.boites); } textes.push(brut); boitesDe.push(null); };
+        let B = [];
         const colleAuTotal = () => { const m = TK.meilleureLecture(textes); return m && m.a.total && Math.abs(m.a.lignes.reduce((x, l) => x + l.prix, 0) - m.a.total) < 0.05; };
         const A = await lireTout('6');
         const colonne = document.createElement('canvas'); colonne.width = c.width - x0; colonne.height = c.height; colonne.getContext('2d').drawImage(c, x0, 0, colonne.width, colonne.height, 0, 0, colonne.width, colonne.height);
         await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789,.-' });
-        const B = motsDe(await worker.recognize(colonne, {}, { blocks: true })).filter((w) => /\d/.test(w.text)).map((w) => ({ ...w, bbox: { x0: w.bbox.x0 + x0, x1: w.bbox.x1 + x0, y0: w.bbox.y0, y1: w.bbox.y1 } }));
+        B = motsDe(await worker.recognize(colonne, {}, { blocks: true })).filter((w) => /\d/.test(w.text)).map((w) => ({ ...w, bbox: { x0: w.bbox.x0 + x0, x1: w.bbox.x1 + x0, y0: w.bbox.y0, y1: w.bbox.y1 } }));
         etape++;
-        textes.push(TK.reconstruire(sansPrix(A.mots).concat(B), c.width), TK.reconstruire(A.mots, c.width), A.texte);
+        ajouterLecture(A.mots, A.texte);
         for (const psm of ['11', '4']) {
           if (colleAuTotal()) break;   // la somme colle au total : inutile de relire
           const C = await lireTout(psm);
-          textes.push(TK.reconstruire(sansPrix(C.mots).concat(B), c.width), TK.reconstruire(C.mots, c.width), C.texte);
+          ajouterLecture(C.mots, C.texte);
         }
         await worker.terminate();
         const best = TK.meilleureLecture(textes);
         t.texte = (t.suite && t.texte ? t.texte + '\n' : '') + (best ? best.texte : '');
         r = best ? best.a : TK.analyser('');
+        if (best && boitesDe[best.k]) decouperExtraits(c, r.lignes, boitesDe[best.k]);
       }
       t.lecture = null;
       if (!r.lignes.length) { t.erreur = 'Je n’ai pas réussi à lire d’article sur cette photo. Reprenez-la bien à plat, avec de la lumière, ou collez le texte, ou saisissez les articles.'; rendre(); return; }
@@ -2535,7 +2586,7 @@
       ${t.erreur ? `<div class="bandeau bandeau-alerte small"><span>${esc(t.erreur)}</span></div>` : ''}
       <div class="sources-ticket">
         <label class="source-ticket"><span class="ico" aria-hidden="true">📷</span><strong>Prendre le ticket en photo</strong><span class="small muted">De près, à plat, bien éclairé. Long ticket : en plusieurs photos</span><input type="file" accept="image/*" capture="environment" data-a="ticket-photo" class="visuellement-cache"></label>
-        <label class="source-ticket"><span class="ico" aria-hidden="true">📄</span><strong>Importer un PDF ou une capture</strong><span class="small muted">Facture du drive, e-mail de commande, capture d’écran</span><input type="file" accept="application/pdf,image/*" data-a="ticket-fichier" class="visuellement-cache"></label>
+        <label class="source-ticket"><span class="ico" aria-hidden="true">📄</span><strong>Ticket dématérialisé (PDF) ou capture</strong><span class="small muted">Le plus fiable : ticket de l’appli du magasin, facture du drive</span><input type="file" accept="application/pdf,image/*" data-a="ticket-fichier" class="visuellement-cache"></label>
         <button class="source-ticket" data-a="ticket-coller"><span class="ico" aria-hidden="true">📋</span><strong>Coller le récapitulatif</strong><span class="small muted">E-mail ou page de commande du drive</span></button>
         <button class="source-ticket" data-a="ticket-saisir"><span class="ico" aria-hidden="true">✍️</span><strong>Saisir les articles</strong><span class="small muted">Libellé et prix, ligne par ligne</span></button>
       </div>
@@ -2546,21 +2597,28 @@
       const totalLignes = Math.round(lignes.filter((l) => !l.ignore).reduce((s, l) => s + (l.prix || 0), 0) * 100) / 100;
       const estim = Math.round(prises.reduce((s, l) => s + E.prixReference(l.id) * nbPaquets(l, E.ING[l.id]), 0) * 100) / 100;
       const payeReconnu = Math.round(prises.reduce((s, l) => s + (l.prix || 0), 0) * 100) / 100;
-      corps = `${tete(`${pluriel(lignes.length, 'article')} sur le ticket`, 'Vérifiez le produit associé à chaque ligne : touchez-le pour le changer. Les produits non alimentaires peuvent être ignorés.')}
+      const aVerif = (l) => !l.ignore && !l.verifie && (l.incertain || l.corrige || l.doute || l.suspect);
+      const nbVerif = lignes.filter(aVerif).length, avecExtraits = lignes.some((l) => l.extrait && EXTRAITS.has(l.extrait));
+      const ecartTotal = t.total ? Math.round((lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0) - t.total) * 100) / 100 : 0;
+      corps = `${tete(`${pluriel(lignes.length, 'article')} sur le ticket`, avecExtraits ? 'Sous chaque ligne lue, l’extrait de votre photo : comparez d’un coup d’œil le libellé et le prix. Touchez le produit pour le changer.' : 'Vérifiez le produit associé à chaque ligne : touchez-le pour le changer. Les produits non alimentaires peuvent être ignorés.')}
       ${choixMagasin}
+      ${nbVerif ? `<div class="bandeau bandeau-alerte small spread"><span>🔎 ${pluriel(nbVerif, 'ligne à vérifier', 'lignes à vérifier')} en priorité (surlignées) : lecture peu sûre ou chiffre corrigé.</span><button class="btn btn-petit" data-a="ticket-seul-verif">${t.seulVerif ? 'Voir toutes les lignes' : 'Voir seulement celles-ci'}</button></div>` : ''}
       <div class="table-ticket" role="table" aria-label="Articles du ticket">${lignes.map((l, i) => {
+        if (t.seulVerif && nbVerif && !aVerif(l)) return '';
         const ing = l.id && E.ING[l.id];
         const pp = ing ? TK.prixPaquet(l, ing) : null, ref = ing ? E.prixReference(l.id) : 0;
         const doute = pp && !TK.plausible(pp, ref);
-        return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''}" role="row">
-          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.doute ? '<strong class="alerte-ing">à vérifier · </strong>' : ''}${l.corrige ? '<strong>chiffre corrigé d’après le total · </strong>' : ''}${[l.nom && TK.norm(l.nom) !== TK.norm(l.libelle) ? esc(l.nom) : '', l.remise ? `remise ${euros(l.remise)}` : '', l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)}` : '', l.poids && !(l.nom && /\d\s*(g|kg|l|cl|ml)\b/i.test(l.nom) && !l.auKilo) ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''].filter(Boolean).join(' · ')}</span></div>
+        const ext = l.extrait && EXTRAITS.get(l.extrait);
+        return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''} ${aVerif(l) ? 'a-verifier' : ''}" role="row">
+          ${ext ? `<img class="extrait-ticket" src="${ext}" alt="Cette ligne sur la photo du ticket">` : ''}
+          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.doute || (l.incertain && !l.verifie) ? '<strong class="alerte-ing">à vérifier · </strong>' : ''}${l.corrige ? '<strong>chiffre corrigé d’après le total · </strong>' : ''}${[l.nom && TK.norm(l.nom) !== TK.norm(l.libelle) ? esc(l.nom) : '', l.remise ? `remise ${euros(l.remise)}` : '', l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)}` : '', l.poids && !(l.nom && /\d\s*(g|kg|l|cl|ml)\b/i.test(l.nom) && !l.auKilo) ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''].filter(Boolean).join(' · ')}</span></div>
           <label class="prix-ticket"><input type="text" inputmode="decimal" value="${String(l.prix).replace('.', ',')}" data-a="ticket-prix" data-i="${i}" aria-label="Prix payé"> €</label>
           <div class="stack" style="gap:2px;min-width:0">${S.ticketCherche === i ? `<input type="search" id="ticket-cherche" data-a="ticket-cherche" data-i="${i}" placeholder="Chercher le produit…" autocomplete="off"><div id="ticket-propositions" class="row" style="gap:4px"></div>`
             : `<button class="produit-ticket ${ing ? '' : 'inconnu'}" data-a="ticket-produit" data-i="${i}">${ing ? esc(ing.nom.replace(/\s*\([^)]*\)\s*$/, '')) : 'Choisir le produit'}</button>`}
             ${pp && !l.ignore ? `<span class="small ${doute ? 'alerte-ing' : 'muted'}">${euros(pp)} le paquet (${esc(ing.condLabel)}) · appli ${euros(ref)}${doute ? ' · à vérifier' : ''}</span>` : ''}</div>
-          <label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label></div>`;
+          <div class="stack" style="gap:4px"><label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label>${aVerif(l) ? `<button class="btn btn-petit" data-a="ticket-ligne-ok" data-i="${i}">✓ C’est juste</button>` : ''}</div></div>`;
       }).join('')}</div>
-      ${t.total && Math.abs(t.total - (lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))) > 0.1 ? `<div class="bandeau bandeau-alerte small"><span>⚠️ La somme des lignes (${euros(lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))}${t.remisesGlobales ? `, remises de ${euros(t.remisesGlobales)} déduites` : ''}) ne correspond pas au total du ticket (${euros(t.total)}) : une ligne a peut-être été mal lue ou oubliée. Vérifiez les prix, ou corrigez le texte lu plus bas.</span></div>` : t.total ? `<div class="bandeau bandeau-info small"><span>✓ ${t.parIA ? 'Lu et vérifié par l’assistant : l' : 'L'}a somme des lignes${t.remisesGlobales ? ` (remises de ${euros(t.remisesGlobales)} déduites)` : ''} correspond au total du ticket (${euros(t.total)}).</span></div>` : ''}
+      ${t.total && Math.abs(t.total - (lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))) > 0.1 ? `<div class="bandeau bandeau-alerte small"><span>⚠️ La somme des lignes (${euros(lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))}${t.remisesGlobales ? `, remises de ${euros(t.remisesGlobales)} déduites` : ''}) ne correspond pas au total du ticket (${euros(t.total)}) : <strong>${ecartTotal < 0 ? `il manque ${euros(-ecartTotal)}` : `${euros(ecartTotal)} de trop`}</strong>. ${ecartTotal < 0 ? 'Un article oublié (« + Ajouter une ligne ») ou un prix lu trop bas' : 'Un prix lu trop haut, ou une ligne en double'}${nbVerif ? ', sans doute parmi les lignes surlignées' : ''}.</span></div>` : t.total ? `<div class="bandeau bandeau-info small"><span>✓ ${t.parIA ? 'Lu et vérifié par l’assistant : l' : 'L'}a somme des lignes${t.remisesGlobales ? ` (remises de ${euros(t.remisesGlobales)} déduites)` : ''} correspond au total du ticket (${euros(t.total)}).</span></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button><label class="btn btn-petit">📷 Ajouter la suite du ticket<input type="file" accept="image/*" capture="environment" data-a="ticket-photo-suite" class="visuellement-cache"></label></div>
       ${t.texte ? `<details class="texte-lu small" ${t.voirTexte ? 'open' : ''}><summary data-a="ticket-voir-texte">Voir et corriger le texte lu sur la photo</summary><p class="muted" style="margin:6px 0">Une ligne mal lue ? Corrigez le texte ci-dessous (un article par ligne, le prix à la fin), puis « Relire ».</p><textarea id="ticket-texte-lu" rows="10">${esc(t.texte)}</textarea><div><button class="btn btn-petit btn-plein" data-a="ticket-relire">Relire le texte</button></div></details>` : ''}
       <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
@@ -4284,6 +4342,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'ticket-type': S.ticket.type = el.dataset.k; break;
       case 'ticket-enseigne': S.ticket.enseigne = el.dataset.k; break;
       case 'ticket-coller': S.ticket.coller = true; S.ticket.erreur = ''; break;
+      case 'ticket-seul-verif': S.ticket.seulVerif = !S.ticket.seulVerif; break;
+      case 'ticket-ligne-ok': { const l = S.ticket.lignes[+el.dataset.i]; if (l) l.verifie = true; if (!S.ticket.lignes.some((x) => !x.ignore && !x.verifie && (x.incertain || x.corrige || x.doute || x.suspect))) S.ticket.seulVerif = false; break; }
       case 'ticket-saisir': S.ticket.lignes = [{ libelle: '', prix: 0, qte: 1, id: null }]; S.ticket.etape = 'lignes'; break;
       case 'ticket-analyser': { const z = document.getElementById('ticket-texte'); const txt = z ? z.value : ''; S.ticket.texte = txt; analyserTexteTicket(txt); return; }
       case 'ticket-produit': S.ticketCherche = +el.dataset.i; setTimeout(() => { const c = document.getElementById('ticket-cherche'); if (c) { c.value = (S.ticket.lignes[+el.dataset.i].libelle || '').toLowerCase().replace(/[^a-zà-ÿ ]/g, ' ').trim().split(/\s+/).slice(0, 2).join(' '); c.dispatchEvent(new Event('input', { bubbles: true })); c.focus(); } }, 30); break;
@@ -5092,7 +5152,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       return;
     }
     if (el.dataset.a === 'ticket-libelle') { const l = S.ticket.lignes[+el.dataset.i]; l.libelle = el.value; l.poids = TK.poidsDe(el.value); return; }
-    if (el.dataset.a === 'ticket-prix') { const v = Number(el.value.replace(',', '.')); if (v >= 0) { const l = S.ticket.lignes[+el.dataset.i]; l.prix = v; l.prixUnitaire = Math.round(v / (l.qte || 1) * 100) / 100; } return; }
+    if (el.dataset.a === 'ticket-prix') { const v = Number(el.value.replace(',', '.')); if (v >= 0) { const l = S.ticket.lignes[+el.dataset.i]; l.prix = v; l.prixUnitaire = Math.round(v / (l.qte || 1) * 100) / 100; l.verifie = true; } return; }
     if (el.dataset.a === 'ticket-cherche') {
       const z = document.getElementById('ticket-propositions'), i = el.dataset.i, t = el.value.trim();
       if (z) z.innerHTML = (t.length < 2 ? [] : window.Saisie.chercherIngredients(t, 8).filter((id) => E.ING[id] && !E.ING[id].perso)).map((id) => `<button class="chip chip-petit" data-a="ticket-choisir" data-i="${i}" data-id="${id}">${esc(E.ING[id].nom)}</button>`).join('') + `<button class="chip chip-petit" data-a="ticket-choisir" data-i="${i}" data-id="">Pas dans la liste</button>`;

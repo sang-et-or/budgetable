@@ -14,7 +14,7 @@
   const norm = (t) => String(t || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae').replace(/Æ/g, 'AE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const prixNum = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.'));
   // lignes qui ne sont pas des articles
-  const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|n[°o]\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|lot \d|\bqte\b|\bpu\b|prix unit|eur\/kg$|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
+  const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|n[°o]\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|lot \d|\bqte\b|\bpu\b|prix unit|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
   const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\d?\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
   const RE_QTE = /^\s*(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})/i;
   const RE_POIDS_PRIX = /(\d+[,.]\d{1,3})\s*kg\s*[x×*]\s*(\d+[,.]\d{2})/i;
@@ -78,9 +78,10 @@
    * un nombre de 3 ou 4 chiffres sans virgule est un prix (« 149 » → « 1,49 »).
    * mots : [{ text, confidence, bbox: { x0, y0, x1, y1 } }]
    */
-  function reconstruire(mots, largeur) {
+  /** Comme reconstruire, avec la boîte et la confiance de chaque ligne (pour montrer l'extrait de photo à côté de la ligne lue). */
+  function reconstruireBoites(mots, largeur) {
     const l0 = (mots || []).filter((w) => w && w.text && w.text.trim() && (w.confidence == null || w.confidence > 20) && w.bbox);
-    if (!l0.length) return '';
+    if (!l0.length) return { texte: '', boites: [] };
     const hs = l0.map((w) => w.bbox.y1 - w.bbox.y0).sort((a, b) => a - b), hm = hs[Math.floor(hs.length / 2)] || 20;
     const lignes = [];
     for (const w of l0.slice().sort((a, b) => (a.bbox.y0 + a.bbox.y1) - (b.bbox.y0 + b.bbox.y1))) {
@@ -89,13 +90,17 @@
       if (l) { l.mots.push(w); l.cy = (l.cy * (l.mots.length - 1) + cy) / l.mots.length; } else lignes.push({ cy, mots: [w] });
     }
     const droite = largeur * 0.62;
-    return lignes.sort((a, b) => a.cy - b.cy).map((l) => l.mots.sort((a, b) => a.bbox.x0 - b.bbox.x0).map((w) => {
+    const tri = lignes.sort((a, b) => a.cy - b.cy);
+    const texte = tri.map((l) => l.mots.sort((a, b) => a.bbox.x0 - b.bbox.x0).map((w) => {
       let t = w.text.trim();
       if (w.bbox.x0 > droite && /^-?\d{3,4}$/.test(t)) t = t.slice(0, -2) + ',' + t.slice(-2);
       if (w.bbox.x0 > droite && /^-?\d{1,3}\.\d{2}$/.test(t)) t = t.replace('.', ',');
       return t;
     }).join('   ')).join('\n');
+    const boites = tri.map((l) => ({ x0: Math.min(...l.mots.map((w) => w.bbox.x0)), y0: Math.min(...l.mots.map((w) => w.bbox.y0)), x1: Math.max(...l.mots.map((w) => w.bbox.x1)), y1: Math.max(...l.mots.map((w) => w.bbox.y1)), conf: Math.min(...l.mots.map((w) => (w.confidence == null ? 100 : w.confidence))) }));
+    return { texte, boites };
   }
+  const reconstruire = (mots, largeur) => reconstruireBoites(mots, largeur).texte;
   /** Parmi plusieurs lectures d'une même photo, la plus crédible : celle dont la somme colle au total, avec le plus d'articles. */
   function meilleureLecture(textes) {
     const notes = textes.filter(Boolean).map((t) => {
@@ -103,6 +108,7 @@
       const ecart = a.total ? Math.abs(somme - a.total) : null;
  return { texte: t, a, note: a.lignes.filter((l) => !l.suspect).length * 2 - a.lignes.filter((l) => l.suspect).length * 3 + (ecart == null ? 0 : ecart < 0.05 ? 40 : ecart < 1 ? 15 - ecart * 5 : -Math.min(20, ecart)) };
     }).sort((x, y) => y.note - x.note);
+    if (notes[0]) notes[0].k = textes.indexOf(notes[0].texte);
     return notes[0] || null;
   }
   // chiffres que la lecture confond le plus souvent (zéro barré ou pointé des tickets, 1 et 7…)
@@ -134,7 +140,7 @@
     const cand = [];
     lignes.forEach((l, i) => { for (const x of variantes(l.prix)) if (Math.abs(r2(l.prix - x) - ecart) < 0.005) cand.push([i, x]); });
     const uniques = [...new Set(cand.map(([i, x]) => i + ':' + x))];
-    const appliquer = (i, x) => { lignes[i].prix = x; lignes[i].corrige = true; if (lignes[i].qte > 1 && !lignes[i].auKilo) lignes[i].prixUnitaire = r2(x / lignes[i].qte); };
+    const appliquer = (i, x) => { lignes[i].prix = x; lignes[i].corrige = true; if (!lignes[i].auKilo) lignes[i].prixUnitaire = r2(x / (lignes[i].qte || 1)); };
     if (uniques.length === 1) { appliquer(cand[0][0], cand[0][1]); return; }
     if (uniques.length) return;
     // deux prix mal lus : seulement le chiffre des euros (0 ↔ 6 ↔ 8 ↔ 9, le cas le plus fréquent), et une seule solution possible
@@ -146,7 +152,9 @@
   /** Texte d'un ticket (ou d'un récapitulatif de drive) → { enseigne, date, total, lignes: [{ libelle, prix, qte, prixUnitaire, poids }] } */
   function analyser(texte) {
     texte = corrigerLecture(texte);
-    const lignesBrutes = String(texte || '').split(/\r?\n/).map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean);
+    const brutes = String(texte || '').split(/\r?\n/).map((l, i) => ({ t: l.replace(/\t/g, ' ').trim(), i })).filter((x) => x.t);
+    const lignesBrutes = brutes.map((x) => x.t), origine = brutes.map((x) => x.i);   // n° de ligne d'origine (extrait de photo)
+    const ajouterSrc = (l, k) => { if (l) l.src = (l.src || []).concat(origine[k]); };
     const lignes = [];
     let total = null, sousTotal = null, paiement = null;
     let attente = null; // « 2 x 1,15 » sur la ligne suivant le libellé (ou le précédant)
@@ -187,6 +195,7 @@
           if (suivant) k++;
           const der = lignes[lignes.length - 1];
           if (der.prix > 0 && v >= der.prix) { const alt = variantes(v).filter((x) => x > 0 && x < der.prix).sort((a, b) => b - a)[0]; if (alt) v = alt; }
+          ajouterSrc(der, suivant ? k - 1 : k); if (suivant) ajouterSrc(der, k);
           der.prix = Math.max(0, Math.round((der.prix - v) * 100) / 100); der.remise = Math.round(((der.remise || 0) + v) * 100) / 100;
           continue;
         }
@@ -197,32 +206,38 @@
       if ((q || pp) && libelleSeul.replace(/[^a-z]/gi, '').length < 3) {
         const info = pp ? { qte: 1, poids: { q: prixNum(pp[1]) * 1000, unite: 'g' }, prixUnitaire: prixNum(pp[2]), auKilo: true } : { qte: +q[1], prixUnitaire: prixNum(q[2]) };
         let prix = m ? prixNum(m[1]) : null;
+        const kDetail = k;
         if (prix == null) { const ps = prixSeulSuivant(k); if (ps != null) { prix = ps; k++; } }
         if (prix == null) prix = Math.round((info.auKilo ? info.poids.q / 1000 : info.qte) * info.prixUnitaire * 100) / 100;
         // le détail (« 2 x 0,95 » ou « 1,234 kg x 1,49 €/kg ») se rapporte à l'article juste au-dessus
         const der = lignes[lignes.length - 1];
-        if (der) { Object.assign(der, info, { prix: der.attendQte || !der.prix ? prix : der.prix }); der.attendQte = false; } else attente = { ...info, prix };
+        if (der) { Object.assign(der, info, { prix: der.attendQte || !der.prix ? prix : der.prix }); der.attendQte = false; ajouterSrc(der, kDetail); if (k > kDetail) ajouterSrc(der, k); } else attente = { ...info, prix, src: [origine[kDetail]] };
         continue;
       }
       if (!m) {
         // libellé sans prix : le prix est sur la ligne suivante (« 2 x 1,15  2,30 » ou le prix seul)
-        if (libelleSeul.replace(/[^a-z]/gi, '').length >= 3) lignes.push({ libelle: libelleSeul, prix: 0, qte: 1, attendQte: true, poids: poidsDe(libelleSeul) });
+        if (libelleSeul.replace(/[^a-z]/gi, '').length >= 3) lignes.push({ libelle: libelleSeul, prix: 0, qte: 1, attendQte: true, poids: poidsDe(libelleSeul), src: [origine[k]] });
         continue;
       }
       let prix = prixNum(m[1]);
       let libelle = libelleSeul;
       if (!libelle || libelle.replace(/[^a-z]/gi, '').length < 3) {
         const der = lignes[lignes.length - 1];
-        if (der && der.attendQte) { der.prix = prix; der.attendQte = false; }
+        if (der && der.attendQte) { der.prix = prix; der.attendQte = false; ajouterSrc(der, k); }
         continue;
       }
       if (prix <= 0 || prix > 500) continue;
-      const art = { libelle, prix, qte: 1, poids: poidsDe(libelle) };
+      // facture de drive en tableau : « Coquillettes 500 g   2   0,95 €   1,90 € » (quantité, prix unitaire, montant)
+      const tab = /\s(\d{1,3})\s+(\d{1,4}[,.]\d{2})\s*(?:€|eur)?\s*$/i.exec(libelle);
+      let qteTab = 0, puTab = 0;
+      if (tab && +tab[1] > 0 && Math.abs(+tab[1] * prixNum(tab[2]) - prix) < 0.02) { libelle = libelle.slice(0, tab.index).trim(); qteTab = +tab[1]; puTab = prixNum(tab[2]); }
+      const art = { libelle, prix, qte: 1, poids: poidsDe(libelle), src: [origine[k]] };
+      if (qteTab) { art.qte = qteTab; art.prixUnitaire = puTab; }
       const devant = /^\s*(?:(\d{1,2})\s*[x×*]|[x×*]\s*(\d{1,2}))\s+\D/i.exec(brut);
       if (devant && !q) { art.qte = +(devant[1] || devant[2]); art.prixUnitaire = Math.round(prix / art.qte * 100) / 100; }
       if (q) { art.qte = +q[1]; art.prixUnitaire = prixNum(q[2]); }
       if (pp) { art.poids = { q: prixNum(pp[1]) * 1000, unite: 'g' }; art.prixUnitaire = prixNum(pp[2]); art.auKilo = true; }
-      if (attente) { Object.assign(art, attente, { prix: art.prix || attente.prix }); attente = null; }
+      if (attente) { const sa = attente.src; Object.assign(art, attente, { prix: art.prix || attente.prix, src: (sa || []).concat(origine[k]) }); attente = null; }
       lignes.push(art);
     }
     // un libellé lisible : des lettres en majorité, au moins un vrai mot (sinon c'est du bruit de lecture)
@@ -309,7 +324,7 @@
     }
     return best.score >= 3.2 ? { id: best.id, score: best.score } : { id: null, score: Math.max(0, best.score) };
   }
-  const api = { variantes, reconcilier, indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  const api = { reconstruireBoites, variantes, reconcilier, indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);
