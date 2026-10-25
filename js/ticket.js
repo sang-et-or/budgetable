@@ -65,6 +65,39 @@
       // quantités : « 2 x O,95 »
       .replace(/(\d)\s*[x×*]\s*([0-9OoQDe@Ss]{1,3})[,.]([0-9OoQDe@Ss]{2})/gi, (m, q, e, d) => `${q} x ${enChiffres(e)},${enChiffres(d)}`)).join('\n');
   }
+  /**
+   * Lignes d'un ticket reconstruites à partir de la position des mots lus sur la photo :
+   * les mots d'une même hauteur forment une ligne, de gauche à droite ; dans la colonne de droite,
+   * un nombre de 3 ou 4 chiffres sans virgule est un prix (« 149 » → « 1,49 »).
+   * mots : [{ text, confidence, bbox: { x0, y0, x1, y1 } }]
+   */
+  function reconstruire(mots, largeur) {
+    const l0 = (mots || []).filter((w) => w && w.text && w.text.trim() && (w.confidence == null || w.confidence > 20) && w.bbox);
+    if (!l0.length) return '';
+    const hs = l0.map((w) => w.bbox.y1 - w.bbox.y0).sort((a, b) => a - b), hm = hs[Math.floor(hs.length / 2)] || 20;
+    const lignes = [];
+    for (const w of l0.slice().sort((a, b) => (a.bbox.y0 + a.bbox.y1) - (b.bbox.y0 + b.bbox.y1))) {
+      const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+      const l = lignes.find((x) => Math.abs(x.cy - cy) < hm * 0.55);
+      if (l) { l.mots.push(w); l.cy = (l.cy * (l.mots.length - 1) + cy) / l.mots.length; } else lignes.push({ cy, mots: [w] });
+    }
+    const droite = largeur * 0.62;
+    return lignes.sort((a, b) => a.cy - b.cy).map((l) => l.mots.sort((a, b) => a.bbox.x0 - b.bbox.x0).map((w) => {
+      let t = w.text.trim();
+      if (w.bbox.x0 > droite && /^-?\d{3,4}$/.test(t)) t = t.slice(0, -2) + ',' + t.slice(-2);
+      if (w.bbox.x0 > droite && /^-?\d{1,3}\.\d{2}$/.test(t)) t = t.replace('.', ',');
+      return t;
+    }).join('   ')).join('\n');
+  }
+  /** Parmi plusieurs lectures d'une même photo, la plus crédible : celle dont la somme colle au total, avec le plus d'articles. */
+  function meilleureLecture(textes) {
+    const notes = textes.filter(Boolean).map((t) => {
+      const a = analyser(t), somme = Math.round(a.lignes.reduce((s, l) => s + l.prix, 0) * 100) / 100;
+      const ecart = a.total ? Math.abs(somme - a.total) : null;
+      return { texte: t, a, note: a.lignes.length * 2 + (ecart == null ? 0 : ecart < 0.05 ? 40 : ecart < 1 ? 15 - ecart * 5 : -Math.min(20, ecart)) };
+    }).sort((x, y) => y.note - x.note);
+    return notes[0] || null;
+  }
   /** Texte d'un ticket (ou d'un récapitulatif de drive) → { enseigne, date, total, lignes: [{ libelle, prix, qte, prixUnitaire, poids }] } */
   function analyser(texte) {
     texte = corrigerLecture(texte);
@@ -73,8 +106,8 @@
     let total = null;
     let attente = null; // « 2 x 1,15 » sur la ligne suivant le libellé (ou le précédant)
     for (let k = 0; k < lignesBrutes.length; k++) {
-      const brut = lignesBrutes[k], n = norm(brut);
-      if (/total|net a payer|a payer|montant du/.test(n)) { const m = RE_PRIX.exec(brut); if (m && !/sous.?total|tva/.test(n)) total = prixNum(m[1]); continue; }
+      const brut = lignesBrutes[k], n = norm(brut).replace(/\s+/g, ' ');
+      if (/t[o0][t7y][a@4]l|net a payer|a payer|montant du|a regler/.test(n)) { const m = RE_PRIX.exec(brut); if (m && !/sous.?total|tva/.test(n)) total = prixNum(m[1]); continue; }
       const pp = RE_POIDS_PRIX.exec(brut);
       const q = RE_QTE.exec(brut) || /\s(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})(?!\d)/i.exec(brut);
       const m = RE_PRIX.exec(brut);
@@ -134,7 +167,7 @@
   /** Le prix trouvé est-il plausible par rapport au prix habituel (dans un rapport de 1 à 4) ? */
   const plausible = (prix, ref) => !(ref > 0) || (prix >= ref / 4 && prix <= ref * 4);
 
-  const api = { ENSEIGNES, analyser, corrigerLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  const api = { ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);

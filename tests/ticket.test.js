@@ -84,3 +84,17 @@ test('lecture réelle d’une photo (texte rendu par le lecteur)', () => {
   const lait = r.lignes.find((l) => /LAIT/.test(l.libelle)); assert.equal(lait.prix, 1.9); assert.equal(lait.qte, 2);
   assert.ok(r.lignes.find((l) => /OEUFS PLEIN AIR X6/.test(l.libelle)));
 });
+
+test('lignes reconstruites par la position des mots, prix de la colonne de droite', () => {
+  const m = (text, x0, y0) => ({ text, confidence: 90, bbox: { x0, y0, x1: x0 + text.length * 20, y1: y0 + 30 } });
+  const mots = [m('RIZ', 20, 100), m('LONG', 100, 102), m('1KG', 220, 101), m('149', 800, 98), m('PATES', 20, 150), m('0.85', 790, 151), m('TOYAL', 20, 300), m('À', 150, 300), m('PAYER', 190, 300), m('234', 800, 301)];
+  const t = T.reconstruire(mots, 900);
+  assert.ok(/RIZ\s+LONG\s+1KG\s+1,49/.test(t), t);
+  assert.ok(/PATES\s+0,85/.test(t), t);
+  const r = T.analyser(t);
+  assert.equal(r.total, 2.34); assert.equal(r.lignes.length, 2);
+});
+test('la meilleure lecture est celle dont la somme colle au total', () => {
+  const b = T.meilleureLecture(['RIZ 1,49\nTOTAL 2,34', 'RIZ 1,49\nPATES 0,85\nTOTAL 2,34', '']);
+  assert.equal(b.a.lignes.length, 2);
+});

@@ -2399,7 +2399,7 @@
     try {
       const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(fichier); });
       // un ticket est étroit et long : on vise ~1400 px de large pour que les caractères fassent 25 à 35 px de haut
-      const k = Math.max(0.5, Math.min(2.5, 1400 / Math.min(img.width, img.height), 4000 / Math.max(img.width, img.height)));
+      const k = Math.max(0.5, Math.min(3, 1600 / Math.min(img.width, img.height), 4500 / Math.max(img.width, img.height)));
       const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
       const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
@@ -2426,12 +2426,24 @@
       if (!r) {
         t.lecture = { etat: 'encours', pct: 5, texte: 'Chargement du lecteur de texte (la première fois, quelques secondes)…' }; rendre();
         const T = await chargerTesseract();
-        const worker = await T.createWorker('fra', 1, { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { S.ticket.lecture = { etat: 'encours', pct: Math.round(m.progress * 100), texte: 'Lecture du ticket…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `Lecture du ticket… ${Math.round(m.progress * 100)} %`; } } });
-        await worker.setParameters({ tessedit_pageseg_mode: '4', preserve_interword_spaces: '1', user_defined_dpi: '300' });
-        const res = await worker.recognize(c);
+        // plusieurs lectures (bloc de texte, mots épars), lignes reconstruites par la position des mots ; on garde la plus crédible
+        const passes = [['6', 'Lecture du ticket'], ['11', 'Vérification des prix'], ['4', 'Dernière vérification']];
+        let etape = 0;
+        const worker = await T.createWorker('fra', 1, { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { const pct = Math.round(((etape + m.progress) / passes.length) * 100); S.ticket.lecture = { etat: 'encours', pct, texte: passes[etape][1] + '…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `${passes[etape][1]}… ${pct} %`; } } });
+        const textes = [];
+        for (const [psm] of passes) {
+          await worker.setParameters({ tessedit_pageseg_mode: psm, preserve_interword_spaces: '1', user_defined_dpi: '300' });
+          const res = await worker.recognize(c, {}, { text: true, blocks: true });
+          const mots = ((res.data && res.data.blocks) || []).flatMap((b) => (b.paragraphs || []).flatMap((p) => (p.lines || []).flatMap((l) => l.words || [])));
+          textes.push(TK.reconstruire(mots, c.width), res.data ? res.data.text : '');
+          etape++;
+          const meilleur = TK.meilleureLecture(textes);
+          if (meilleur && meilleur.a.total && Math.abs(meilleur.a.lignes.reduce((x, l) => x + l.prix, 0) - meilleur.a.total) < 0.05) break;   // la somme colle au total : inutile de relire
+        }
         await worker.terminate();
-        t.texte = res && res.data ? res.data.text : '';
-        r = TK.analyser(t.texte);
+        const best = TK.meilleureLecture(textes);
+        t.texte = best ? best.texte : '';
+        r = best ? best.a : TK.analyser('');
       }
       t.lecture = null;
       if (!r.lignes.length) { t.erreur = 'Je n’ai pas réussi à lire d’article sur cette photo. Reprenez-la bien à plat, avec de la lumière, ou collez le texte, ou saisissez les articles.'; rendre(); return; }
