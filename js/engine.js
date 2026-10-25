@@ -1028,6 +1028,9 @@
   /* ---------- liste de courses et budget ---------- */
   const PLACARD_BASE = ['huile_olive', 'curry', 'cumin', 'paprika', 'bouillon', 'moutarde'];
   function stockIds(p) {
+    // depuis que les provisions sont rangées dans le placard, c'est le placard (avec ses quantités) qui fait foi :
+    // seuls les ingrédients hors catalogue (sans quantité suivie) restent notés « j'en ai déjà » à part
+    if (Array.isArray(p.provisionsRangees)) return new Set((p.provisions || []).filter((id) => ING[id] && ING[id].perso));
     const s = new Set(p.provisions);
     if (p.placardBase) PLACARD_BASE.forEach((id) => s.add(id));
     return s;

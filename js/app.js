@@ -2344,7 +2344,7 @@
       <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
       <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix || (E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo) ? 'prix ?' : euros(a.cout)}</span>
       <div class="qte-achat">${pastille}${a.manuel ? `<span class="tag-main small">✍️ ${a.seulManuel ? 'ajouté à la main' : `dont ${a.manuel} ajouté${a.manuel > 1 ? 's' : ''} à la main`}</span>` : ''}${a.sansPrix || a.enStock || a.seulManuel ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
-      <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
+      <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock || a.couvertParPlacard ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
   }
   function blocAjoutCourses() {
@@ -2365,6 +2365,23 @@
     if (ex) ex.n = (ex.n || 1) + 1; else l.push({ ...x, n: 1 });
     toast(`${x.id ? E.ING[x.id].nom : x.nom} : ajouté à la liste`);
     const champ = document.getElementById('manuel-cherche'); if (champ) champ.value = '';
+  }
+  /** « J'en ai déjà » / « Je n'en ai plus » dans la liste : c'est le placard qui change, et la liste suit. */
+  function basculerPlacardDepuisListe(id) {
+    const p = S.profil, i = E.ING[id];
+    const a = E.listeCourses(S.plan, p).articles.find((x) => x.id === id);
+    if (a && (a.enStock || a.couvertParPlacard)) {
+      const st = { ...(p.stock || {}) }; delete st[id]; p.stock = st;
+      p.provisions = (p.provisions || []).filter((x) => x !== id);
+      toast(`${i.nom} retiré du placard : remis dans la liste de courses`);
+    } else {
+      // on range de quoi couvrir la semaine (arrondi au paquet), sans réduire ce qui y est déjà
+      const besoin = a ? a.quantite : i.cond;
+      const q = Math.max(i.cond, Math.ceil((besoin - 1e-9) / i.cond) * i.cond);
+      p.stock = E.ajouterAuStock(p.stock, [[id, Math.max(0, q - ((p.stock || {})[id] || 0))]]);
+      delete S.coches[id];
+      toast(`${i.nom} : ${quantite(q, i.unite)} au placard, retiré de la liste`);
+    }
   }
   function ongletCourses() {
     const liste = E.listeCourses(S.plan, S.profil);
@@ -2398,7 +2415,7 @@
       ${(() => { const aPrendre = liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard); const faits = aPrendre.filter((a) => S.coches[a.id]).length; return `<div class="avancement-courses ecran-seul"><div class="spread" style="align-items:center"><span><strong class="num">${faits}</strong> / ${aPrendre.length} dans le panier</span><span class="row" style="gap:6px"><label class="case small"><input type="checkbox" data-a="masquer-coches" ${S.masquerCoches ? 'checked' : ''}><span>Masquer ce qui est pris</span></label>${faits ? '<button class="btn-lien small" data-a="tout-decocher">Tout décocher</button>' : ''}</span></div><div class="piste-courses" aria-hidden="true"><i style="width:${aPrendre.length ? Math.round(faits / aPrendre.length * 100) : 0}%"></i></div></div>`; })()}
       <div class="colonnes">${Object.entries(par).map(([rayon, as]) => `<section class="rayon"><h3><span>${esc(rayon)}</span><span class="num small muted">${euros(as.filter((a) => !a.enStock).reduce((s, a) => s + a.cout, 0))}</span></h3>
         ${as.filter((a) => !(S.masquerCoches && S.coches[a.id] && !a.enStock)).map((a) => ligneArticle(a)).join('')}</section>`).join('')}</div>
-      ${reserve.length ? `<details class="reserve-courses"><summary class="small"><strong>Déjà à la maison</strong> <span class="muted">· ${pluriel(reserve.length, 'produit')} de base (huile, épices…) : rien à acheter</span></summary><div class="stack" style="gap:0;margin-top:6px">${reserve.map((a) => ligneArticle(a)).join('')}</div></details>` : ''}
+      ${reserve.length ? `<details class="reserve-courses"><summary class="small"><strong>Déjà à la maison</strong> <span class="muted">· ${pluriel(reserve.length, 'produit')} déjà dans votre placard : rien à acheter</span></summary><div class="stack" style="gap:0;margin-top:6px">${reserve.map((a) => ligneArticle(a)).join('')}</div></details>` : ''}
       ${liste.economieStock > 0 ? `<p class="small" style="padding-top:12px">Grâce à vos réserves : <strong class="num">${euros(liste.economieStock)}</strong> économisés</p>` : ''}
       <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>
       ${blocCoursesFaites()}
@@ -4187,6 +4204,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'masquer-coches': S.masquerCoches = el.checked; break;
       case 'stock': {
         const id = el.dataset.id;
+        if (E.ING[id] && !E.ING[id].perso && Array.isArray(p.provisionsRangees)) { basculerPlacardDepuisListe(id); break; }
         if (p.placardBase && E.PLACARD_BASE.includes(id) && !p.provisions.includes(id)) {
           // on retire un produit du placard de base : les autres restent en réserve
           p.placardBase = false;
@@ -4667,7 +4685,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'courses-panier': S.coches[el.dataset.id] = true; delete S.modeCourses.absents[el.dataset.id]; coursesSuivant(); break;
       case 'courses-absent': S.modeCourses.absents[el.dataset.id] = true; S.coches[el.dataset.id] = false; coursesSuivant(); break;
-      case 'courses-stock': if (!p.provisions.includes(el.dataset.id)) p.provisions = [...p.provisions, el.dataset.id]; toast('Noté : vous en avez déjà'); break;
+      case 'courses-stock': { const id = el.dataset.id; if (E.ING[id] && !E.ING[id].perso && Array.isArray(p.provisionsRangees)) { const a = E.listeCourses(S.plan, p).articles.find((x) => x.id === id); if (!(a && (a.enStock || a.couvertParPlacard))) basculerPlacardDepuisListe(id); } else if (!p.provisions.includes(id)) { p.provisions = [...p.provisions, id]; toast('Noté : vous en avez déjà'); } break; }
       case 'courses-suiv': coursesSuivant(); break;
       case 'courses-prec': S.modeCourses.i = Math.max(0, S.modeCourses.i - 1); break;
       case 'courses-aller': {
