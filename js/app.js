@@ -2398,11 +2398,19 @@
     const t = S.ticket; t.lecture = { etat: 'encours', pct: 0, texte: 'Préparation de la photo…' }; rendre();
     try {
       const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(fichier); });
-      const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+      // un ticket est étroit et long : on vise ~1400 px de large pour que les caractères fassent 25 à 35 px de haut
+      const k = Math.max(0.5, Math.min(2.5, 1400 / Math.min(img.width, img.height), 4000 / Math.max(img.width, img.height)));
       const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
       const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
-      for (let i = 0; i < px.length; i += 4) { const v = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]; const w = v > 150 ? 255 : v < 90 ? 0 : (v - 90) * 4.25; px[i] = px[i + 1] = px[i + 2] = w; }
+      // niveaux de gris, puis étirement du contraste entre les 2 % les plus sombres et les 10 % les plus clairs (papier)
+      const hist = new Uint32Array(256);
+      for (let i = 0; i < px.length; i += 4) { const v = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) | 0; px[i] = v; hist[v]++; }
+      const n = px.length / 4; let acc = 0, bas = 0, haut = 255;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.02) { bas = v; break; } }
+      acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.10) { haut = v; break; } }
+      const ech = 255 / Math.max(30, haut - bas);
+      for (let i = 0; i < px.length; i += 4) { const w = Math.max(0, Math.min(255, (px[i] - bas) * ech)); px[i] = px[i + 1] = px[i + 2] = w; }
       g.putImageData(d, 0, 0);
       let r = null;
       // 1. l'assistant du site, plus fiable sur les tickets froissés (quand il est configuré)
@@ -2418,7 +2426,10 @@
       if (!r) {
         t.lecture = { etat: 'encours', pct: 5, texte: 'Chargement du lecteur de texte (la première fois, quelques secondes)…' }; rendre();
         const T = await chargerTesseract();
-        const res = await T.recognize(c, 'fra', { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { S.ticket.lecture = { etat: 'encours', pct: Math.round(m.progress * 100), texte: 'Lecture du ticket…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `Lecture du ticket… ${Math.round(m.progress * 100)} %`; } } });
+        const worker = await T.createWorker('fra', 1, { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { S.ticket.lecture = { etat: 'encours', pct: Math.round(m.progress * 100), texte: 'Lecture du ticket…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `Lecture du ticket… ${Math.round(m.progress * 100)} %`; } } });
+        await worker.setParameters({ tessedit_pageseg_mode: '4', preserve_interword_spaces: '1', user_defined_dpi: '300' });
+        const res = await worker.recognize(c);
+        await worker.terminate();
         t.texte = res && res.data ? res.data.text : '';
         r = TK.analyser(t.texte);
       }
@@ -2467,7 +2478,8 @@
             ${pp && !l.ignore ? `<span class="small ${doute ? 'alerte-ing' : 'muted'}">${euros(pp)} le paquet (${esc(ing.condLabel)}) · appli ${euros(ref)}${doute ? ' · à vérifier' : ''}</span>` : ''}</div>
           <label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label></div>`;
       }).join('')}</div>
-      <div><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button></div>
+      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button></div>
+      ${t.texte ? `<details class="texte-lu small" ${t.voirTexte ? 'open' : ''}><summary data-a="ticket-voir-texte">Voir et corriger le texte lu sur la photo</summary><p class="muted" style="margin:6px 0">Une ligne mal lue ? Corrigez le texte ci-dessous (un article par ligne, le prix à la fin), puis « Relire ».</p><textarea id="ticket-texte-lu" rows="10">${esc(t.texte)}</textarea><div><button class="btn btn-petit btn-plein" data-a="ticket-relire">Relire le texte</button></div></details>` : ''}
       <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
         <div><span class="small muted">${pluriel(prises.length, 'produit reconnu', 'produits reconnus')} : payé</span><strong class="num">${euros(payeReconnu)}</strong></div>
         <div><span class="small muted">Estimation de l’appli</span><strong class="num">${euros(estim)}</strong><span class="small ${payeReconnu > estim ? 'alerte-ing' : 'muted'}">${estim ? (payeReconnu > estim ? `+${euros(payeReconnu - estim)} plus cher` : `${euros(estim - payeReconnu)} moins cher`) : ''}</span></div></div>
@@ -4194,6 +4206,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'ticket-choisir': { const i = +el.dataset.i; S.ticket.lignes[i].id = el.dataset.id || null; S.ticket.lignes[i].ignore = false; S.ticketCherche = null; break; }
       case 'ticket-ignorer': S.ticket.lignes[+el.dataset.i].ignore = el.checked; break;
       case 'ticket-imprevu-placard': S.ticket.imprevusPlacard = { ...(S.ticket.imprevusPlacard || {}), [el.dataset.i]: el.checked }; return;
+      case 'ticket-voir-texte': S.ticket.voirTexte = !el.parentElement.open; return;
+      case 'ticket-relire': { const z = document.getElementById('ticket-texte-lu'); if (!z) return; S.ticket.texte = z.value; const r = TK.analyser(z.value); if (!r.lignes.length) { toast('Aucun article trouvé dans ce texte'); return; } preparerLignes(r); S.ticket.voirTexte = true; toast(`${pluriel(r.lignes.length, 'article lu', 'articles lus')}`); break; }
       case 'ticket-ajout-ligne': S.ticket.lignes.push({ libelle: '', prix: 0, qte: 1, id: null }); break;
       case 'ticket-ranger': S.ticket.ranger = el.checked; return;
       case 'ticket-utiliser': S.ticket.utiliser = el.checked; return;

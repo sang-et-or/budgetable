@@ -19,7 +19,7 @@ with sync_playwright() as p:
     nav = p.chromium.launch(); page = nav.new_page(viewport={"width": 1100, "height": 1000})
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
-    page.route("**/tesseract.min.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="window.Tesseract={recognize:async()=>({data:{text:" + json.dumps(TICKET.replace("LIDL", "ALDI")) + "}})};"))
+    page.route("**/tesseract.min.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="window.Tesseract={createWorker:async()=>({setParameters:async()=>{},terminate:async()=>{},recognize:async()=>({data:{text:" + json.dumps(TICKET.replace("LIDL", "ALDI")) + "}})})};"))
     page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     clic("Préparer ma semaine")
@@ -74,6 +74,11 @@ with sync_playwright() as p:
     f.locator("[data-a=ticket-photo]").set_input_files({"name": "ticket.png", "mimeType": "image/png", "buffer": open("icons/icon-192.png", "rb").read()})
     page.wait_for_selector(".ligne-ticket", timeout=15000)
     assert f.locator("[data-a=ticket-enseigne][data-k=aldi][aria-pressed=true]").count() == 1
+    # le texte lu est visible et corrigeable
+    f.locator(".texte-lu summary").click()
+    page.fill("#ticket-texte-lu", page.input_value("#ticket-texte-lu").replace("COQUILLETTES 500G           0,59", "SPAGHETTI 500G           0,79"))
+    f.locator("[data-a=ticket-relire]").click()
+    assert any("SPAGHETTI" in v for v in [x.input_value() for x in f.locator(".libelle-ticket").all()])
     f.locator("[data-a=ticket-enregistrer]").click()
     page.locator("[data-a=ticket-fermer]").last.click()
     # comparaison des magasins sur la liste

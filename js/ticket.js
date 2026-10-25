@@ -15,7 +15,7 @@
   const prixNum = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.'));
   // lignes qui ne sont pas des articles
   const HORS = /total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
-  const RE_PRIX = /(-?\d{1,4}[,.]\d{2})\s*(?:€|eur|euros?)?\s*(?:[a-d]|\*|[0-9])?\s*$/i;
+  const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
   const RE_QTE = /^\s*(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})/i;
   const RE_POIDS_PRIX = /(\d+[,.]\d{1,3})\s*kg\s*[x×*]\s*(\d+[,.]\d{2})/i;
   const RE_POIDS = /(\d+(?:[,.]\d+)?)\s*(kg|g|gr|l|cl|ml)\b/i;
@@ -44,7 +44,10 @@
     if (u === 'cl') return { q: v * 10, unite: 'ml' };
     return { q: v, unite: 'ml' };
   }
-  const nettoyerLibelle = (l) => String(l).replace(RE_PRIX, '').replace(/\s+[A-D]\s*$/, '').replace(/\s{2,}/g, ' ').replace(/^[\s*#.\-]+|[\s*#.\-]+$/g, '').trim();
+  const nettoyerLibelle = (l) => String(l).replace(RE_PRIX, '')
+    .replace(/\b\d{8,14}\b/g, ' ')                       // code-barres en début de ligne
+    .replace(/^\s*(?:\d{1,2}\s*[x×*]|[x×*]\s*\d{1,2})\s+/i, ' ')  // « 2 x » ou « x2 » devant le libellé
+    .replace(/[|_~«»"]+/g, ' ').replace(/\s+[A-D]\s*$/, '').replace(/\s{2,}/g, ' ').replace(/^[\s*#.\-]+|[\s*#.\-]+$/g, '').trim();
 
   /** Corrige les confusions de lecture les plus courantes dans les prix et les poids (O, e, @ pour 0 ; S pour 5 ; l, I pour 1). */
   const CHIFFRE = { O: '0', o: '0', Q: '0', D: '0', e: '0', '@': '0', S: '5', s: '5', l: '1', I: '1', i: '1', B: '8', Z: '2', z: '2' };
@@ -97,6 +100,8 @@
       }
       if (prix <= 0 || prix > 500) continue;
       const art = { libelle, prix, qte: 1, poids: poidsDe(libelle) };
+      const devant = /^\s*(?:(\d{1,2})\s*[x×*]|[x×*]\s*(\d{1,2}))\s+\D/i.exec(brut);
+      if (devant && !q) { art.qte = +(devant[1] || devant[2]); art.prixUnitaire = Math.round(prix / art.qte * 100) / 100; }
       if (q) { art.qte = +q[1]; art.prixUnitaire = prixNum(q[2]); }
       if (pp) { art.poids = { q: prixNum(pp[1]) * 1000, unite: 'g' }; art.prixUnitaire = prixNum(pp[2]); art.auKilo = true; }
       if (attente) { Object.assign(art, attente, { prix: art.prix || attente.prix }); attente = null; }

@@ -58,3 +58,18 @@ test('confusions de lecture corrigées (photo)', () => {
   assert.ok(noms.includes('RIZ LONG 1KG=1.59'), noms.join(' | '));
   assert.equal(r.lignes.find((l) => /LAIT/.test(l.libelle)).prixUnitaire, 0.95);
 });
+
+test('codes-barres, « € » mal lu, quantité devant le libellé, colonnes espacées', () => {
+  const r = T.analyser(`CARREFOUR MARKET
+3017620422003 PATE A TARTINER 400G      2,99 E
+2 X YAOURT NATURE X4                     2,40 C
+x2 BAGUETTE TRADITION                    2,20
+LENTILLES VERTES 500G   1 , 49
+TOTAL A PAYER                            9,08`);
+  const l = Object.fromEntries(r.lignes.map((x) => [x.libelle, x]));
+  assert.ok(l['PATE A TARTINER 400G'] && l['PATE A TARTINER 400G'].prix === 2.99, Object.keys(l).join(' | '));
+  assert.ok(l['YAOURT NATURE X4'] && l['YAOURT NATURE X4'].qte === 2 && l['YAOURT NATURE X4'].prixUnitaire === 1.2, JSON.stringify(l['YAOURT NATURE X4']));
+  assert.ok(l['BAGUETTE TRADITION'] && l['BAGUETTE TRADITION'].qte === 2);
+  assert.ok(l['LENTILLES VERTES 500G'] && l['LENTILLES VERTES 500G'].prix === 1.49, Object.keys(l).join(' | '));
+  assert.equal(r.total, 9.08);
+});
