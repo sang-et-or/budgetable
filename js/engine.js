@@ -187,7 +187,7 @@
     }
     return { dans: [...new Set(dans)], hors: [...new Set(hors)] };
   }
-  const bonusSaison = (rec) => { const s = saisonRecette(rec); return s.dans.length * 0.8 - s.hors.length * 1.6; };
+  const bonusSaison = (rec) => { const s = saisonRecette(rec); return Math.min(1.6, s.dans.length * 0.8) - s.hors.length * 1.6; };
   /** Les idées de saison gardées par l'utilisateur entrent dans les menus proposés. */
   function saisonActives(ids) {
     const set = new Set(ids || []);
@@ -564,13 +564,17 @@
       const reste = Math.ceil(ctx.quantites[id] / ing.cond) * ing.cond - ctx.quantites[id];
       if (reste >= q * 0.5) reprises++;
     }
-    s += Math.min(reprises, 2) * (p.objectifs.includes('economies') ? 1.5 : 0.8);
+    s += Math.min(reprises, 1) * (p.objectifs.includes('economies') ? 1.5 : 0.6);
     if (ctx.sigs[rec.sig || rec.id]) s -= 8; // même plat avec une autre épice ou un autre féculent
     s -= (ctx.utilisations[rec.id] || 0) * 6;
-    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' || rec.modele === 'perso' ? 0.3 : 1.8);
-    s -= Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 1.2;
+    // variété de la semaine : familles de plats, protéines, légumes, féculents et cuisines qui tournent
+    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' || rec.modele === 'perso' ? 0.6 : 3);
+    s -= (ctx.prots[rec.prot] || 0) * 1.2 + Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 2;
+    for (const id of legumesPrincipaux(rec)) { const n = ctx.legs[id] || 0; s -= n * 0.9 + Math.max(0, n - 1) * 1.6; }
+    const fec = feculentDe(rec); if (fec) { const n = ctx.fecs[fec] || 0; s -= Math.max(0, n - 1) * 1.8 + Math.max(0, n - 2) * 2; }
+    s -= Math.max(0, (ctx.cuisines[rec.cuisine] || 0) - (rec.cuisine === 'francaise' ? 4 : 2)) * 1.2;
     if (ctx.hier && ctx.hier.includes(rec.id)) s -= 3;
-    s += scoreGout(rec, p.gouts);
+    s += scoreGout(rec, p.gouts) * 1.6;
     // placard : on utilise d'abord ce qu'il y a à la maison (surtout le frais), sans compter ce que la semaine a déjà pris
     const st = p.stock || {};
     let duPlacard = 0;
@@ -586,7 +590,12 @@
   }
 
   function candidats(p, jour, slot, ctx, exclure = []) {
-    const base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && ctx.notes[r.id] !== 1 && r.proposer !== false);
+    let base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && ctx.notes[r.id] !== 1 && r.proposer !== false);
+    const sansDeteste = base.filter((r) => !contientDeteste(r, p.gouts));
+    if (sansDeteste.length >= 8) base = sansDeteste;
+    // fruits et légumes frais hors saison : écartés tant qu'il reste assez de plats de saison
+    const deSaison = base.filter((r) => !saisonRecette(r).hors.length);
+    if (deSaison.length >= 12) base = deSaison;
     const flexi = p.regime === 'flexitarien' && ctx.repasViande >= 3;
     let liste = base.filter((r) => r.temps <= tempsMax(p, jour) && !(flexi && contientViande(r)));
     if (!liste.length) liste = base.filter((r) => r.temps <= tempsMax(p, jour) + 15 && !(flexi && contientViande(r)));
@@ -638,11 +647,18 @@
     if (contientViande(rec)) ctx.repasViande++;
     if (ctx.classiques && ctx.classiques.includes(rec.id)) ctx.nbClassiques++;
     for (const [id, q] of rec.ing) ctx.quantites[id] = (ctx.quantites[id] || 0) + q * nb;
+    for (const id of legumesPrincipaux(rec)) ctx.legs[id] = (ctx.legs[id] || 0) + 1;
+    const f = feculentDe(rec); if (f) ctx.fecs[f] = (ctx.fecs[f] || 0) + 1;
+    ctx.cuisines[rec.cuisine] = (ctx.cuisines[rec.cuisine] || 0) + 1;
   }
+  // légumes qui donnent son caractère au plat (pas l'oignon ni l'ail), et féculent principal : pour varier la semaine
+  const LEG_DISCRETS = new Set(['oignon', 'ail', 'citron', 'citron_vert', 'persil', 'echalote', 'tomates_concassees', 'coulis_tomate', 'puree_tomate', 'concentre_tomate']);
+  const legumesPrincipaux = (rec) => [...new Set(rec.ing.map(([id]) => id).filter((id) => ING[id] && ING[id].groupe === 'L' && !LEG_DISCRETS.has(id)))];
+  const feculentDe = (rec) => (rec.ing.find(([id]) => ING[id] && ING[id].groupe === 'F') || [])[0] || null;
 
   function nouveauContexte(notes, classiques) {
     const cl = classiques || [];
-    return { utilisations: {}, modeles: {}, prots: {}, sigs: {}, quantites: {}, repasViande: 0, notes: notes || {}, hier: null,
+    return { utilisations: {}, modeles: {}, prots: {}, sigs: {}, quantites: {}, legs: {}, fecs: {}, cuisines: {}, repasViande: 0, notes: notes || {}, hier: null,
       classiques: cl, nbClassiques: 0, cibleClassiques: Math.min(3, cl.length) };
   }
 
@@ -1220,11 +1236,18 @@
   const POIDS_GROUPE = { P: 1, L: 0.6, F: 0.4, D: 0.4, A: 0.15 };
   const borne = (x) => Math.max(-4, Math.min(4, x));
   function goutsVides() { return { ing: {}, cuisine: {}, modele: {}, plat: {} }; }
+  /** Un aliment clairement refusé (test de goût, correction « Pas pour moi ») : le plat n'est pas proposé. */
+  function contientDeteste(rec, g) {
+    if (!g || !g.ing) return false;
+    return rec.ing.some(([id]) => (g.ing[id] || 0) <= -2.4 && ING[id] && ING[id].groupe !== 'A' && !['oignon', 'ail'].includes(id)) || ((g.plat || {})[rec.id] || 0) <= -3;
+  }
+  const EPICES_PLAT = new Set(['curry', 'cumin', 'paprika', 'piment', 'pate_curry', 'gingembre', 'epices']);
   function scoreGout(rec, g) {
     if (!g) return 0;
     let s = 0;
-    for (const [id] of rec.ing) { const w = g.ing[id]; if (w) s += w * (POIDS_GROUPE[ING[id].groupe] || 0.2); }
+    for (const [id] of rec.ing) { const w = (g.ing || {})[id]; if (w) s += w * (POIDS_GROUPE[ING[id].groupe] || 0.2); }
     s += ((g.cuisine || {})[rec.cuisine] || 0) * 0.8 + ((g.modele || {})[rec.modele] || 0) * 0.8 + ((g.plat || {})[rec.id] || 0);
+    if (g.epice && rec.ing.some(([id]) => EPICES_PLAT.has(id))) s += g.epice * 0.9;
     return s;
   }
   const REPONSES = { adore: 1.2, pourquoi: 0.25, non: -1.5 };
@@ -1345,7 +1368,7 @@
 
   const api = {
     JOURS, SLOTS, LIBELLES, ING, REC, DATA, REFUS, PLACARD_BASE, reglerGout, ingredientsMarquants, RECETTES, MODELES,
-    goutsVides, scoreGout, apprendre, fusionnerGouts, selectionTest, resumeGouts,
+    goutsVides, scoreGout, contientDeteste, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,

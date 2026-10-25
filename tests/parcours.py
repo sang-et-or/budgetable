@@ -52,7 +52,10 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/4-profil.png", full_page=True)
     cliquer(page, "Faire le test de goût")
     page.screenshot(path=f"{OUT}/4b-test.png", full_page=True)
-    for k in range(12):
+    page.locator("[data-a=gout-tuile][data-k=poulet][data-v=adore]").click()
+    page.locator("[data-a=test-etape][data-k=styles]").click()
+    page.locator("[data-a=test-etape][data-k=plats]").click()
+    for k in range(10):
         assert page.locator(".carte-test-illu img").count() == 1, "plat du test sans vraie photo"
         cliquer(page, ["J’adore", "Pourquoi pas", "Pas pour moi"][k % 3])
         if k % 3 == 2: cliquer(page, "Rien de précis, juste ce plat")

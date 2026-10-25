@@ -352,23 +352,101 @@
       <h1>Vérifiez avant de créer la semaine</h1>
       <p class="muted">Tout reste modifiable ensuite dans l’onglet « Profil ».</p>
       ${blocProfil(S.profil, true)}
-      <section class="carte stack" style="gap:10px"><div class="spread"><h2>Le test de goût</h2><span class="tag tag-ok">1 minute</span></div>
-        <p>12 plats passent à l’écran : dites « J’adore », « Pourquoi pas » ou « Pas pour moi ». Budgétable apprend vos goûts et vous propose d’abord ce que vous aimez.</p>
+      <section class="carte stack" style="gap:10px"><div class="spread"><h2>Le test de goût</h2><span class="tag tag-ok">2 minutes</span></div>
+        <p>En 3 étapes : les aliments que vous aimez ou refusez, vos cuisines et types de plats préférés, puis une dizaine de plats choisis selon vos réponses. Budgétable vous propose ensuite ce que vous aimez, et plus jamais ce que vous refusez.</p>
         <div><button class="btn btn-plein" data-a="test-go" data-depuis="profil">Faire le test de goût</button></div></section>
       <div class="q-nav"><button class="btn" data-a="q-reprendre">Revenir aux questions</button><button class="btn" data-a="valider">Passer et créer ma semaine</button></div>
     </div></div>`;
   }
 
   /* ---------- test de goût ---------- */
+  /* ---------- test de goût complet : 1. les aliments, 2. cuisines et plats, 3. des plats choisis selon les réponses ---------- */
+  const TUILES_GOUT = [
+    ['Viandes et poissons', [['poulet', 'Poulet', '🍗', ['poulet_filet', 'cuisses_poulet']], ['boeuf', 'Bœuf', '🥩', ['boeuf_hache', 'steak']], ['porc', 'Porc', '🐖', ['porc']], ['jambon', 'Jambon', '🍖', ['jambon', 'des_jambon']], ['charcut', 'Lardons, saucisses', '🌭', ['lardons', 'saucisse', 'chorizo', 'bacon']], ['dinde', 'Dinde', '🦃', ['dinde']], ['saumon', 'Saumon', '🐟', ['saumon', 'saumon_fume']], ['poisson', 'Poisson blanc', '🐠', ['colin', 'cabillaud']], ['thon', 'Thon', '🥫', ['thon']], ['crevettes', 'Crevettes', '🦐', ['crevettes']]]],
+    ['Œufs et protéines végétales', [['oeufs', 'Œufs', '🥚', ['oeufs']], ['lentilles', 'Lentilles', '🟤', ['lentilles_vertes', 'lentilles_corail']], ['pois_chiches', 'Pois chiches', '🧆', ['pois_chiches']], ['haricots', 'Haricots rouges ou blancs', '🫘', ['haricots_rouges', 'haricots_blancs']], ['tofu', 'Tofu', '🥢', ['tofu']]]],
+    ['Légumes', [['brocoli', 'Brocoli', '🥦', ['brocoli']], ['courgette', 'Courgettes', '🥒', ['courgette']], ['aubergine', 'Aubergines', '🍆', ['aubergine']], ['poivron', 'Poivrons', '🫑', ['poivron']], ['epinards', 'Épinards', '🥬', ['epinards']], ['champignon', 'Champignons', '🍄', ['champignon']], ['chou', 'Chou', '🥬', ['chou']], ['courge', 'Courge, potiron', '🎃', ['courge', 'potiron']], ['poireau', 'Poireaux', '🌿', ['poireau']], ['tomate', 'Tomates', '🍅', ['tomate', 'tomate_cerise']], ['carotte', 'Carottes', '🥕', ['carotte']], ['haricots_verts', 'Haricots verts', '🫛', ['haricots_verts']], ['petits_pois', 'Petits pois', '🟢', ['petits_pois']], ['patate_douce', 'Patate douce', '🍠', ['patate_douce']], ['endives', 'Endives', '🥬', ['endives']], ['mais', 'Maïs', '🌽', ['mais']]]],
+    ['Féculents', [['pates', 'Pâtes', '🍝', ['pates']], ['riz', 'Riz', '🍚', ['riz']], ['pdt', 'Pommes de terre', '🥔', ['pomme_de_terre']], ['semoule', 'Semoule', '🌾', ['semoule']], ['quinoa', 'Quinoa', '🌾', ['quinoa']]]],
+    ['Fromages et crème', [['fromage', 'Fromage râpé', '🧀', ['emmental', 'comte', 'parmesan']], ['feta', 'Feta', '🧀', ['feta']], ['mozza', 'Mozzarella', '🧀', ['mozzarella']], ['chevre', 'Fromage de chèvre', '🐐', ['chevre']], ['creme', 'Crème', '🥛', ['creme', 'creme_liquide']]]]
+  ];
+  const VAL_GOUT = { adore: 2.5, ok: 0.4, non: -3 };
+  const AVIS_GOUT = [['adore', '😍', 'J’adore'], ['ok', '🙂', 'Ça va'], ['non', '🙅', 'Non merci']];
+  const tuileIds = (ids) => ids.filter((id) => E.ING[id]);
+  function avisDepuisGouts(ids, g) {
+    const w = Math.max(...ids.map((id) => ((g || {}).ing || {})[id] || 0)), mn = Math.min(...ids.map((id) => ((g || {}).ing || {})[id] || 0));
+    return mn <= -2.4 ? 'non' : w >= 2 ? 'adore' : '';
+  }
+  const enteteTest = (n, titre, sous) => `<div class="spread"><div class="marque">${LOGO}Budgétable</div><span class="small muted num">Étape ${n} sur 3</span></div>
+      <div class="progress" role="progressbar" aria-valuenow="${(n - 1) * 33}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement du test de goût"><i style="width:${(n - 1) * 33 + 8}%"></i></div>
+      <p class="eyebrow">Test de goût</p><h1 style="margin:0">${titre}</h1><p class="muted" style="margin:0">${sous}</p>`;
+  function vueTestAliments() {
+    const c = S.test.aliments;
+    const n = Object.values(c).filter(Boolean).length;
+    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="q-shell stack" style="max-width:820px;gap:14px">
+      ${enteteTest(1, 'Les aliments', 'Dites ce que vous aimez et ce que vous ne voulez pas voir dans vos menus. Laissez vide si ça vous est égal.')}
+      ${TUILES_GOUT.map(([groupe, tuiles]) => { const l = tuiles.filter(([, , , ids]) => tuileIds(ids).length); return l.length ? `<section class="stack" style="gap:8px"><h2 style="margin:0;font-size:1.05rem">${groupe}</h2><div class="grille-gout">${l.map(([k, nom, emoji]) => `<div class="tuile-gout ${c[k] ? 'avis-' + c[k] : ''}"><span class="tuile-nom"><span aria-hidden="true">${emoji}</span> ${esc(nom)}</span><span class="tuile-avis" role="radiogroup" aria-label="${esc(nom)}">${AVIS_GOUT.map(([v, e, t]) => `<button role="radio" data-a="gout-tuile" data-k="${k}" data-v="${v}" aria-checked="${c[k] === v}" aria-label="${esc(nom)} : ${t}" title="${t}">${e}</button>`).join('')}</span></div>`).join('')}</div></section>` : ''; }).join('')}
+      <div class="legende-gout small muted">😍 J’adore : proposé plus souvent · 🙂 Ça va · 🙅 Non merci : plus jamais dans vos menus</div>
+      <div class="q-nav"><button class="btn" data-a="test-quitter">Plus tard</button><button class="btn btn-plein" data-a="test-etape" data-k="styles">Continuer${n ? ` (${n} réponse${n > 1 ? 's' : ''})` : ''}</button></div>
+    </div></div>`;
+  }
+  function vueTestStyles() {
+    const t = S.test;
+    const tri = (cle, k, nom) => `<div class="tuile-gout ${t[cle][k] ? 'avis-' + t[cle][k] : ''}"><span class="tuile-nom">${esc(nom)}</span><span class="tuile-avis" role="radiogroup" aria-label="${esc(nom)}">${AVIS_GOUT.map(([v, e, x]) => `<button role="radio" data-a="gout-style" data-cle="${cle}" data-k="${k}" data-v="${v}" aria-checked="${t[cle][k] === v}" aria-label="${esc(nom)} : ${x}" title="${x}">${e}</button>`).join('')}</span></div>`;
+    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="q-shell stack" style="max-width:820px;gap:14px">
+      ${enteteTest(2, 'Cuisines et façons de cuisiner', 'Pour varier vos semaines avec ce qui vous plaît vraiment.')}
+      <section class="stack" style="gap:8px"><h2 style="margin:0;font-size:1.05rem">Les cuisines</h2><div class="grille-gout">${Object.entries(L.cuisines).map(([k, v]) => tri('cuisines', k, v)).join('')}</div></section>
+      <section class="stack" style="gap:8px"><h2 style="margin:0;font-size:1.05rem">Les types de plats</h2><div class="grille-gout">${Object.entries(E.MODELES).filter(([k]) => !['maison', 'perso', 'gourmand'].includes(k)).map(([k, m]) => tri('modeles', k, m.libelle)).join('')}</div></section>
+      <section class="stack" style="gap:8px"><h2 style="margin:0;font-size:1.05rem">Les épices</h2><div class="row" role="radiogroup" style="gap:6px">${[['-2', '🌿 Pas d’épices'], ['0', '🙂 Un peu'], ['1.5', '🌶️ J’aime quand ça relève']].map(([v, x]) => `<button class="chip" role="radio" data-a="gout-epice" data-v="${v}" aria-checked="${String(t.epice) === v}" aria-pressed="${String(t.epice) === v}">${x}</button>`).join('')}</div></section>
+      <div class="q-nav"><button class="btn" data-a="test-etape" data-k="aliments">← Retour</button><button class="btn btn-plein" data-a="test-etape" data-k="plats">Continuer : quelques plats à juger</button></div>
+    </div></div>`;
+  }
+  /** Enregistre les réponses des étapes 1 et 2 dans les goûts. */
+  function appliquerTestGout() {
+    const t = S.test, p = S.profil;
+    let g = { ...E.goutsVides(), ...JSON.parse(JSON.stringify(p.gouts || E.goutsVides())) };
+    for (const [, tuiles] of TUILES_GOUT) for (const [k, , , ids] of tuiles) {
+      const v = t.aliments[k]; const l = tuileIds(ids);
+      if (!v) { for (const id of l) if (t.avant[k] && !v) delete g.ing[id]; continue; }
+      for (const id of l) g.ing[id] = VAL_GOUT[v];
+    }
+    for (const [cle, dest] of [['cuisines', 'cuisine'], ['modeles', 'modele']]) for (const [k, v] of Object.entries(t[cle])) { if (v) g[dest][k] = VAL_GOUT[v] * 0.8; else delete g[dest][k]; }
+    if (t.epice !== '' && t.epice != null) g.epice = +t.epice;
+    p.gouts = g;
+  }
+  /** Les plats à juger : ceux qui apprennent le plus (aliments et types de plats pas encore notés), sans ce qui est refusé. */
+  function selectionAdaptative(n) {
+    const p = S.profil, g = p.gouts || {};
+    const photo = window.Photos ? (r) => !!window.Photos.photoFidele(r) : () => true;
+    const pool = E.recettesCompatibles(p).filter((r) => r.repas.includes('diner') && !E.contientDeteste(r, g));
+    const avecPhoto = pool.filter(photo);
+    const base = avecPhoto.length >= n * 2 ? avecPhoto : pool;
+    const vus = { ing: new Set(), modele: {}, prot: {} };
+    const choix = [];
+    for (let k = 0; k < n && base.length; k++) {
+      let best = null, bs = -Infinity;
+      for (const r of base) {
+        if (choix.includes(r) || choix.some((c) => (c.sig || c.id) === (r.sig || r.id))) continue;
+        const marquants = E.ingredientsMarquants(r);
+        const inconnus = marquants.filter((id) => !(g.ing || {})[id] && !vus.ing.has(id)).length;
+        const s = inconnus * 1.5 - (vus.modele[r.modele] || 0) * 3 - (vus.prot[r.prot] || 0) * 2 + (((g.modele || {})[r.modele] || 0) === 0 ? 1 : 0) + Math.random() * 1.5 + Math.min(2, E.scoreGout(r, g) * 0.3);
+        if (s > bs) { bs = s; best = r; }
+      }
+      if (!best) break;
+      choix.push(best); E.ingredientsMarquants(best).forEach((id) => vus.ing.add(id));
+      vus.modele[best.modele] = (vus.modele[best.modele] || 0) + 1; vus.prot[best.prot] = (vus.prot[best.prot] || 0) + 1;
+    }
+    return choix.map((r) => r.id);
+  }
   function vueTest() {
     const t = S.test;
+    if (t.etape === 'aliments') return vueTestAliments();
+    if (t.etape === 'styles') return vueTestStyles();
     if (t.i >= t.ids.length) return vueTestFin();
     const rec = E.REC[t.ids[t.i]];
     const pct = Math.round((t.i / t.ids.length) * 100);
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="q-shell" style="max-width:560px">
       <div class="spread"><div class="marque">${LOGO}Budgétable</div><span class="small muted num">${t.i + 1} / ${t.ids.length}</span></div>
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement du test de goût"><i style="width:${pct}%"></i></div>
-      <p class="eyebrow">Test de goût</p>
+      <p class="eyebrow">Test de goût · étape 3 sur 3 : ces plats vous tentent ?</p>
       <article class="carte-test">
         <div class="carte-test-illu">${V(rec, t.pourquoi ? 110 : 220)}</div>
         <div class="stack" style="gap:6px;text-align:center">
@@ -3931,9 +4009,25 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'rituels-non': S.rituelsVus = true; break;
       case 'rituels-ouvrir': S.rituelsOuverts = !el.parentElement.open; return;
       case 'rituels-appliquer': S.rituelsModifies = false; nouvellePlanification(); toast('Nouvelle semaine avec vos rituels'); break;
-      case 'test-go':
-        S.test = { ids: E.selectionTest(p, 12, Math.floor(Math.random() * 1e9), window.Photos ? (r) => !!window.Photos.photoFidele(r) : null), i: 0, depuis: el.dataset.depuis };
+      case 'test-go': {
+        // le test commence par les aliments, pré-remplis avec les goûts déjà connus
+        const avant = {};
+        for (const [, tuiles] of TUILES_GOUT) for (const [k, , , ids] of tuiles) { const l = tuileIds(ids); if (l.length) { const v = avisDepuisGouts(l, p.gouts); if (v) avant[k] = v; } }
+        const g = p.gouts || {};
+        const depuis = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, w]) => [k, w >= 1.5 ? 'adore' : w <= -1.5 ? 'non' : '']).filter(([, v]) => v));
+        S.test = { etape: 'aliments', aliments: { ...avant }, avant, cuisines: depuis(g.cuisine), modeles: depuis(g.modele), epice: g.epice != null ? String(g.epice) : '', ids: [], i: 0, depuis: el.dataset.depuis };
         S.vue = 'test'; window.scrollTo(0, 0); break;
+      }
+      case 'gout-tuile': { const a = S.test.aliments; a[el.dataset.k] = a[el.dataset.k] === el.dataset.v ? '' : el.dataset.v; break; }
+      case 'gout-style': { const o = S.test[el.dataset.cle]; o[el.dataset.k] = o[el.dataset.k] === el.dataset.v ? '' : el.dataset.v; break; }
+      case 'gout-epice': S.test.epice = el.dataset.v; break;
+      case 'test-etape': {
+        const k = el.dataset.k;
+        if (k === 'plats') { appliquerTestGout(); S.test.ids = selectionAdaptative(10); S.test.i = 0; }
+        S.test.etape = k === 'plats' ? null : k;
+        window.scrollTo(0, 0); break;
+      }
+      case 'test-quitter': if (Object.values(S.test.aliments).some(Boolean)) { appliquerTestGout(); toast('Vos goûts sont notés'); } S.test = null; S.vue = S.plan ? 'app' : 'profil'; if (S.plan) S.onglet = 'profil'; break;
       case 'test-rep':
         if (el.dataset.k === 'non') { S.test.pourquoi = true; S.test.raisons = []; setTimeout(() => { const z = document.querySelector('.pourquoi-non'); if (z) z.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 30); break; }
         if (el.dataset.k !== 'passer') p.gouts = E.apprendre(p.gouts, S.test.ids[S.test.i], el.dataset.k);
