@@ -46,5 +46,13 @@ async function telecharger(url, essais = 4) {
   }
   const fichier = path.join(dist, 'js', 'photos.js');
   fs.writeFileSync(fichier, `globalThis.BUDGETABLE_PHOTOS_LOCALES = ${JSON.stringify(locales)};\n` + fs.readFileSync(fichier, 'utf8'));
+  // pages recettes (référencement) : même copie locale, aucune requête vers Wikimedia depuis le navigateur
+  const dossierRec = path.join(dist, 'recettes');
+  if (fs.existsSync(dossierRec)) for (const f of fs.readdirSync(dossierRec).filter((x) => x.endsWith('.html'))) {
+    const p = path.join(dossierRec, f);
+    let h = fs.readFileSync(p, 'utf8'), change = false;
+    for (const [src, loc] of Object.entries(locales)) if (h.includes(src)) { h = h.split(`src="${src}"`).join(`src="/${loc}"`); change = true; }
+    if (change) fs.writeFileSync(p, h);
+  }
   console.log(`Photos copiées avec le site : ${ok} / ${sources.length}`);
 })();

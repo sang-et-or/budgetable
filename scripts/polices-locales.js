@@ -32,10 +32,10 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
     html = html.replace(lien[0], '<link rel="stylesheet" href="fonts/polices.css">')
       .replace(/<link rel="preconnect" href="https:\/\/fonts\.(googleapis|gstatic)\.com"[^>]*>\n?/g, '');
     fs.writeFileSync(index, html);
-    for (const page of fs.readdirSync(dist).filter((f) => f.endsWith('.html') && f !== 'index.html')) {
-      const p = path.join(dist, page);
-      fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="fonts/polices.css">'));
-    }
+    // toutes les autres pages, y compris les pages recettes (adresse absolue)
+    const pages = fs.readdirSync(dist).filter((f) => f.endsWith('.html') && f !== 'index.html').map((f) => path.join(dist, f));
+    if (fs.existsSync(path.join(dist, 'recettes'))) pages.push(...fs.readdirSync(path.join(dist, 'recettes')).filter((f) => f.endsWith('.html')).map((f) => path.join(dist, 'recettes', f)));
+    for (const p of pages) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="/fonts/polices.css">'));
     console.log(`Polices servies par le site : ${n} fichiers`);
   } catch (e) {
     console.warn('Polices laissées sur Google Fonts :', e.message);
