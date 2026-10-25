@@ -120,6 +120,26 @@
     if (extra && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(extra.MOTS, extra.Q);
     if (PD && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(PD.MOTS, { graines_chia: 10, muesli: 50, proteine_poudre: 25 });
   })();
+  /** Recettes disparues (renommées ou retirées par une mise à jour) dans la semaine enregistrée : remplacées par une
+   *  recette équivalente, pour que la semaine et ses fiches s'affichent toujours. */
+  function reparerPlan() {
+    if (!S.plan || !Array.isArray(S.plan.jours)) return;
+    const slots = ['dejeuner', 'diner'];
+    let n = 0;
+    S.plan.jours.forEach((jp, j) => {
+      if (!jp) return;
+      if (Array.isArray(jp.gourmand)) jp.gourmand = jp.gourmand.filter((g) => g && E.REC[g.recette]);
+      for (const slot of slots) {
+        const m = jp[slot];
+        if (!m || !m.recette || E.REC[m.recette]) continue;
+        const parSlot = E.recettesCompatibles(S.profil).filter((r) => r.repas.includes(slot) && !r.gourmand);
+        const deja = new Set(S.plan.jours.flatMap((x) => slots.map((sl) => x && x[sl] && x[sl].recette)));
+        const choix = parSlot.find((r) => !deja.has(r.id)) || parSlot[0];
+        if (choix) { jp[slot] = { ...m, recette: choix.id }; n++; } else jp[slot] = null;
+      }
+    });
+    if (n) { S.planRepare = n; setTimeout(() => { try { toast(n > 1 ? `${n} plats de votre semaine n’existaient plus : ils ont été remplacés` : 'Un plat de votre semaine n’existait plus : il a été remplacé'); } catch (e) { /* */ } }, 600); }
+  }
   function charger() {
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
@@ -130,7 +150,7 @@
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
       if (S.plan && !Array.isArray(S.profil.provisionsRangees)) rangerProvisions(S.profil);
     } catch (e) { /* données illisibles : on repart de zéro */ }
-    finally { definirGourmand(); E.definirVariantes(S.variantes || []); if (!S.corrV2) { S.correspondances = {}; S.corrV2 = true; } try { appliquerPrixMagasin(); } catch (e) { /* prix de démonstration */ } }
+    finally { definirGourmand(); E.definirVariantes(S.variantes || []); try { reparerPlan(); } catch (e) { /* plan laissé tel quel */ } if (!S.corrV2) { S.correspondances = {}; S.corrV2 = true; } try { appliquerPrixMagasin(); } catch (e) { /* prix de démonstration */ } }
   }
 
   /* ---------- outils ---------- */
@@ -4312,6 +4332,23 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         <div><button class="btn btn-plein" data-a="ed-nouveau-g">+ Ajouter un dessert ou un goûter</button></div></section>`;
   }
 
+  // erreurs hors affichage (un bouton qui plante) : un petit message plutôt qu'un écran qui ne réagit plus
+  window.addEventListener('error', (ev) => { if (!ev || !ev.error) return; detailErreur('action', ev.error); try { toast('Un souci est survenu : ' + String(ev.error.message || '').slice(0, 80)); } catch (e) { /* */ } });
+  window.addEventListener('unhandledrejection', (ev) => { const e = ev && ev.reason; if (!e || !e.stack) return; detailErreur('action', e); try { toast('Un souci est survenu : ' + String(e.message || '').slice(0, 80)); } catch (x) { /* */ } });
+  /* ---------- erreurs d'affichage : jamais d'appli figée, et un message à me transmettre ---------- */
+  let derniereErreur = null;
+  function detailErreur(ou, e) {
+    const ver = ((document.querySelector('script[src*="/app."]') || {}).src || '').replace(/^.*\/app\.|\.js$/g, '');
+    derniereErreur = `${ou} · ${String(e && e.message || e)} · ${String(e && e.stack || '').split('\n').slice(0, 3).map((x) => x.trim().replace(/^.*\/(js\/[^/?#]+).*?(:\d+:\d+).*$/, '$1$2')).join(' ← ')} · v ${ver}`;
+    try { console.error('[Budgétable]', ou, e); } catch (x) { /* */ }
+    return `<p class="small muted" style="overflow-wrap:anywhere">Détail pour l’assistance : <code>${esc(derniereErreur)}</code></p>`;
+  }
+  function fenetreEnErreur(nom, e) {
+    const detail = detailErreur(nom, e);
+    if (nom === 'fiche') fiche = null;
+    return `<div class="voile" data-a="fermer-fond"><div class="fiche" role="alertdialog" aria-modal="true"><div class="spread"><h2>Oups, cette fenêtre n’a pas pu s’ouvrir</h2><button class="btn btn-petit" data-a="fermer-erreur">Fermer</button></div>
+      <p>Le reste de l’appli fonctionne normalement. Faites une capture de ce message et envoyez-la : je corrigerai.</p>${detail}</div></div>`;
+  }
   /* ---------- rendu ---------- */
   function rendre() {
     const partagee = lireListePartagee();
@@ -4320,13 +4357,17 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const app = document.getElementById('app');
     if (S.vue === 'test' && !S.test) S.vue = S.plan ? 'app' : 'profil';
     if (S.plan) { S.plan.debut = debutSemaine(); appliquerVersions(S.plan); E.organiserRestes(S.plan, S.profil); }
-    const html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue]();
+    let html;
+    try { html = { accueil: vueAccueil, questionnaire: vueQuestionnaire, profil: vueProfilValidation, app: vueApp, test: vueTest }[S.vue](); }
+    catch (e) { html = `<main class="page stack" style="gap:12px;padding:24px 16px"><h1>Oups, un écran n’a pas pu s’afficher</h1>${detailErreur('ecran-' + S.vue + '-' + S.onglet, e)}<div class="row" style="gap:8px"><button class="btn btn-plein" data-a="onglet" data-k="semaine">Revenir à ma semaine</button></div></main>`; }
     const avantEd = document.querySelector('.fenetre-edition');
     const hautEd = avantEd ? avantEd.scrollTop : 0;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance() + vueDeplacer() + vueTicket();
+    // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket]];
+    app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -4546,6 +4587,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'fiche': fiche = { jour: +el.dataset.j, slot: el.dataset.s }; break;
       case 'fiche-r': fiche = { recette: el.dataset.r }; break;
       case 'fermer': case 'fermer-fond': fiche = null; edPlat = null; break;
+      case 'fermer-erreur': fiche = null; edPlat = null; choix = null; auMenu = null; break;
       case 'mange': {
         const k = el.dataset.j + '-' + el.dataset.s;
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
