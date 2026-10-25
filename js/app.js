@@ -193,7 +193,7 @@
   }
   const joursOrdonnes = () => ordreJours().map((j) => [S.plan.jours[j], j]);
   const posJour = (j) => ordreJours().indexOf(j);
-  const tagDemo = '<span class="tag tag-demo" title="Prix de démonstration : ne viennent d’aucun magasin">Prix démo</span>';
+  const tagDemo = '<span class="tag tag-demo" title="Estimation moyenne : le prix réel dépend de votre magasin">Prix estimé</span>';
   /** Quantité d'une recette, telle qu'on la mesure en cuisine : œufs entiers, demi-légume possible, grammes et ml arrondis. */
   const ENTIERS = /oeuf|œuf|pain burger|baguette|tortilla|wrap|galette|yaourt|pot |crêpe|brick|feuille de lasagne|sachet|cube/i;
   function quantiteRecette(q, unite, id) {
