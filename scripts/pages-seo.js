@@ -83,7 +83,7 @@ nav.fil{font-size:.88rem;color:var(--doux);margin-top:14px}nav.pied{margin-top:4
 .petit{font-size:.88rem;color:var(--doux)}`;
 
 const MARQUE = '<a class="marque" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>';
-const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
+const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
 const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. 7 jours gratuits, sans carte bancaire.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
 
 function page({ url, titre, description, h1, corps, ld = [], image = null }) {
@@ -217,6 +217,19 @@ ${APPEL('Votre menu pas cher, prêt en 2 minutes')}`,
 <p>Budgétable fait tout ça pour vous : il démarre la semaine le jour où vous la préparez, tient compte des allergies, des enfants et du temps que vous avez, et vous laisse changer un plat d’un geste.</p>
 ${APPEL('Faites votre planning maintenant')}`,
       ld: [faq([['Comment organiser les repas de la semaine ?', 'Notez qui mange à la maison, choisissez des plats rapides pour les soirs chargés, prévoyez des restes, variez les protéines et déduisez la liste de courses de votre planning.']])]
+    },
+    {
+      fichier: 'planificateur-de-repas.html', titre: 'Planificateur de repas gratuit 7 jours : menus et liste de courses | Budgétable',
+      description: 'Budgétable est un planificateur de repas en français : il crée vos menus de la semaine selon vos goûts, vos allergies et votre budget, et fait la liste de courses. Essai gratuit 7 jours.',
+      h1: 'Le planificateur de repas qui fait les menus à votre place', corps: `<p class="chapo">Un planificateur de repas (ou planificateur de menus) vous aide à décider à l’avance ce que vous allez manger, à faire les bonnes courses et à tenir votre budget. Budgétable va plus loin : il propose lui-même les repas, et vous ajustez.</p>
+<h2>Ce que fait le planificateur Budgétable</h2>
+<ul><li><strong>Des menus sur mesure</strong> : 7 déjeuners et 7 dîners selon vos goûts, la saison, vos allergies et régimes (végétarien, sans porc, sans gluten…).</li><li><strong>Selon votre budget</strong> : le coût estimé de chaque plat et de la semaine, avec des ajustements si ça dépasse.</li><li><strong>Selon votre vie</strong> : qui mange à la maison, le temps de cuisine en semaine, les enfants, les gamelles du midi.</li><li><strong>La liste de courses automatique</strong>, triée par rayon, sans racheter ce qui est au placard.</li><li><strong>Plus de ${toutes.length} recettes</strong> faciles, plus vos propres recettes.</li><li><strong>Sur téléphone et ordinateur</strong>, à installer comme une appli, avec un compte pour tout retrouver partout.</li></ul>
+<h2>Comment ça marche</h2>
+<ol><li>Répondez à quelques questions (goûts, foyer, budget) : 2 minutes.</li><li>Votre semaine de repas apparaît, prête.</li><li>Changez, déplacez ou ajoutez ce que vous voulez.</li><li>Faites vos courses avec la liste, en magasin ou au drive.</li></ol>
+<h2>Exemple de semaine proposée</h2>
+<ul>${exempleSemaine}</ul>
+${APPEL('Essayez le planificateur gratuitement')}`,
+      ld: [faq([['Qu’est-ce qu’un planificateur de repas ?', 'C’est un outil qui organise vos repas de la semaine à l’avance et en déduit la liste de courses. Budgétable propose lui-même les menus selon vos goûts, vos allergies et votre budget.'], ['Le planificateur de repas Budgétable est-il gratuit ?', 'Les 7 premiers jours sont gratuits, sans carte bancaire. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement.'], ['Faut-il installer une application ?', 'Non : Budgétable fonctionne dans le navigateur, sur téléphone et ordinateur. Vous pouvez aussi l’installer sur l’écran d’accueil comme une appli.']])]
     },
     {
       fichier: 'liste-de-courses.html', titre: 'Liste de courses automatique, triée par rayon | Budgétable',
