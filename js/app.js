@@ -917,9 +917,9 @@
     }
     if (S.deduits[k] !== 'cuisine') {
       const restes = S.plan && S.plan.jours[j][slot] && S.plan.jours[j][slot].deRestes;
-      const autres = `${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button>`;
+      const autres = `${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button><button class="btn btn-petit" data-a="deplacer" data-j="${j}" data-s="${slot}" title="Mettre ce plat un autre jour">📅 Déplacer</button>`;
       if (mqMobile.matches) return `<div class="row" style="gap:6px"><button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button>${S.menuRepas === k ? autres : `<button class="btn btn-petit btn-plus" data-a="repas-plus" data-k="${k}" aria-label="Autres actions">⋯</button>`}</div>`;
-      return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button><button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button></div>`;
+      return `<div class="row" style="gap:6px">${restes ? '' : `<button class="btn btn-petit" data-a="choix" data-j="${j}" data-s="${slot}">Changer ce plat</button>`}<button class="btn btn-petit btn-mange" data-a="mange" data-j="${j}" data-s="${slot}">✓ C’est mangé</button><button class="btn btn-petit btn-dehors" data-a="dehors" data-j="${j}" data-s="${slot}" title="Repas pris à l’extérieur : le plat ne compte pas">🍽 Mangé dehors</button><button class="btn btn-petit" data-a="deplacer" data-j="${j}" data-s="${slot}" title="Mettre ce plat un autre jour">📅 Déplacer</button></div>`;
     }
     const note = S.notes[r.id] || 0;
     return `<div class="mange-ok stack" style="gap:6px">
@@ -1913,6 +1913,26 @@
   function ouvrirChoix(j, slot, enfants) {
     choix = { jour: j, slot, enfants: !!enfants, exclure: [], tour: 0, idees: [], filtre: '' };
     choix.idees = E.propositions(S.plan, j, slot, S.profil, { ...optsMoteur(), n: enfants ? 2 : 5 });
+  }
+  /** « Déplacer » : choisir le jour et le moment ; si un plat y est prévu, les deux plats s'échangent. */
+  function vueDeplacer() {
+    const d = S.deplacer;
+    if (!d || !S.plan || !S.plan.jours[d.j] || !S.plan.jours[d.j][d.s]) return '';
+    const m = S.plan.jours[d.j][d.s], r = E.REC[m.recette];
+    const t = aujourdhui(), h = new Date().getHours();
+    const passe = (j, sl) => posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21));
+    const cases = ordreJours().map((j) => `<div class="dep-jour"><strong>${E.JOURS[j]} <span class="muted num">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></strong>${E.SLOTS.map((sl) => {
+      const x = S.plan.jours[j][sl], k = j + '-' + sl;
+      const ici = j === d.j && sl === d.s;
+      const bloque = ici || passe(j, sl) || S.deduits[k] || (S.plan.jours[j].passes || []).includes(sl) || (x && (x.deRestes || x.aChoisir));
+      const lib = sl === 'dejeuner' ? 'Midi' : 'Soir';
+      const contenu = x && E.REC[x.recette] ? esc(E.REC[x.recette].nom) : (S.plan.jours[j].passes || []).includes(sl) ? 'passé' : 'rien de prévu';
+      return `<button class="dep-case ${ici ? 'ici' : ''}" data-a="deplacer-vers" data-j="${j}" data-s="${sl}" ${bloque ? 'disabled' : ''}><span class="eyebrow">${lib}</span><span class="small">${ici ? 'ce plat' : contenu}</span>${!bloque && x ? '<span class="dep-echange">⇄ échanger</span>' : ''}</button>`;
+    }).join('')}</div>`).join('');
+    return `<div class="voile" data-a="deplacer-fond"><div class="fiche fenetre-deplacer" role="dialog" aria-modal="true" aria-labelledby="dep-titre">
+      <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Déplacer un plat</span><h2 id="dep-titre">${esc(r.nom)}</h2><span class="small muted">Choisissez le jour et le moment. Si un plat y est déjà prévu, les deux plats sont échangés.</span></div>
+        <button class="btn btn-petit" data-a="deplacer-fermer">Fermer</button></div>
+      <div class="grille-deplacer">${cases}</div></div></div>`;
   }
   const FILTRES_CHOIX = [['', 'Toutes les idées'], ['saison', '🍂 De saison'], ['chaud', '🍲 Plat chaud'], ['rapide', '⏱ Rapide (20 min)'], ['pascher', '💶 Petit prix'], ['leger', '🥗 Léger'], ['vege', '🌱 Végétarien'], ['favoris', '⭐ Mes favoris']];
   function vueChoix() {
@@ -3774,7 +3794,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance() + vueDeplacer();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -3879,7 +3899,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond' || a === 'deplacer-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -3925,6 +3945,22 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         S.planDu = ISO(new Date());
         retirerRepasPasses();
         toast(`Votre semaine commence aujourd’hui, ${E.JOURS[aujourdhui()].toLowerCase()}`);
+        break;
+      }
+      case 'deplacer': S.deplacer = { j: +el.dataset.j, s: el.dataset.s }; S.menuRepas = null; break;
+      case 'deplacer-fermer': case 'deplacer-fond': S.deplacer = null; break;
+      case 'deplacer-vers': {
+        const d = S.deplacer; if (!d) return;
+        const j2 = +el.dataset.j, s2 = el.dataset.s;
+        const a = S.plan.jours[d.j][d.s], b = S.plan.jours[j2][s2];
+        if (!a) { S.deplacer = null; break; }
+        // chaque créneau garde son nombre de convives ; le plat déplacé n'est plus « des restes »
+        const pa = a.portions, pb = b ? b.portions : E.portions(S.profil, j2, s2) || pa;
+        const nettoie = (m, portions) => { const x = { ...m, portions }; delete x.deRestes; delete x.recetteAvant; delete x.plus; delete x.extra; delete x.theme; x.choisi = true; return x; };
+        S.plan.jours[j2][s2] = nettoie(a, pb);
+        S.plan.jours[d.j][d.s] = b ? nettoie(b, pa) : null;
+        S.deplacer = null;
+        toast(b ? `${E.REC[a.recette].nom} et ${E.REC[b.recette].nom} échangés` : `${E.REC[a.recette].nom} déplacé au ${E.JOURS[j2].toLowerCase()} ${s2 === 'diner' ? 'soir' : 'midi'}`);
         break;
       }
       case 'refaire-plats': {
@@ -4836,6 +4872,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (ev.key === 'Enter' && ev.target.id === 'coach-m-texte') { ev.preventDefault(); envoyerCoachMinceur(ev.target.value); return; }
     if (ev.key === 'Enter' && ev.target.id === 'manuel-cherche') { ev.preventDefault(); const b = document.querySelector('[data-a="manuel-ajouter-texte"]'); if (b) b.click(); return; }
     if (ev.key === 'Enter' && ev.target.id === 'ed-nom' && edition) { ev.preventDefault(); edition.nom = ev.target.value; if (edition.nom.trim().length >= 2) { devinerEdition(); rendre(); } return; }
+    if (ev.key === 'Escape' && S.deplacer) { S.deplacer = null; rendre(); return; }
     if (ev.key === 'Escape' && S.aideInstall) { S.aideInstall = false; rendre(); return; }
     if (ev.key === 'Escape' && S.prospectusOuvert) { S.prospectusOuvert = null; rendre(); return; }
     if (ev.key === 'Escape' && compte.vue) { compte.vue = null; rendre(); return; }
