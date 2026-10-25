@@ -3170,7 +3170,6 @@
   }
 
   function ongletProfil() {
-    const exportJson = JSON.stringify({ profil: S.profil, notes: S.notes, plan: S.plan }, null, 2);
     return `<div><p class="eyebrow">Profil</p><h1>Votre foyer et vos données</h1></div>
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
@@ -3186,8 +3185,7 @@
       <section class="stack"><h2>L’application</h2>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
-        <div class="champ"><span>Export de vos données (format JSON)</span><textarea id="export" readonly aria-label="Export JSON de vos données">${esc(exportJson)}</textarea></div>
-        <div class="row"><button class="btn" data-a="copier-export">Copier l’export</button>
+        <div class="row">
           ${S.confirmerSuppression ? '<span class="small">Tout effacer sur cet appareil ? Cette action est définitive.</span><button class="btn btn-petit" data-a="suppr-non">Annuler</button><button class="btn btn-petit" style="border-color:var(--tomate);color:var(--tomate)" data-a="suppr-oui">Oui, tout effacer</button>' : '<button class="btn" data-a="supprimer">Supprimer toutes mes données</button>'}</div>
       </section>
       ${PIED}`;
@@ -5051,7 +5049,6 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'imprimer': window.print(); return;
       case 'copier-liste': copier(listeTexte(E.listeCourses(S.plan, p)), null); return;
       case 'export-extension': envoyerExtension(exportExtension(E.listeCourses(S.plan, p))); return;
-      case 'copier-export': copier(document.getElementById('export').value, document.getElementById('export')); return;
       case 'drive-mode': S.drives.mode = el.dataset.k; break;
       case 'chercher-drives': chercherDrives(); return;
       case 'choisir-magasin': {
