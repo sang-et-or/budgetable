@@ -34,6 +34,7 @@ with sync_playwright() as p:
     f.locator("[data-a=ticket-coller]").click()
     page.fill("#ticket-texte", TICKET)
     f.locator("[data-a=ticket-analyser]").click()
+    f.locator(".ligne-ticket").first.wait_for(timeout=10000)
     assert f.locator(".ligne-ticket").count() >= 5
     assert f.locator("[data-a=ticket-enseigne][data-k=lidl][aria-pressed=true]").count() == 1
     produits = f.locator(".produit-ticket").all_inner_texts(); print("rapprochés :", produits)
