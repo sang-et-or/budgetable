@@ -25,7 +25,7 @@ with sync_playwright() as p:
     assert base and all(l0[i]["reserve"] for i in base), (base, l0)
     x = base[0]
     # 1. retirer du placard → à acheter
-    page.locator("nav button[data-k=placard]").click()
+    page.locator("nav button[data-k=placard]").click(); page.wait_for_timeout(1500)   # laisser finir les enregistrements différés
     page.evaluate(f"""() => {{ const d = JSON.parse(localStorage.getItem('budgetable.v1')); delete d.profil.stock['{x}']; localStorage.setItem('budgetable.v1', JSON.stringify(d)); }}"""); page.reload()
     assert not L()[x]["reserve"], "retiré du placard mais toujours « à la maison »"
     # 2. dans la liste : « J'en ai déjà » range au placard
