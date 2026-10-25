@@ -751,9 +751,19 @@
     const ctx = contexteDepuisPlan(plan, opts.notes, { jour, slot }, opts.classiques);
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
     const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
-    const liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    // « encore d'autres idées » : on écarte les plats déjà montrés, leurs variantes (même plat, autre féculent),
+    // et on change de famille de plat et d'ingrédient principal à chaque série
+    const deja = (opts.exclure || []).map((id) => REC[id]).filter(Boolean);
+    const sigsDeja = new Set(deja.map((x) => x.sig || x.id));
+    const compte = (f) => deja.reduce((o, x) => { const k = f(x); if (k) o[k] = (o[k] || 0) + 1; return o; }, {});
+    const modelesDeja = compte((x) => (x.modele !== 'maison' ? x.modele : null)), protDeja = compte((x) => x.prot);
+    const legDeja = compte((x) => (x.ing.find(([id]) => ING[id] && ING[id].groupe === 'L' && !['oignon', 'ail', 'citron', 'persil'].includes(id)) || [])[0]);
+    let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    const neuves = liste.filter((x) => !sigsDeja.has(x.sig || x.id));
+    if (neuves.length >= n) liste = neuves;
     const r = rng((plan.seed * 17 + jour * 13 + (slot === 'diner' ? 5 : 2) + (opts.tour || 0) * 977) >>> 0);
-    const classes = liste.map((rec) => [rec, score(rec, p, ctx, r)]).sort((a, b) => b[1] - a[1]).map(([rec]) => rec);
+    const varie = (x) => (modelesDeja[x.modele] || 0) * 3 + (protDeja[x.prot] || 0) * 1.5 + (legDeja[(x.ing.find(([id]) => ING[id] && ING[id].groupe === 'L' && !['oignon', 'ail', 'citron', 'persil'].includes(id)) || [])[0]] || 0) * 1.2;
+    const classes = liste.map((rec) => [rec, score(rec, p, ctx, r) - varie(rec)]).sort((a, b) => b[1] - a[1]).map(([rec]) => rec);
     const choix = [];
     const familles = new Set([REC[actuel.recette].modele]);
     const sigs = new Set([REC[actuel.recette].sig || actuel.recette]);
