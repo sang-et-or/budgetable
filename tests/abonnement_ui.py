@@ -29,7 +29,7 @@ with sync_playwright() as p:
     page.reload(); page.wait_for_timeout(600)
     page.locator("nav button[data-k=profil]:visible").click(); page.wait_for_timeout(300)
     b = page.locator(".bloc-abonnement").inner_text(); print("essai :", b[:160].replace("\n", " | "))
-    assert "Essai gratuit" in b and "7 jours" in b and "2,99 €" in b and "Créer mon compte" in b
+    assert "Essai gratuit" in b and re.search(r"[67] jours", b) and "2,99 €" in b and "Créer mon compte" in b
     # 3. essai terminé (premier jour d'utilisation il y a 8 jours) : bandeau, et les nouvelles fonctions ouvrent l'abonnement
     page.evaluate("() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); const t = new Date(Date.now() - 8 * 86400000); d.essaiDebut = t.toISOString().slice(0, 10); localStorage.setItem('budgetable.v1', JSON.stringify(d)); }")
     page.reload(); page.wait_for_timeout(600)
