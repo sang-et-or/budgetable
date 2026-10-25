@@ -15,7 +15,7 @@ const SITE = (process.env.SITE || 'https://budgetable.fr').replace(/\/+$/, '');
 const SUPA_URL = (process.env.SUPABASE_URL || 'https://wrcxlvdyegfjawmwtozk.supabase.co').replace(/\/+$/, '');
 const SUPA_CLE = process.env.SUPABASE_ANON_KEY || 'sb_publishable_86qxUeodYl3N0Ey3jhFwfg_l3lnzvqW';
 const cleStripe = () => process.env.STRIPE_SECRET_KEY || '';
-const actif = () => /^sk_(live|test)_/.test(cleStripe());
+const actif = () => /^(sk|rk)_(live|test)_/.test(cleStripe());
 
 const erreur = (msg, code) => Object.assign(new Error(msg), { code });
 
