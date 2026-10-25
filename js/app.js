@@ -1087,6 +1087,7 @@
       if (platSoupe && (/soupe|velout|potage|gaspacho/i.test(r.nom) || (r.tags || []).includes('chaud'))) n -= 25;
       n -= 6 * r.ing.filter(([id]) => ingPlat.has(id)).length;
       if (moment === 'dessert' && platCopieux) n += (r.tags || []).includes('leger') ? 5 : -2;
+      if (minceurDansSemaine()) n -= (((NUT(r) || {}).kcal) || 0) / 40;   // programme minceur : les plus légers d'abord
       return n;
     };
     return E.gourmandises().filter((r) => r.type === moment && deSaison(r) && garde(r))
@@ -1105,7 +1106,7 @@
       <div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(E.JOURS[c.j])} · ${c.slot === 'dejeuner' ? 'déjeuner' : 'dîner'}${m ? ' · ' + esc(E.REC[m.recette].nom) : ''}</span><h2 id="comp-titre">${c.moment === 'entree' ? 'Ajouter une entrée' : 'Ajouter un dessert'}</h2><span class="small muted">Pour ${pluriel(parts, 'part')} · ingrédients ajoutés à la liste de courses</span></div>
         <button class="btn btn-petit" data-a="complement-fermer">Fermer</button></div>
       <div class="row" role="group" aria-label="Filtrer" style="gap:6px">${filtres.map(([k, v]) => `<button class="chip chip-petit" data-a="complement-filtre" data-k="${k}" aria-pressed="${(c.filtre || 'tout') === k}">${v}</button>`).join('')}</div>
-      <ul class="liste-complements">${idees.map(({ r, ok }) => `<li class="${ok ? '' : 'incompatible'}"><span class="emoji-complement" aria-hidden="true">${r.emoji}</span><span class="stack" style="gap:1px;min-width:0;flex:1"><button class="btn-lien titre-complement" data-a="fiche-g" data-r="${r.id}" data-n="${parts}">${esc(r.nom)}</button><span class="small muted">${r.temps} min · <span class="num">${euros(E.coutPortion(r) * parts)}</span>${r.mois ? ' · de saison' : ''}${ok ? '' : ` · ${esc(libAllergie(E.recetteCompatible(r, S.profil).raison))}`}</span></span><button class="btn btn-petit ${ok ? 'btn-plein' : ''}" data-a="complement-choisir" data-r="${r.id}">Choisir</button></li>`).join('') || '<li class="small muted">Aucune idée avec ce filtre.</li>'}</ul>
+      <ul class="liste-complements">${idees.map(({ r, ok }) => `<li class="${ok ? '' : 'incompatible'}"><span class="emoji-complement" aria-hidden="true">${r.emoji}</span><span class="stack" style="gap:1px;min-width:0;flex:1"><button class="btn-lien titre-complement" data-a="fiche-g" data-r="${r.id}" data-n="${parts}">${esc(r.nom)}</button><span class="small muted">${r.temps} min · <span class="num">${euros(E.coutPortion(r) * parts)}</span>${minceurDansSemaine() && NUT(r) ? ` · ≈ ${nb(Math.round(NUT(r).kcal / 10) * 10)} kcal la part` : ''}${r.mois ? ' · de saison' : ''}${ok ? '' : ` · ${esc(libAllergie(E.recetteCompatible(r, S.profil).raison))}`}</span></span><button class="btn btn-petit ${ok ? 'btn-plein' : ''}" data-a="complement-choisir" data-r="${r.id}">Choisir</button></li>`).join('') || '<li class="small muted">Aucune idée avec ce filtre.</li>'}</ul>
       <p class="small muted">Plus de choix (gâteaux, goûters, vos recettes à vous) dans la page <button class="btn-lien" data-a="complement-gourmand">Gourmand</button>.</p>
     </div></div>`;
   }
@@ -1142,7 +1143,7 @@
   const mqMobile = window.matchMedia ? window.matchMedia('(max-width: 699px)') : { matches: false };
   if (mqMobile.addEventListener) mqMobile.addEventListener('change', () => rendre());
   function carteJour(jp, j, t) {
-    const totalMinceur = minceurDansSemaine() ? (() => { const rep = P.repartition(cibleProg()); const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]); const k = (pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0) + ['dejeuner', 'diner'].reduce((t, sl) => { const x = assietteRepas(jp[sl], j, sl, rep); return t + (x && !x.dehors ? x.kcal : 0); }, 0) + rep.collation; return `<span class="total-minceur small num" title="Total estimé pour vous, collation comprise">🥗 ≈ ${nb(Math.round(k / 10) * 10)} kcal</span>`; })() : '';
+    const totalMinceur = minceurDansSemaine() ? (() => { const rep = P.repartition(cibleProg()); const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]); const k = (pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0) + ['dejeuner', 'diner'].reduce((t, sl) => { const x = assietteRepas(jp[sl], j, sl, rep); return t + (x && !x.dehors ? x.kcal : 0); }, 0) + (() => { const gt = (jp.gourmand || []).filter((g) => !g.slot && g.moment !== 'petitdej' && E.REC[g.recette]); return gt.length ? gt.reduce((t, g) => t + (((NUT(E.REC[g.recette]) || {}).kcal) || 0), 0) : rep.collation; })(); return `<span class="total-minceur small num" title="Total estimé pour vous, collation comprise">🥗 ≈ ${nb(Math.round(k / 10) * 10)} kcal</span>`; })() : '';
     return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${totalMinceur}${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
         ${lignesGourmandes(jp, true)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false)}</article>`;
   }
@@ -3379,7 +3380,7 @@
   }
   function noterJournal(j, slot, recette, ajouter) {
     S.journal = (S.journal || []).filter((x) => !(x.d === dateDuJour(j) && x.s === slot));
-    if (ajouter) S.journal.push({ d: dateDuJour(j), s: slot, r: recette });
+    if (ajouter) { S.journal.push({ d: dateDuJour(j), s: slot, r: recette }); for (const g of complementsDu(j, slot)) S.journal.push({ d: dateDuJour(j), s: slot, r: g.recette, c: g.moment }); }
     if (S.journal.length > 1500) S.journal = S.journal.slice(-1500);
   }
   // valeurs d'une journée (portion adulte) à partir du journal
@@ -3562,7 +3563,7 @@
       <ul class="compteurs">${etats.map(compteur).join('')}</ul>
       <div class="stack" style="gap:6px"><h3>Mangé ${d === auj ? 'aujourd’hui' : 'ce jour-là'}</h3>
         <ul class="liste-carnet">
-          ${j.repas.map((x) => `<li><span>🍽️ ${x.s === 'diner' ? 'Dîner' : 'Déjeuner'} : ${esc(E.REC[x.r].nom)}</span><span class="small num">${x.n.kcal} kcal</span></li>`).join('')}
+          ${j.repas.map((x) => `<li><span>${x.c ? E.REC[x.r].emoji : '🍽️'} ${x.c ? (x.c === 'entree' ? 'Entrée' : 'Dessert') + (x.s === 'diner' ? ' du dîner' : ' du déjeuner') : x.s === 'diner' ? 'Dîner' : 'Déjeuner'} : ${esc(E.REC[x.r].nom)}</span><span class="small num">${x.n.kcal} kcal</span></li>`).join('')}
           ${Object.entries(parMoment).map(([mo, l]) => l.map((x) => { const al = alimentDe(x); return al ? `<li><span>${esc(al.nom)} <span class="small muted">· ${x.n > 1 ? x.n + ' × ' : ''}${esc(al.portion)}</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;align-items:center"><span class="small num">${Math.round(al.kcal * x.n)} kcal</span><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="-1" aria-label="Une portion de moins">−</button><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="1" aria-label="Une portion de plus">+</button><button class="btn-lien small" data-a="carnet-suppr" data-i="${x.i}" aria-label="Retirer ${esc(al.nom)}">✕</button></span></li>` : ''; }).join('')).join('')}
           ${rien ? '<li class="small muted">Rien pour l’instant.</li>' : ''}
         </ul></div>
@@ -3647,11 +3648,18 @@
     rep = rep || P.repartition(cibleProg());
     const r = E.REC[m.recette];
     const enf = E.enfantsPresents(S.profil, j, slot);
-    if (m.libre) { const n0 = NUT(r); return { nom: r.nom, recette: m.recette, kcal: (n0 && n0.kcal) || 0, libre: true, court: 'repas libre, part normale', assiette: [], f: 1, enfants: enf ? 'assiette complète' : '' }; }
+    // entrée et dessert du repas : une part pour vous, comptée dans le budget du repas
+    const comps = complementsDu(j, slot).map((g) => ({ g, r: E.REC[g.recette], kcal: Math.round(((NUT(E.REC[g.recette]) || {}).kcal) || 0) }));
+    const kc = comps.reduce((t, x) => t + x.kcal, 0);
+    if (m.libre) { const n0 = NUT(r); return { nom: r.nom, recette: m.recette, kcal: ((n0 && n0.kcal) || 0) + kc, kcalPlat: (n0 && n0.kcal) || 0, comps, kcalComps: kc, libre: true, court: 'repas libre, part normale', assiette: [], f: 1, enfants: enf ? 'assiette complète' : '' }; }
     const a = E.assietteMinceur(r);
     const n = NUT(E.recetteAdaptee(r, a));
-    const po = P.portion(n && n.kcal, rep[slot]);
-    return { nom: r.nom, recette: m.recette, kcal: po.kcal || (n && n.kcal) || 0, conseil: po.texte, f: po.f, plus: !!po.plus, assiette: a ? a.conseils : [], court: a ? a.court : '', enfants: enf ? (a && !a.feculent ? 'assiette complète, avec du pain' : 'assiette complète') : '' };
+    // le plat garde au moins la moitié du budget du repas, même avec une entrée et un dessert copieux
+    const budgetPlat = Math.max(rep[slot] * 0.5, rep[slot] - kc);
+    const po = P.portion(n && n.kcal, budgetPlat);
+    const plus = !!po.plus && !kc;   // « ajoutez un fruit » seulement s'il n'y a pas déjà un dessert ou une entrée
+    const kPlat = po.plus && kc ? Math.round(po.kcal - 80) : po.kcal;   // sans le fruit conseillé quand il y a déjà un dessert
+    return { nom: r.nom, recette: m.recette, kcal: (kPlat || (n && n.kcal) || 0) + kc, kcalPlat: kPlat || (n && n.kcal) || 0, comps, kcalComps: kc, tropComps: kc > rep[slot] * 0.4, budget: rep[slot], conseil: po.texte, f: po.f, plus, assiette: a ? a.conseils : [], court: a ? a.court : '', enfants: enf ? (a && !a.feculent ? 'assiette complète, avec du pain' : 'assiette complète') : '' };
   }
   const minceurDansSemaine = () => !!(S.profil.programme && E.programmeActif(S.profil));
   /** Sous un plat de la semaine : « Vous : ½ pâtes · légumes ×1,5 · ≈ 420 kcal », et le bouton « repas libre ». */
@@ -3681,7 +3689,9 @@
     const r = E.REC[m.recette];
     const n0 = NUT(r);
     const k0 = n0 ? Math.round(n0.kcal / 10) * 10 : 0, k = Math.round(x.kcal / 10) * 10;
-    if (x.libre) return `<div class="assiette-semaine libre"><div class="assiette-resume"><span>🍽️ <strong>Repas libre</strong> : vous mangez comme tout le monde${k ? ` · ≈ ${nb(k)} kcal` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Remettre le coach</button></div></div>`;
+    const compsTxt = (x.comps || []).length ? `<span class="small">${x.comps.map((c) => `${c.r.emoji} ${c.g.moment === 'entree' ? 'Entrée' : 'Dessert'} : ${esc(c.r.nom)} ≈ ${nb(Math.round(c.kcal / 10) * 10)} kcal`).join(' · ')}</span>` : '';
+    const conseilComps = x.tropComps ? `<span class="small alerte-ing">⚠️ L’entrée et le dessert font déjà ≈ ${nb(Math.round(x.kcalComps / 10) * 10)} kcal sur ${nb(x.budget)} pour ce repas : choisissez-en un plus léger (crudités, fruit, yaourt nature) pour garder une vraie part du plat.</span>` : (x.comps || []).length ? '<span class="small pourquoi">Entrée et dessert compris : la part du plat est ajustée en conséquence.</span>' : '';
+    if (x.libre) return `<div class="assiette-semaine libre"><div class="assiette-resume"><span>🍽️ <strong>Repas libre</strong> : vous mangez comme tout le monde${k ? ` · ≈ ${nb(k)} kcal${(x.comps || []).length ? ' avec l’entrée et le dessert' : ''}` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Remettre le coach</button></div></div>`;
     const a = E.assietteMinceur(r) || { aj: [] };
     const fec = a.aj.filter(([id, f]) => f < 1 && E.ING[id].groupe === 'F').map(([id]) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase());
     const fecA = (a.fecReduits || []).map((id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase());
@@ -3689,11 +3699,12 @@
       : [fecA.length ? `moitié moins de ${fecA.join(' et ')}` : '', 'plus de légumes', (a.grasReduits || []).length ? 'fromage à part' : '', x.f < 1 ? `${x.f === 0.5 ? 'une demi' : 'trois quarts de'} part` : ''].filter(Boolean);
     const lignes = detailAssiette(r, x.f < 1 ? x.f : 1);
     const ROLE = { feculent: 'moitié', legume: 'plus', proteine: 'pareil', gras: 'moitié' };
-    return `<details class="assiette-semaine"><summary><span class="assiette-resume"><span>🥗 <strong>Pour vous</strong> : ${esc(resume.join(', '))}</span><span class="kcal-pour-vous num">≈ ${nb(k)} kcal${k0 && k0 > k ? ` <s>${nb(k0)}</s>` : ''}</span></span><span class="voir-detail small">Voir mon assiette</span></summary>
+    return `<details class="assiette-semaine"><summary><span class="assiette-resume"><span>🥗 <strong>Pour vous</strong> : ${esc(resume.join(', '))}</span><span class="kcal-pour-vous num">≈ ${nb(k)} kcal${(x.comps || []).length ? ' le repas' : k0 && k0 > k ? ` <s>${nb(k0)}</s>` : ''}</span></span><span class="voir-detail small">Voir mon assiette</span></summary>
       <div class="assiette-detail"><div class="mini-assiette" aria-hidden="true"><span class="q-leg">légumes</span><span class="q-prot">protéines</span><span class="q-fec">féculents</span></div>
         <div class="stack" style="gap:6px;min-width:0"><table class="table-assiette small"><thead><tr><th></th><th>Pour vous</th><th class="muted">part normale</th></tr></thead><tbody>${lignes.map((l) => `<tr class="role-${l.role}"><td><span aria-hidden="true">${l.emoji}</span> ${esc(l.nom)}</td><td><strong>${esc(l.pour)}</strong> <span class="badge-role">${esc(l.role === 'gras' && l.label.startsWith('moitié') ? 'à ajouter à la fin' : l.label)}</span></td><td class="muted">${esc(l.normal)}</td></tr>`).join('')}</tbody></table>
         ${a.reduite ? `<span class="small">ℹ️ ${esc((a.integres || []).map((id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase()).join(', '))} : cuit dans le plat, on ne peut pas l’enlever. Prenez une part un peu plus petite et complétez avec la salade.</span>` : ''}
         ${x.plus ? '<span class="small">🍎 Il vous reste de la marge : ajoutez un fruit ou un yaourt nature.</span>' : ''}
+        ${compsTxt}${conseilComps}
         ${x.enfants ? `<span class="small">👧 Les enfants : ${esc(x.enfants)}. Astuce : servez les féculents et le fromage à part, chacun se sert.</span>` : ''}
         <div><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Ce repas, je mange comme tout le monde (repas libre)</button></div></div></div></details>`;
   }
@@ -4097,7 +4108,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   }
   function lignesJournal(j) {
     const l = [];
-    j.repas.forEach((x) => l.push({ moment: x.s, nom: E.REC[x.r].nom, detail: 'repas du planning', kcal: x.n.kcal, ns: x.n.lettre, suppr: `data-a="journal-suppr-repas" data-d="${x.d}" data-s="${x.s}"`, r: x.r }));
+    j.repas.forEach((x) => l.push({ moment: x.s, nom: E.REC[x.r].nom, detail: x.c ? (x.c === 'entree' ? 'entrée' : 'dessert') + ' du repas' : 'repas du planning', kcal: x.n.kcal, ns: x.n.lettre, suppr: `data-a="journal-suppr-repas" data-d="${x.d}" data-s="${x.s}"`, r: x.r }));
     j.ajouts.forEach((x) => { const al = alimentDe(x); if (al) l.push({ moment: x.m || 'collation', nom: al.nom, detail: `${x.n > 1 ? x.n + ' × ' : ''}${al.portion}`, kcal: Math.round(al.kcal * x.n), ns: null, suppr: `data-a="carnet-suppr" data-i="${x.i}"` }); });
     return l;
   }
