@@ -43,7 +43,7 @@ test('paiement : abonnement mensuel à 2,99 €, jours d’essai restants offert
   const corps = decodeURIComponent(appels.find((x) => x.url.includes('/checkout/sessions')).o.body);
   assert.ok(corps.includes('mode=subscription') && corps.includes('[unit_amount]=299') && corps.includes('[currency]=eur') && corps.includes('[interval]=month'), corps);
   assert.ok(/trial_period_days\]=[34]/.test(corps), 'reste de l’essai offert : ' + corps);
-  assert.ok(corps.includes('success_url=https://budgetable.onrender.com/?abonnement=merci'));
+  assert.ok(corps.includes('success_url=https://budgetable.fr/?abonnement=merci'));
   // essai fini : pas de jours offerts
   const b = faux({ creeIlYa: 10, clients: [{ id: 'cus_1' }] });
   await A.paiement('bon', b.f);
