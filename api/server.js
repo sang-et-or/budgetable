@@ -37,7 +37,8 @@ let CATALOGUE = [];
 try { CATALOGUE = require('../js/engine.js').DATA.ingredients.map((i) => ({ id: i.id, nom: i.nom, unite: i.unite, cond: i.cond })); } catch (e) { /* pas de catalogue : la vision sera désactivée */ }
 let CATALOGUE_TICKET = CATALOGUE.slice();
 try { require('../js/catalogue.js'); const vus = new Set(CATALOGUE.map((i) => i.id)); CATALOGUE_TICKET = CATALOGUE.concat((globalThis.CatalogueExtra.INGREDIENTS || []).filter((i) => !vus.has(i.id)).map((i) => ({ id: i.id, nom: i.nom }))); } catch (e) { /* catalogue de base seulement */ }
-const ORIGINES = (process.env.ORIGINES || 'https://budgetable.onrender.com,https://budgetable.fr,https://www.budgetable.fr').split(',').map((s) => s.trim());
+// adresses du site toujours autorisées, plus celles de la variable ORIGINES (Render)
+const ORIGINES = [...new Set(['https://budgetable.fr', 'https://www.budgetable.fr', 'https://budgetable.onrender.com', ...String(process.env.ORIGINES || '').split(',').map((s) => s.trim()).filter(Boolean)])];
 const MAX_OCTETS = 3 * 1024 * 1024;
 const AGENT = 'Mozilla/5.0 (compatible; BudgetableRecettes/1.0; +https://budgetable.onrender.com)';
 

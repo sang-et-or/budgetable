@@ -10,6 +10,18 @@ services:
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(), geolocation=(), payment=()
       - path: /sw.js
         name: Cache-Control
         value: no-cache
@@ -37,7 +49,7 @@ services:
     healthCheckPath: /sante
     envVars:
       - key: ORIGINES
-        value: https://budgetable.onrender.com
+        value: https://budgetable.fr,https://www.budgetable.fr,https://budgetable.onrender.com
       # assistant IA du site (commis, goûts, photo du placard) : UNE clé, à saisir dans Render.
       # Mistral AI (français, serveurs en Europe) de préférence, ou Anthropic.
       - key: MISTRAL_API_KEY
