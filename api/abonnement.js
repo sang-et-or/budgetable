@@ -5,7 +5,8 @@
  * auprès de Supabase. L'essai court à partir de la création du compte (date tenue par Supabase, pas par l'appareil).
  *
  * Variables d'environnement (Render) : STRIPE_SECRET_KEY (obligatoire pour vendre), SUPABASE_URL, SUPABASE_ANON_KEY
- * (publique), PRIX_CENTIMES (299), ESSAI_JOURS (7), SITE (https://budgetable.onrender.com).
+ * (publique), PRIX_CENTIMES (299), ESSAI_JOURS (7), SITE (https://budgetable.fr),
+ * COMPTES_OFFERTS (adresses e-mail séparées par des virgules : accès complet sans payer, adresse confirmée exigée).
  */
 'use strict';
 
@@ -17,6 +18,9 @@ const SUPA_CLE = process.env.SUPABASE_ANON_KEY || 'sb_publishable_86qxUeodYl3N0E
 const cleStripe = () => process.env.STRIPE_SECRET_KEY || '';
 const actif = () => /^(sk|rk)_(live|test)_/.test(cleStripe());
 
+// comptes offerts (propriétaire, testeurs) : lus dans Render, jamais écrits dans le code
+const offert = (u) => u.confirme && !!u.email && String(process.env.COMPTES_OFFERTS || '').toLowerCase().split(',').map((x) => x.trim()).filter(Boolean).includes(u.email.toLowerCase());
+
 const erreur = (msg, code) => Object.assign(new Error(msg), { code });
 
 /** Qui appelle ? Le jeton de session est vérifié par Supabase (impossible de se faire passer pour un autre compte). */
@@ -26,7 +30,7 @@ async function utilisateur(jeton, f = fetch) {
   if (!r.ok) throw erreur('Session expirée : reconnectez-vous', 401);
   const u = await r.json();
   if (!u || !u.id) throw erreur('Session expirée : reconnectez-vous', 401);
-  return { id: u.id, email: u.email || '', cree: Date.parse(u.created_at) || Date.now() };
+  return { id: u.id, email: u.email || '', confirme: !!(u.email_confirmed_at || u.confirmed_at), cree: Date.parse(u.created_at) || Date.now() };
 }
 
 // appel à l'API Stripe (formulaire encodé, comme l'exige Stripe)
@@ -63,6 +67,7 @@ async function etat(jeton, f = fetch, _site) {
   const finEssai = u.cree + ESSAI_JOURS * 86400000;
   const base = { disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false };
   if (!actif()) return base;
+  if (offert(u)) return { ...base, abonne: true, offert: true, statut: 'offert' };
   const c = cache.get(u.id);
   if (c && Date.now() - c.t < 120000) return { ...base, ...c.v };
   const client = await clientDe(u, false, f);
@@ -82,6 +87,7 @@ async function paiement(jeton, f = fetch, site = SITE) {
   site = site || SITE;
   if (!actif()) throw erreur('L’abonnement ouvre très bientôt', 503);
   const u = await utilisateur(jeton, f);
+  if (offert(u)) throw erreur('Votre accès est offert : rien à payer', 400);
   const client = await clientDe(u, true, f);
   const resteEssai = Math.floor((u.cree + ESSAI_JOURS * 86400000 - Date.now()) / 86400000);
   const s = await stripe('/checkout/sessions', { methode: 'POST', corps: {

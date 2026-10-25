@@ -60,3 +60,29 @@ test('paiement pas encore branché : rien n’est bloqué', async () => {
   assert.strictEqual(e.disponible, false);
   process.env.STRIPE_SECRET_KEY = k;
 });
+test('compte offert (COMPTES_OFFERTS) : accès complet sans Stripe, seulement si l’adresse est confirmée', async () => {
+  A._viderCache();
+  process.env.COMPTES_OFFERTS = ' autre@x.fr, Moi@Exemple.fr ';
+  const base = faux({ creeIlYa: 30 });
+  const fConf = async (url, o = {}) => url.includes('/auth/v1/user') ? { ok: true, status: 200, json: async () => ({ id: 'u-1', email: 'moi@exemple.fr', email_confirmed_at: '2026-10-01T00:00:00Z', created_at: new Date(Date.now() - 30 * JOUR).toISOString() }) } : base.f(url, o);
+  const e = await A.etat('bon', fConf);
+  assert.strictEqual(e.abonne, true); assert.strictEqual(e.offert, true);
+  assert.ok(!base.appels.some((x) => x.url.includes('stripe.com')), 'aucun appel à Stripe');
+  await assert.rejects(A.paiement('bon', fConf), /offert/);
+  const e2 = await A.etat('bon', faux({ creeIlYa: 30 }).f);   // adresse non confirmée : pas offert
+  assert.notStrictEqual(e2.offert, true);
+  delete process.env.COMPTES_OFFERTS;
+});
+test('compte offert (COMPTES_OFFERTS) : accès complet sans Stripe, seulement si l’adresse est confirmée', async () => {
+  A._viderCache();
+  process.env.COMPTES_OFFERTS = ' autre@x.fr, Moi@Exemple.fr ';
+  const base = faux({ creeIlYa: 30 });
+  const fConf = async (url, o = {}) => url.includes('/auth/v1/user') ? { ok: true, status: 200, json: async () => ({ id: 'u-1', email: 'moi@exemple.fr', email_confirmed_at: '2026-10-01T00:00:00Z', created_at: new Date(Date.now() - 30 * JOUR).toISOString() }) } : base.f(url, o);
+  const e = await A.etat('bon', fConf);
+  assert.strictEqual(e.abonne, true); assert.strictEqual(e.offert, true);
+  assert.ok(!base.appels.some((x) => x.url.includes('stripe.com')), 'aucun appel à Stripe');
+  await assert.rejects(A.paiement('bon', fConf), /offert/);
+  const e2 = await A.etat('bon', faux({ creeIlYa: 30 }).f);
+  assert.notStrictEqual(e2.offert, true);
+  delete process.env.COMPTES_OFFERTS;
+});
