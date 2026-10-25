@@ -11,10 +11,10 @@
     ['leaderprice', 'Leader Price', /leader ?price/], ['grandfrais', 'Grand Frais', /grand ?frais/], ['picard', 'Picard', /picard/], ['cora', 'Cora', /\bcora\b/],
     ['match', 'Supermarchés Match', /\bmatch\b/], ['spar', 'Spar', /\bspar\b/], ['colruyt', 'Colruyt', /colruyt/], ['biocoop', 'Biocoop', /biocoop/]
   ];
-  const norm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const norm = (t) => String(t || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae').replace(/Æ/g, 'AE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const prixNum = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.'));
   // lignes qui ne sont pas des articles
-  const HORS = /total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
+  const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|n[°o]\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|lot \d|\bqte\b|\bpu\b|prix unit|eur\/kg$|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
   const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
   const RE_QTE = /^\s*(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})/i;
   const RE_POIDS_PRIX = /(\d+[,.]\d{1,3})\s*kg\s*[x×*]\s*(\d+[,.]\d{2})/i;
@@ -92,9 +92,9 @@
   /** Parmi plusieurs lectures d'une même photo, la plus crédible : celle dont la somme colle au total, avec le plus d'articles. */
   function meilleureLecture(textes) {
     const notes = textes.filter(Boolean).map((t) => {
-      const a = analyser(t), somme = Math.round(a.lignes.reduce((s, l) => s + l.prix, 0) * 100) / 100;
+      const a = analyser(t), somme = Math.round(a.lignes.filter((l) => !l.suspect).reduce((s, l) => s + l.prix, 0) * 100) / 100;
       const ecart = a.total ? Math.abs(somme - a.total) : null;
-      return { texte: t, a, note: a.lignes.length * 2 + (ecart == null ? 0 : ecart < 0.05 ? 40 : ecart < 1 ? 15 - ecart * 5 : -Math.min(20, ecart)) };
+ return { texte: t, a, note: a.lignes.filter((l) => !l.suspect).length * 2 - a.lignes.filter((l) => l.suspect).length * 3 + (ecart == null ? 0 : ecart < 0.05 ? 40 : ecart < 1 ? 15 - ecart * 5 : -Math.min(20, ecart)) };
     }).sort((x, y) => y.note - x.note);
     return notes[0] || null;
   }
@@ -144,7 +144,24 @@
       if (attente) { Object.assign(art, attente, { prix: art.prix || attente.prix }); attente = null; }
       lignes.push(art);
     }
-    const ok = lignes.filter((l) => l.prix > 0).map(({ attendQte, ...l }) => ({ ...l, prixUnitaire: l.prixUnitaire || Math.round(l.prix / (l.qte || 1) * 100) / 100 }));
+    // un libellé lisible : des lettres en majorité, au moins un vrai mot (sinon c'est du bruit de lecture)
+    const lisible = (t) => { const lettres = (t.match(/[a-zà-ÿ]/gi) || []).length; return lettres >= 3 && lettres / Math.max(1, t.replace(/\s/g, '').length) >= 0.5 && /[a-zà-ÿ]{3,}/i.test(t); };
+    let ok = lignes.filter((l) => l.prix > 0 && l.prix <= 80 && lisible(l.libelle)).map(({ attendQte, ...l }) => ({ ...l, prixUnitaire: l.prixUnitaire || Math.round(l.prix / (l.qte || 1) * 100) / 100 }));
+    // le total relu sur une autre ligne (paiement, rendu…) n'est pas un article
+    if (total) ok = ok.filter((l) => !(ok.length > 2 && Math.abs(l.prix - total) < 0.011));
+    // contrôle avec le total : si la somme dépasse nettement, les prix les plus improbables sont mis de côté (à vérifier)
+    if (ok.length) {
+      const tri = ok.map((l) => l.prix).sort((a, b) => a - b), med = tri[Math.floor(tri.length / 2)];
+      ok.forEach((l) => { if (l.prix > Math.max(25, med * 10)) l.suspect = true; });
+      if (total) {
+        const somme = () => ok.filter((l) => !l.suspect).reduce((x, l) => x + l.prix, 0);
+        let garde = 0;
+        while (somme() > total * 1.08 && garde++ < ok.length * 0.4) {
+          const pire = ok.filter((l) => !l.suspect).sort((a, b) => b.prix - a.prix)[0];
+          if (!pire) break; pire.suspect = true;
+        }
+      }
+    }
     return { enseigne: detecterEnseigne(texte), date: detecterDate(texte), total, lignes: ok };
   }
 
@@ -167,7 +184,47 @@
   /** Le prix trouvé est-il plausible par rapport au prix habituel (dans un rapport de 1 à 4) ? */
   const plausible = (prix, ref) => !(ref > 0) || (prix >= ref / 4 && prix <= ref * 4);
 
-  const api = { ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  /* ---------- reconnaître le produit d'un libellé de caisse par ses mots-clés ---------- */
+  // abréviations courantes des tickets de caisse
+  const ABREV = { pdt: 'pomme de terre', pdte: 'pomme de terre', pom: 'pomme', yaou: 'yaourt', yao: 'yaourt', yt: 'yaourt', yrt: 'yaourt', emment: 'emmental', emm: 'emmental', jamb: 'jambon', jbn: 'jambon', champ: 'champignon', champi: 'champignon', courg: 'courgette', poiv: 'poivron', concom: 'concombre', conc: 'concassee', tom: 'tomate', from: 'fromage', fro: 'fromage', fr: 'frais', bl: 'blanc', crem: 'creme', cr: 'creme', beur: 'beurre', bre: 'beurre', huil: 'huile', farin: 'farine', far: 'farine', suc: 'sucre', choc: 'chocolat', past: 'pasta', spag: 'spaghetti', spagh: 'spaghetti', tagl: 'tagliatelle', coquil: 'pates', coq: 'pates', coquillette: 'pates', penne: 'pates', fusilli: 'pates', torsade: 'pates', farfalle: 'pates', macaroni: 'pates', tagliatelle: 'pates', linguine: 'pates', conchiglie: 'pates', rigatoni: 'pates', vermicelle: 'pates', spaghetti: 'pates', nouille: 'pates', mozz: 'mozzarella', moz: 'mozzarella', parm: 'parmesan', lard: 'lardon', saucis: 'saucisse', sauc: 'saucisse', pout: 'poulet', poul: 'poulet', escal: 'escalope', ste: 'steak', sth: 'steak hache', hach: 'hache', sau: 'saumon', saum: 'saumon', cab: 'cabillaud', lent: 'lentille', pchic: 'pois chiche', haric: 'haricot', hv: 'haricot vert', epin: 'epinard', carot: 'carotte', poir: 'poireau', oign: 'oignon', ognon: 'oignon', banan: 'banane', clem: 'clementine', mandar: 'mandarine', compot: 'compote', confit: 'confiture', cereal: 'cereale', biscot: 'biscotte', baguet: 'baguette', bag: 'baguette', pain: 'pain', ble: 'semoule', semoul: 'semoule', quin: 'quinoa', boul: 'boulgour', lt: 'lait', ecr: 'ecreme', ufs: 'oeufs', oeuf: 'oeufs', oeu: 'oeufs' };
+  const VAGUES = new Set(['liquide', 'nature', 'bio', 'frais', 'fraiche', 'extra', 'maxi', 'mini', 'lot', 'sachet', 'boite', 'pack', 'classique', 'tranches', 'tranche', 'barquette', 'plein', 'air', 'gros', 'grosse', 'petit', 'petits', 'grand', 'format', 'familial', 'eco', 'premium', 'origine', 'france', 'cat', 'calibre', 'piece', 'pieces', 'unite', 'promo', 'offre', 'marque', 'repere', 'pouce', 'bouteille', 'brique', 'pot', 'les', 'des', 'aux', 'avec', 'sans', 'pour', 'the', 'and', 'cuit', 'cuite', 'cru', 'crue', 'sec', 'secs', 'fin', 'fine', 'fins', 'label', 'rouge', 'blanc', 'blanche', 'vert', 'verte', 'jaune', 'noir', 'noire']);
+  const motsCles = (t) => norm(t).replace(/[^a-z ]/g, ' ').split(/\s+/).filter((m) => m.length >= 3).map((m) => m.replace(/(es|s|x)$/, (x) => (m.length > 4 ? '' : x)));
+  /** Index du catalogue : [{ id, mots: [mots-clés], expressions: [expressions de plusieurs mots] }] (nom et synonymes). */
+  function indexCatalogue(produits) {
+    return produits.map(({ id, nom, synonymes }) => {
+      const n = norm(String(nom).replace(/\([^)]*\)/g, ' '));
+      const syn = (synonymes || []).map((x) => norm(String(x)));
+      const nomMots = [...new Set(motsCles(n).filter((m) => !VAGUES.has(m) && !['ou', 'de', 'du', 'la', 'le'].includes(m)))];
+      const synMots = [...new Set(syn.flatMap(motsCles).filter((m) => !VAGUES.has(m) && !nomMots.includes(m)))];
+      return { id, nomMots, synMots, expressions: [n].concat(syn).filter((x) => x.trim().includes(' ')).map((x) => x.replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()) };
+    });
+  }
+  const accord = (j, k) => (j === k ? 3 + k.length / 3 : j.length >= 4 && k.startsWith(j) ? 2 + j.length / 3 : k.length >= 4 && j.startsWith(k) ? 2 + k.length / 3 : 0);
+  /** Meilleur produit pour un libellé de caisse, avec un score (0 si rien de vraiment ressemblant). */
+  function reconnaitreProduit(libelle, index) {
+    let txt = norm(libelle).replace(/\d+([,.]\d+)?\s*(kg|g|gr|l|cl|ml)\b/g, ' ').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+    txt = txt.split(' ').map((m) => ABREV[m] || ABREV[m.replace(/(s|x)$/, '')] || ABREV[m.replace(/es$/, '')] || m).join(' ');
+    const jetons = motsCles(txt).filter((m) => !VAGUES.has(m));
+    if (!jetons.length) return { id: null, score: 0 };
+    let best = { id: null, score: 0, n: 99 };
+    for (const p of index) {
+      let sc = 0;
+      const nomTrouves = new Set();
+      for (const e of p.expressions) if (e.length >= 6 && (' ' + txt + ' ').includes(' ' + e + ' ')) sc += 5 + e.length / 5;
+      for (const j of jetons) {
+        let m = 0;
+        for (const k of p.nomMots) { const a = accord(j, k); if (a) nomTrouves.add(k); m = Math.max(m, a); }
+        for (const k of p.synMots) m = Math.max(m, accord(j, k) * 0.75);   // un synonyme compte un peu moins que le nom
+        sc += m;
+      }
+      if (sc <= 0) continue;
+      // le nom du produit contient d'autres mots absents du ticket (« œufs DE POISSON ») : moins probable
+      sc -= (p.nomMots.length - nomTrouves.size) * 0.9;
+      if (sc > best.score + 0.01 || (Math.abs(sc - best.score) <= 0.01 && p.nomMots.length < best.n)) best = { id: p.id, score: Math.round(sc * 10) / 10, n: p.nomMots.length };
+    }
+    return best.score >= 3.2 ? { id: best.id, score: best.score } : { id: null, score: Math.max(0, best.score) };
+  }
+  const api = { indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);

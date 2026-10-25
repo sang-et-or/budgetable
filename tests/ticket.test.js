@@ -98,3 +98,24 @@ test('la meilleure lecture est celle dont la somme colle au total', () => {
   const b = T.meilleureLecture(['RIZ 1,49\nTOTAL 2,34', 'RIZ 1,49\nPATES 0,85\nTOTAL 2,34', '']);
   assert.equal(b.a.lignes.length, 2);
 });
+
+test('total relu, heures, cartes et prix aberrants : la somme reste proche du total', () => {
+  const r = T.analyser(`SUPER U
+PATES COQUILLETTES 500G      0,89
+LAIT DEMI ECREME 1L          0,95
+POULET FERMIER 1KG           8,49
+3256220118424 KXZ 99         1842,20
+WQ ;:  %%                    55,10
+JAMBON BLANC X4              2,49
+SOUS TOTAL                  12,82
+TOTAL                       12,82
+CARTE ************1234      12,82
+RENDU                        0,00
+REMBOURSE 12,82
+18:42  25/10/2026`);
+  const gardes = r.lignes.filter((l) => !l.suspect);
+  const somme = Math.round(gardes.reduce((s, l) => s + l.prix, 0) * 100) / 100;
+  assert.equal(r.total, 12.82);
+  assert.ok(Math.abs(somme - 12.82) < 0.02, somme + ' : ' + r.lignes.map((l) => l.libelle + '=' + l.prix + (l.suspect ? '?' : '')).join(' | '));
+  assert.ok(!r.lignes.some((l) => /WQ/.test(l.libelle)));
+});

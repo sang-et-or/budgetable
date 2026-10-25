@@ -2359,16 +2359,24 @@
   }
   const NON_ALIMENTAIRE_TICKET = /lessive|papier|essuie|mouchoir|shampo|gel douche|savon|dentifrice|brosse|sac\b|sacs\b|nettoy|eponge|javel|piles?\b|couche|lingette|deodorant|rasoir|litiere|croquette|patee|bougie|ampoule|serviette|coton|vaisselle|adoucissant|desodor|insecticide|journal|magazine|carte cadeau/;
   const MOTS_VAGUES = new Set(['liquide', 'entier', 'demi', 'ecreme', 'nature', 'bio', 'frais', 'fraiche', 'extra', 'maxi', 'mini', 'lot', 'sachet', 'boite', 'pack', 'classique', 'tranches', 'tranche', 'barquette', 'filet', 'filets', 'plein', 'air', 'gros', 'petit', 'petits', 'grand', 'format', 'familial', 'eco', 'premium', 'gourmand', 'origine', 'france', 'cat', 'calibre', 'piece', 'pieces', 'unite', 'promo', 'offre', 'marque', 'repere', 'pouce', 'bouteille', 'brique', 'pot', 'kg', 'les', 'des', 'aux', 'avec', 'sans', 'pour']);
+  let indexProduits = null;
+  /** Le libellé ressemble-t-il vraiment au produit ? Un mot d'au moins 4 lettres en commun (début de mot), nom ou synonyme. */
+  function ressemble(cle, id) {
+    const mots = cle.split(' ').filter((m) => m.length >= 4 && !MOTS_VAGUES.has(m)).map((m) => m.replace(/s$/, ''));
+    if (!mots.length) return false;
+    const noms = [E.ING[id].nom].concat(window.Saisie && window.Saisie.synonymes ? window.Saisie.synonymes(id) : []).map((x) => TK.norm(x));
+    const motsProduit = noms.join(' ').split(/[^a-z]+/).filter((m) => m.length >= 3).map((m) => m.replace(/s$/, ''));
+    return mots.some((m) => motsProduit.some((p) => p.startsWith(m.slice(0, 4)) && (m.startsWith(p.slice(0, Math.min(p.length, 5))) || p.startsWith(m.slice(0, Math.min(m.length, 5))))));
+  }
   /** Rapproche un libellé de ticket d'un produit du catalogue (en retenant les corrections déjà faites). */
   function rapprocher(libelle) {
     const cle = TK.norm(libelle).replace(/\d+([,.]\d+)?\s*(kg|g|gr|l|cl|ml)\b/g, '').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
     const appris = (S.correspondances || {})[cle];
     if (appris !== undefined) return { id: appris || null, cle, appris: true };
     if (NON_ALIMENTAIRE_TICKET.test(cle)) return { id: null, cle, nonAlim: true };
-    const mots = cle.split(' ').filter((m) => m.length > 2 && !MOTS_VAGUES.has(m));
-    const essais = [cle, mots.slice(0, 2).join(' '), mots[0]].filter((x) => x && x.length >= 3);
-    for (const e of essais) { const l = window.Saisie.chercherIngredients(e, 1).filter((id) => E.ING[id] && !E.ING[id].perso); if (l.length) return { id: l[0], cle }; }
-    return { id: null, cle };
+    if (!indexProduits) indexProduits = TK.indexCatalogue(Object.values(E.ING).filter((i) => !i.perso && !i.libre && i.rayon !== 'Divers').map((i) => ({ id: i.id, nom: i.nom, synonymes: window.Saisie && window.Saisie.synonymes ? window.Saisie.synonymes(i.id) : [] })));
+    const r = TK.reconnaitreProduit(libelle, indexProduits);
+    return { id: r.id, cle, score: r.score };
   }
   const nbPaquets = (l, ing) => (l.poids && ((l.poids.unite === 'g' && ing.unite === 'g') || (l.poids.unite === 'ml' && ing.unite === 'ml')) ? (l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1)) / ing.cond : (l.qte || 1));
   /** Produits prévus dans la liste de courses (pour repérer les achats imprévus). */
@@ -2381,7 +2389,7 @@
   function preparerLignes(r) {
     const t = S.ticket;
     t.prevus = produitsPrevus();
-    t.lignes = (r.lignes || []).map((l) => { const ra = rapprocher(l.libelle); return { ...l, poids: l.poids || (l.poidsKg ? { q: l.poidsKg * 1000, unite: 'g' } : TK.poidsDe(l.libelle)), id: ra.id, cle: ra.cle, ignore: !!ra.nonAlim || (ra.appris && !ra.id) }; });
+    t.lignes = (r.lignes || []).map((l) => { const ra = rapprocher(l.libelle); return { ...l, poids: l.poids || (l.poidsKg ? { q: l.poidsKg * 1000, unite: 'g' } : TK.poidsDe(l.libelle)), id: ra.id, cle: ra.cle, ignore: !!ra.nonAlim || (ra.appris && !ra.id) || !!l.suspect }; });
     if (r.enseigne && !t.enseigne) { const d = typeof r.enseigne === 'string' ? TK.detecterEnseigne(r.enseigne) : r.enseigne; if (d) t.enseigne = d.id; }
     if (r.date) t.date = r.date;
     if (r.total) t.total = r.total;
@@ -2493,7 +2501,7 @@
         const pp = ing ? TK.prixPaquet(l, ing) : null, ref = ing ? E.prixReference(l.id) : 0;
         const doute = pp && !TK.plausible(pp, ref);
         return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''}" role="row">
-          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)} · ` : ''}${l.poids ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''}</span></div>
+          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)} · ` : ''}${l.poids ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''}</span></div>
           <label class="prix-ticket"><input type="text" inputmode="decimal" value="${String(l.prix).replace('.', ',')}" data-a="ticket-prix" data-i="${i}" aria-label="Prix payé"> €</label>
           <div class="stack" style="gap:2px;min-width:0">${S.ticketCherche === i ? `<input type="search" id="ticket-cherche" data-a="ticket-cherche" data-i="${i}" placeholder="Chercher le produit…" autocomplete="off"><div id="ticket-propositions" class="row" style="gap:4px"></div>`
             : `<button class="produit-ticket ${ing ? '' : 'inconnu'}" data-a="ticket-produit" data-i="${i}">${ing ? esc(ing.nom.replace(/\s*\([^)]*\)\s*$/, '')) : 'Choisir le produit'}</button>`}

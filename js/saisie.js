@@ -450,7 +450,9 @@
   }
   // viandes à mijoter et fromages de montagne : produits de saison quand ils existent
   LIGNE.unshift([['paleron', 'macreuse', 'gite', 'viande a bourguignon', 'boeuf bourguignon', 'joue de boeuf', 'plat de cote', 'boeuf a braiser', 'boeuf a mijoter'], 'boeuf_braiser'], [['reblochon'], 'reblochon'], [['fromage a raclette', 'raclette'], 'raclette']);
-  const api = { etendre, versCatalogue, QTE_SUCRE, devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
+  /** Autres façons d'écrire un produit du catalogue (pour reconnaître un libellé de ticket). */
+  const synonymes = (id) => MOTS.filter(([, x]) => x === id).flatMap(([m]) => m);
+  const api = { synonymes, etendre, versCatalogue, QTE_SUCRE, devinerIngredients, chercherIngredients, tagsExtra, QTE, analyserLigne, analyserIngredients, nomDepuisLien };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Saisie = api;
 })(typeof window !== 'undefined' ? window : globalThis);
