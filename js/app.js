@@ -5622,6 +5622,15 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   if (S.vue === 'app' && !S.plan) S.vue = 'accueil';
   rendre();
   if ('serviceWorker' in navigator && !DANS_UN_CADRE && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* hors ligne indisponible */ });
+    // mises à jour : on vérifie à chaque retour sur l'appli ; quand une nouvelle version prend la main, on recharge une fois
+    // (sinon un téléphone peut garder longtemps une ancienne version de l'appli installée)
+    const avaitControleur = !!navigator.serviceWorker.controller;
+    let recharge = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!avaitControleur || recharge) return; recharge = true; sauver(); location.reload(); });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+      const verifier = () => { reg.update().catch(() => {}); };
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifier(); });
+      setInterval(verifier, 30 * 60 * 1000);
+    }).catch(() => { /* hors ligne indisponible */ });
   }
 })();
