@@ -657,6 +657,72 @@
     try { await C.lienMagique(email); compte = { ...compte, vue: 'envoye', msg: `Un lien de connexion vient de partir à ${email}.` }; } catch (e) { compte.erreur = e.message; }
     compte.charge = false; rendreCompte();
   }
+  /* ---------- sauvegarde : toutes les données dans un fichier, à garder ou à ouvrir sur un autre téléphone ---------- */
+  let restaurationEnAttente = null;   // données lues dans un fichier, en attente de confirmation (jamais enregistrées telles quelles)
+  const derniereSauvegarde = () => { try { return +(localStorage.getItem('budgetable.sauvegarde') || 0); } catch (e) { return 0; } };
+  const depuis = (t) => { const j = Math.floor((Date.now() - t) / 86400000); return j <= 0 ? 'aujourd’hui' : j === 1 ? 'hier' : `il y a ${j} jours`; };
+  function resumeSauvegarde() { const t = derniereSauvegarde(); return t ? `Dernière sauvegarde ${depuis(t)}` : 'Pas encore de sauvegarde'; }
+  function blocSauvegarde() {
+    const r = restaurationEnAttente;
+    const confirmer = r ? `<div class="bandeau bandeau-alerte small"><div class="stack" style="gap:8px"><strong>Remplacer les données de cet appareil par cette sauvegarde ?</strong>
+      <span>Sauvegarde du ${esc(r.date)} : ${r.plan ? 'une semaine de menus' : 'pas de semaine en cours'}, ${pluriel(r.recettes, 'recette perso', 'recettes perso')}, ${pluriel(r.placard, 'produit au placard', 'produits au placard')}, ${pluriel(r.tickets, 'ticket', 'tickets')}. Ce qui est sur cet appareil sera remplacé.</span>
+      <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="sauvegarde-restaurer-ok">Oui, restaurer</button><button class="btn btn-petit" data-a="sauvegarde-restaurer-non">Annuler</button></div></div></div>` : '';
+    return `<section class="stack bloc-sauvegarde" style="gap:10px"><h2>💾 Sauvegarde de mes données</h2>
+      <p class="small">${C.connecte() ? 'Votre compte garde déjà vos données en ligne. Vous pouvez aussi en faire une copie dans un fichier.' : 'Sans compte, vos menus, goûts, placard et tickets ne sont que sur cet appareil : en désinstallant l’appli ou en changeant de téléphone, ils seraient perdus. Gardez une sauvegarde (dans vos fichiers, sur votre Drive, ou envoyée à vous-même par e-mail).'}</p>
+      <p class="small muted">${resumeSauvegarde()}</p>
+      <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="sauvegarde-faire">💾 Sauvegarder maintenant</button><label class="btn btn-petit">📂 Restaurer une sauvegarde<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></div>
+      ${confirmer}</section>`;
+  }
+  function faireSauvegarde() {
+    sauver();
+    let donnees = null; try { donnees = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { donnees = null; }
+    if (!donnees) { toast('Rien à sauvegarder pour le moment'); return; }
+    const jour = new Date().toISOString().slice(0, 10);
+    const contenu = JSON.stringify({ app: 'Budgétable', type: 'sauvegarde', version: 1, date: new Date().toISOString(), donnees });
+    const nom = `budgetable-sauvegarde-${jour}.json`;
+    const fini = () => { try { localStorage.setItem('budgetable.sauvegarde', String(Date.now())); } catch (e) { /* */ } rendre(); };
+    let fichier = null; try { fichier = new File([contenu], nom, { type: 'application/json' }); } catch (e) { fichier = null; }
+    // téléphone : la feuille de partage permet d'enregistrer dans Fichiers / Drive ou de s'envoyer le fichier
+    if (fichier && navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      navigator.share({ files: [fichier], title: 'Sauvegarde Budgétable' }).then(() => { fini(); toast('Sauvegarde enregistrée'); }).catch((e) => { if (e && e.name !== 'AbortError') telecharger(); });
+      return;
+    }
+    telecharger();
+    function telecharger() {
+      const url = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      fini(); toast('Sauvegarde téléchargée : ' + nom);
+    }
+  }
+  async function lireSauvegarde(fichier) {
+    try {
+      if (fichier.size > 20 * 1024 * 1024) throw new Error('trop gros');
+      const o = JSON.parse(await fichier.text());
+      const d = o && o.type === 'sauvegarde' ? o.donnees : o;
+      if (!d || d.v !== 1 || !d.profil) throw new Error('format');
+      const placard = Object.values((d.profil && d.profil.stock) || {}).filter((q) => q > 0).length;
+      restaurationEnAttente = { donnees: d, date: new Date(o.date || Date.now()).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), plan: !!d.plan, recettes: (d.bibliotheque || []).length, placard, tickets: (d.tickets || []).length };
+    } catch (e) { restaurationEnAttente = null; toast('Ce fichier n’est pas une sauvegarde Budgétable'); }
+    if (!restaurationEnAttente) return;
+    // rien à perdre sur cet appareil (pas de semaine en cours) : on restaure tout de suite
+    if (!S.plan) { restaurer(); rendre(); return; }
+    S.vue = 'app'; S.onglet = 'profil';
+    rendre();
+    const z = document.querySelector('.bloc-sauvegarde'); if (z && z.scrollIntoView) z.scrollIntoView({ block: 'center' });
+  }
+  function restaurer() {
+    const r = restaurationEnAttente; if (!r) return;
+    try {
+      localStorage.setItem(CLE, JSON.stringify(r.donnees));
+      localStorage.setItem('budgetable.maj', String(Date.now()));
+    } catch (e) { toast('Mémoire du téléphone pleine : restauration impossible'); return; }
+    restaurationEnAttente = null;
+    charger();
+    S.vue = S.plan ? 'app' : 'accueil'; S.onglet = S.plan ? 'semaine' : S.onglet;
+    if (typeof planifierSync === 'function') planifierSync();
+    toast('Vos données sont de retour');
+  }
   function blocCompte() {
     const u = C.utilisateur();
     if (!C.connecte()) return `<section class="stack bloc-compte"><h2>Mon compte</h2>
@@ -730,6 +796,7 @@
           <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
           <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
           <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
+          ${S.plan ? '' : '<p class="small" style="margin:6px 0 0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
           <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · à installer sur votre téléphone en un geste</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
@@ -962,7 +1029,7 @@
       ['coachs', '🏃', 'Sport et minceur', S.profil.sport ? `${faitesSemaine().length}/${programmeSport().length} séances cette semaine` : S.profil.programme ? `Programme minceur · semaine ${S.profil.programme.semaine || 1}` : 'Coach sportif et programme minceur', blocMesCoachs],
       ['nutrition', '🥦', 'Bilan nutritionnel', nut ? `${nut.atteints} repères sur ${nut.reperes.length} atteints` : '—', blocNutritionSemaine],
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
-    ];
+    ].concat(C.connecte() ? [] : [['sauvegarde', '💾', 'Sauvegarde', resumeSauvegarde(), blocSauvegarde]]);
     const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
     return `${bandeauSensible()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
@@ -2914,7 +2981,7 @@
             <ul><li>Plusieurs semaines à l’avance</li><li>Ajustement automatique au budget</li><li>Comparaison des drives, dès que les vrais prix seront disponibles</li></ul>
             <label class="case"><input type="checkbox" id="premium-test" data-a="premium" ${S.premium ? 'checked' : ''}><span>Activer Premium en mode test (aucun paiement : Stripe sera branché plus tard)</span></label></div>
         </div></section>
-      ${blocCompte()}
+      ${blocCompte()}${blocSauvegarde()}
       <section class="stack"><h2>L’application</h2>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
@@ -4755,7 +4822,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         break;
       }
       case 'photo-effacer': S.photoEtat = null; break;
-      case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': case 'ticket-fichier': return;
+      case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': case 'ticket-fichier': case 'sauvegarde-fichier': return;
+      case 'sauvegarde-faire': faireSauvegarde(); return;
+      case 'sauvegarde-restaurer-ok': restaurer(); break;
+      case 'sauvegarde-restaurer-non': restaurationEnAttente = null; break;
       case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
       case 'ameliorer-encore': {
         const refus = (S.ameliorations ? S.ameliorations.propositions.filter((x) => x.refuse).map((x) => x.apres) : []);
@@ -5299,6 +5369,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'ticket-photo-suite') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.suite = true; S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
+    if (el.dataset.a === 'sauvegarde-fichier') { const fi = el.files && el.files[0]; el.value = ''; if (fi) lireSauvegarde(fi); return; }
     if (el.dataset.a === 'ticket-fichier') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; if (/pdf/i.test(fi.type) || /\.pdf$/i.test(fi.name)) lirePdfTicket(fi); else lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ticket-photo') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
