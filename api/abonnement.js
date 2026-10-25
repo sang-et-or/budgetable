@@ -57,7 +57,7 @@ async function clientDe(u, creer, f) {
 const cache = new Map();   // état d'abonnement gardé 2 min par compte (moins d'appels à Stripe)
 
 /** État : essai (jours restants), abonnement actif ou non, fin de période, résiliation demandée. */
-async function etat(jeton, f = fetch) {
+async function etat(jeton, f = fetch, _site) {
   if (!actif()) return { disponible: false, prix: PRIX, essaiJours: ESSAI_JOURS };   // paiement pas encore branché : rien n'est bloqué
   const u = await utilisateur(jeton, f);
   const finEssai = u.cree + ESSAI_JOURS * 86400000;
@@ -78,7 +78,8 @@ async function etat(jeton, f = fetch) {
 }
 
 /** Page de paiement Stripe : abonnement mensuel. Les jours d'essai restants sont offerts (aucun prélèvement avant la fin). */
-async function paiement(jeton, f = fetch) {
+async function paiement(jeton, f = fetch, site = SITE) {
+  site = site || SITE;
   if (!actif()) throw erreur('L’abonnement ouvre très bientôt', 503);
   const u = await utilisateur(jeton, f);
   const client = await clientDe(u, true, f);
@@ -88,19 +89,20 @@ async function paiement(jeton, f = fetch) {
     line_items: { 0: { quantity: 1, price_data: { currency: 'eur', unit_amount: PRIX, recurring: { interval: 'month' }, product_data: { name: 'Budgétable — abonnement mensuel', description: 'Menus de la semaine, liste de courses, coachs et toutes les fonctions. Sans engagement.' } } } },
     subscription_data: { metadata: { budgetable_id: u.id }, ...(resteEssai >= 1 ? { trial_period_days: Math.min(ESSAI_JOURS, resteEssai) } : {}) },
     allow_promotion_codes: 'true',
-    success_url: SITE + '/?abonnement=merci', cancel_url: SITE + '/?abonnement=annule',
+    success_url: site + '/?abonnement=merci', cancel_url: site + '/?abonnement=annule',
   } }, f);
   cache.delete(u.id);
   return { url: s.url };
 }
 
 /** Espace client Stripe : changer de carte, voir les factures, résilier. */
-async function portail(jeton, f = fetch) {
+async function portail(jeton, f = fetch, site = SITE) {
+  site = site || SITE;
   if (!actif()) throw erreur('L’abonnement ouvre très bientôt', 503);
   const u = await utilisateur(jeton, f);
   const client = await clientDe(u, false, f);
   if (!client) throw erreur('Aucun abonnement sur ce compte', 404);
-  const s = await stripe('/billing_portal/sessions', { methode: 'POST', corps: { customer: client.id, return_url: SITE + '/?abonnement=retour', locale: 'fr' } }, f);
+  const s = await stripe('/billing_portal/sessions', { methode: 'POST', corps: { customer: client.id, return_url: site + '/?abonnement=retour', locale: 'fr' } }, f);
   cache.delete(u.id);
   return { url: s.url };
 }

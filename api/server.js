@@ -37,7 +37,7 @@ let CATALOGUE = [];
 try { CATALOGUE = require('../js/engine.js').DATA.ingredients.map((i) => ({ id: i.id, nom: i.nom, unite: i.unite, cond: i.cond })); } catch (e) { /* pas de catalogue : la vision sera désactivée */ }
 let CATALOGUE_TICKET = CATALOGUE.slice();
 try { require('../js/catalogue.js'); const vus = new Set(CATALOGUE.map((i) => i.id)); CATALOGUE_TICKET = CATALOGUE.concat((globalThis.CatalogueExtra.INGREDIENTS || []).filter((i) => !vus.has(i.id)).map((i) => ({ id: i.id, nom: i.nom }))); } catch (e) { /* catalogue de base seulement */ }
-const ORIGINES = (process.env.ORIGINES || 'https://budgetable.onrender.com').split(',').map((s) => s.trim());
+const ORIGINES = (process.env.ORIGINES || 'https://budgetable.onrender.com,https://budgetable.fr,https://www.budgetable.fr').split(',').map((s) => s.trim());
 const MAX_OCTETS = 3 * 1024 * 1024;
 const AGENT = 'Mozilla/5.0 (compatible; BudgetableRecettes/1.0; +https://budgetable.onrender.com)';
 
@@ -302,7 +302,9 @@ const serveur = http.createServer(async (req, res) => {
     try {
       const o = JSON.parse(await lireCorps(req, 16 * 1024) || '{}');
       const f = u.pathname === '/abonnement/etat' ? Abonnement.etat : u.pathname === '/abonnement/payer' ? Abonnement.paiement : Abonnement.portail;
-      return repondre(res, 200, await f(o.jeton), origine);
+      // retour après paiement : sur l'adresse d'où vient la personne (budgetable.fr ou l'adresse Render)
+      const site = origine && ORIGINES.includes(origine) ? origine : null;
+      return repondre(res, 200, await f(o.jeton, undefined, site), origine);
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : 502;
       return repondre(res, code, { erreur: e.code ? e.message : 'Paiement indisponible pour le moment' }, origine);
