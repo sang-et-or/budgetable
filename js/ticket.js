@@ -36,8 +36,11 @@
   function poidsDe(libelle) {
     const m = RE_POIDS.exec(libelle || '');
     if (!m) return null;
-    const v = prixNum(m[1]), u = m[2].toLowerCase();
+    let v = prixNum(m[1]); const u = m[2].toLowerCase();
     if (!(v > 0)) return null;
+    // lots : « 6X1L », « 4 x 125 g », « 2*500G » → contenance totale
+    const lot = new RegExp('(\\d{1,2})\\s*[x×*]\\s*' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*' + m[2], 'i').exec(libelle);
+    if (lot && +lot[1] > 1) v *= +lot[1];
     if (u === 'kg') return { q: v * 1000, unite: 'g' };
     if (u === 'g' || u === 'gr') return { q: v, unite: 'g' };
     if (u === 'l') return { q: v * 1000, unite: 'ml' };

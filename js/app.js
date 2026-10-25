@@ -2389,7 +2389,17 @@
   function preparerLignes(r) {
     const t = S.ticket;
     t.prevus = produitsPrevus();
-    t.lignes = (r.lignes || []).map((l) => { const ra = rapprocher(l.libelle); return { ...l, poids: l.poids || (l.poidsKg ? { q: l.poidsKg * 1000, unite: 'g' } : TK.poidsDe(l.libelle)), id: ra.id, cle: ra.cle, ignore: !!ra.nonAlim || (ra.appris && !ra.id) || !!l.suspect }; });
+    t.lignes = (r.lignes || []).map((l) => {
+      const ra = rapprocher(l.libelle);
+      // l'agent du serveur a décodé le libellé et l'a rattaché au catalogue : on le suit, sauf correction déjà faite par la personne
+      const parIA = l.categorie !== undefined;
+      const nonAlim = parIA ? !['alimentaire', 'boisson'].includes(l.categorie) : !!ra.nonAlim;
+      let id = ra.id;
+      if (parIA && !ra.appris) { id = l.id && E.ING[l.id] ? l.id : null; if (!id && !nonAlim && l.nom) id = rapprocher(l.nom).id || ra.id; if (nonAlim) id = null; }
+      return { ...l, poids: l.poids || (l.poidsKg ? { q: l.poidsKg * 1000, unite: 'g' } : TK.poidsDe(l.libelle + ' ' + (l.nom || ''))), id, cle: ra.cle, ignore: nonAlim || (ra.appris && !ra.id) || !!l.suspect };
+    });
+    t.remisesGlobales = t.suite ? (t.remisesGlobales || 0) + (r.remisesGlobales || 0) : (r.remisesGlobales || 0);
+    t.parIA = !!r.essais; t.verifie = !!r.verifie;
     if (r.enseigne && !t.enseigne) { const d = typeof r.enseigne === 'string' ? TK.detecterEnseigne(r.enseigne) : r.enseigne; if (d) t.enseigne = d.id; }
     if (r.date) t.date = r.date;
     if (r.total) t.total = r.total;
@@ -2400,6 +2410,28 @@
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
     if (!tesseractCharge) tesseractCharge = new Promise((ok, ko) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; sc.onload = () => ok(window.Tesseract); sc.onerror = () => { tesseractCharge = null; ko(new Error('chargement')); }; document.head.appendChild(sc); });
     return tesseractCharge;
+  }
+  const etatAssistant = () => fetch(`${LECTEUR}/ia/etat`, { signal: AbortSignal.timeout(8000) }).then((x) => x.json()).catch(() => null);
+  /** L'agent du serveur : lecture (OCR), extraction, contrôle avec le total et relecture si besoin. */
+  async function agentTicket(corps) {
+    const rep = await fetch(`${LECTEUR}/ticket`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ ...corps, suite: !!(S.ticket && S.ticket.suite) }), signal: AbortSignal.timeout(150000) });
+    if (!rep.ok) return null;
+    return rep.json();
+  }
+  /** PDF du drive (ou de l'e-mail de commande) : lu par l'agent du serveur. */
+  async function lirePdfTicket(fichier) {
+    const t = S.ticket; t.lecture = { etat: 'encours', pct: 20, texte: 'L’assistant lit votre commande et vérifie le total…' }; rendre();
+    try {
+      const etat = await etatAssistant();
+      if (!etat || !etat.pdf) { t.lecture = null; t.erreur = 'La lecture des PDF n’est pas encore disponible. Ouvrez le PDF, copiez son texte et utilisez « Coller le récapitulatif », ou faites une capture d’écran et importez-la comme photo.'; rendre(); return; }
+      if (fichier.size > 6 * 1024 * 1024) { t.lecture = null; t.erreur = 'PDF trop lourd (6 Mo au plus).'; rendre(); return; }
+      const b64 = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = ko; fr.readAsDataURL(fichier); });
+      const j = await agentTicket({ pdf: 'data:application/pdf;base64,' + b64 });
+      t.lecture = null;
+      if (!j || !j.lignes || !j.lignes.length) { t.erreur = 'Je n’ai pas trouvé d’article dans ce PDF. Copiez son texte et collez-le, ou saisissez les articles.'; rendre(); return; }
+      t.type = 'drive'; if (j.texte) t.texte = j.texte;
+      preparerLignes(j); rendre();
+    } catch (e) { t.lecture = null; t.erreur = 'Lecture impossible (connexion ?). Vous pouvez coller le texte de la commande.'; rendre(); }
   }
   /** Photo du ticket : redressée en niveaux de gris et contrastée, lue par l'assistant du site s'il est là, sinon sur l'appareil. */
   async function lirePhotoTicket(fichier) {
@@ -2423,11 +2455,11 @@
       let r = null;
       // 1. l'assistant du site, plus fiable sur les tickets froissés (quand il est configuré)
       try {
-        const etat = await fetch(`${LECTEUR}/ia/etat`, { signal: AbortSignal.timeout(8000) }).then((x) => x.json());
-        if (etat && etat.vision) {
-          t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit votre ticket…' }; rendre();
-          const rep = await fetch(`${LECTEUR}/ticket`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85) }), signal: AbortSignal.timeout(60000) });
-          if (rep.ok) { const j = await rep.json(); if (j && j.lignes && j.lignes.length) r = j; }
+        const etat = await etatAssistant();
+        if (etat && (etat.ticket || etat.vision)) {
+          t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit chaque ligne et vérifie le total…' }; rendre();
+          const j = await agentTicket({ image: c.toDataURL('image/jpeg', 0.82) });
+          if (j && j.lignes && j.lignes.length) { r = j; if (j.texte) t.texte = (t.suite && t.texte ? t.texte + '\n' : '') + j.texte; }
         }
       } catch (e) { /* on lit sur l'appareil */ }
       // 2. lecture sur l'appareil (Tesseract, gratuit, la photo ne quitte pas le téléphone)
@@ -2470,6 +2502,25 @@
       t.lecture = null; t.erreur = 'Lecture impossible (connexion ?). Vous pouvez coller le texte du ticket ou saisir les articles.'; rendre();
     }
   }
+  /** Texte collé : l'agent du serveur s'il est là (il décode les abréviations et vérifie le total), sinon la lecture sur l'appareil. */
+  async function analyserTexteTicket(txt) {
+    const t = S.ticket; t.erreur = '';
+    if (/drive|commande|livraison|retrait/i.test(txt)) t.type = 'drive';
+    try {
+      const etat = await etatAssistant();
+      if (etat && etat.ticket && txt.trim().length >= 10) {
+        t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit chaque ligne et vérifie le total…' }; rendre();
+        const j = await agentTicket({ texte: txt });
+        t.lecture = null;
+        if (j && j.lignes && j.lignes.length) { const d = TK.analyser(txt); if (d.enseigne && !j.enseigne) t.enseigne = d.enseigne.id; preparerLignes(j); rendre(); return; }
+      }
+    } catch (e) { /* lecture sur l'appareil */ }
+    t.lecture = null;
+    const r = TK.analyser(txt);
+    if (!r.lignes.length) t.erreur = 'Aucun article trouvé dans ce texte : vérifiez qu’il contient les libellés et les prix.';
+    else { if (r.enseigne) t.enseigne = r.enseigne.id; preparerLignes(r); }
+    rendre();
+  }
   function vueTicket() {
     const t = S.ticket;
     if (!t) return '';
@@ -2484,6 +2535,7 @@
       ${t.erreur ? `<div class="bandeau bandeau-alerte small"><span>${esc(t.erreur)}</span></div>` : ''}
       <div class="sources-ticket">
         <label class="source-ticket"><span class="ico" aria-hidden="true">📷</span><strong>Prendre le ticket en photo</strong><span class="small muted">De près, à plat, bien éclairé. Long ticket : en plusieurs photos</span><input type="file" accept="image/*" capture="environment" data-a="ticket-photo" class="visuellement-cache"></label>
+        <label class="source-ticket"><span class="ico" aria-hidden="true">📄</span><strong>Importer un PDF ou une capture</strong><span class="small muted">Facture du drive, e-mail de commande, capture d’écran</span><input type="file" accept="application/pdf,image/*" data-a="ticket-fichier" class="visuellement-cache"></label>
         <button class="source-ticket" data-a="ticket-coller"><span class="ico" aria-hidden="true">📋</span><strong>Coller le récapitulatif</strong><span class="small muted">E-mail ou page de commande du drive</span></button>
         <button class="source-ticket" data-a="ticket-saisir"><span class="ico" aria-hidden="true">✍️</span><strong>Saisir les articles</strong><span class="small muted">Libellé et prix, ligne par ligne</span></button>
       </div>
@@ -2501,14 +2553,14 @@
         const pp = ing ? TK.prixPaquet(l, ing) : null, ref = ing ? E.prixReference(l.id) : 0;
         const doute = pp && !TK.plausible(pp, ref);
         return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''}" role="row">
-          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)} · ` : ''}${l.poids ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''}</span></div>
+          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.suspect ? '<strong class="alerte-ing">⚠️ prix suspect, mis de côté : vérifiez · </strong>' : ''}${l.doute ? '<strong class="alerte-ing">à vérifier · </strong>' : ''}${[l.nom && TK.norm(l.nom) !== TK.norm(l.libelle) ? esc(l.nom) : '', l.remise ? `remise ${euros(l.remise)}` : '', l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)}` : '', l.poids && !(l.nom && /\d\s*(g|kg|l|cl|ml)\b/i.test(l.nom) && !l.auKilo) ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''].filter(Boolean).join(' · ')}</span></div>
           <label class="prix-ticket"><input type="text" inputmode="decimal" value="${String(l.prix).replace('.', ',')}" data-a="ticket-prix" data-i="${i}" aria-label="Prix payé"> €</label>
           <div class="stack" style="gap:2px;min-width:0">${S.ticketCherche === i ? `<input type="search" id="ticket-cherche" data-a="ticket-cherche" data-i="${i}" placeholder="Chercher le produit…" autocomplete="off"><div id="ticket-propositions" class="row" style="gap:4px"></div>`
             : `<button class="produit-ticket ${ing ? '' : 'inconnu'}" data-a="ticket-produit" data-i="${i}">${ing ? esc(ing.nom.replace(/\s*\([^)]*\)\s*$/, '')) : 'Choisir le produit'}</button>`}
             ${pp && !l.ignore ? `<span class="small ${doute ? 'alerte-ing' : 'muted'}">${euros(pp)} le paquet (${esc(ing.condLabel)}) · appli ${euros(ref)}${doute ? ' · à vérifier' : ''}</span>` : ''}</div>
           <label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label></div>`;
       }).join('')}</div>
-      ${t.total && Math.abs(t.total - lignes.reduce((x, l) => x + (l.prix || 0), 0)) > 0.1 ? `<div class="bandeau bandeau-alerte small"><span>⚠️ La somme des lignes (${euros(lignes.reduce((x, l) => x + (l.prix || 0), 0))}) ne correspond pas au total du ticket (${euros(t.total)}) : une ligne a peut-être été mal lue ou oubliée. Vérifiez les prix, ou corrigez le texte lu plus bas.</span></div>` : t.total ? `<div class="bandeau bandeau-info small"><span>✓ La somme des lignes correspond au total du ticket (${euros(t.total)}).</span></div>` : ''}
+      ${t.total && Math.abs(t.total - (lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))) > 0.1 ? `<div class="bandeau bandeau-alerte small"><span>⚠️ La somme des lignes (${euros(lignes.reduce((x, l) => x + (l.prix || 0), 0) - (t.remisesGlobales || 0))}${t.remisesGlobales ? `, remises de ${euros(t.remisesGlobales)} déduites` : ''}) ne correspond pas au total du ticket (${euros(t.total)}) : une ligne a peut-être été mal lue ou oubliée. Vérifiez les prix, ou corrigez le texte lu plus bas.</span></div>` : t.total ? `<div class="bandeau bandeau-info small"><span>✓ ${t.parIA ? 'Lu et vérifié par l’assistant : l' : 'L'}a somme des lignes${t.remisesGlobales ? ` (remises de ${euros(t.remisesGlobales)} déduites)` : ''} correspond au total du ticket (${euros(t.total)}).</span></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button><label class="btn btn-petit">📷 Ajouter la suite du ticket<input type="file" accept="image/*" capture="environment" data-a="ticket-photo-suite" class="visuellement-cache"></label></div>
       ${t.texte ? `<details class="texte-lu small" ${t.voirTexte ? 'open' : ''}><summary data-a="ticket-voir-texte">Voir et corriger le texte lu sur la photo</summary><p class="muted" style="margin:6px 0">Une ligne mal lue ? Corrigez le texte ci-dessous (un article par ligne, le prix à la fin), puis « Relire ».</p><textarea id="ticket-texte-lu" rows="10">${esc(t.texte)}</textarea><div><button class="btn btn-petit btn-plein" data-a="ticket-relire">Relire le texte</button></div></details>` : ''}
       <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
@@ -4233,7 +4285,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'ticket-enseigne': S.ticket.enseigne = el.dataset.k; break;
       case 'ticket-coller': S.ticket.coller = true; S.ticket.erreur = ''; break;
       case 'ticket-saisir': S.ticket.lignes = [{ libelle: '', prix: 0, qte: 1, id: null }]; S.ticket.etape = 'lignes'; break;
-      case 'ticket-analyser': { const z = document.getElementById('ticket-texte'); const txt = z ? z.value : ''; S.ticket.texte = txt; const r = TK.analyser(txt); if (!r.lignes.length) { S.ticket.erreur = 'Aucun article trouvé dans ce texte : vérifiez qu’il contient les libellés et les prix.'; break; } if (r.enseigne) S.ticket.enseigne = r.enseigne.id; if (/drive|commande|livraison|retrait/i.test(txt)) S.ticket.type = 'drive'; preparerLignes(r); break; }
+      case 'ticket-analyser': { const z = document.getElementById('ticket-texte'); const txt = z ? z.value : ''; S.ticket.texte = txt; analyserTexteTicket(txt); return; }
       case 'ticket-produit': S.ticketCherche = +el.dataset.i; setTimeout(() => { const c = document.getElementById('ticket-cherche'); if (c) { c.value = (S.ticket.lignes[+el.dataset.i].libelle || '').toLowerCase().replace(/[^a-zà-ÿ ]/g, ' ').trim().split(/\s+/).slice(0, 2).join(' '); c.dispatchEvent(new Event('input', { bubbles: true })); c.focus(); } }, 30); break;
       case 'ticket-choisir': { const i = +el.dataset.i; S.ticket.lignes[i].id = el.dataset.id || null; S.ticket.lignes[i].ignore = false; S.ticketCherche = null; break; }
       case 'ticket-ignorer': S.ticket.lignes[+el.dataset.i].ignore = el.checked; break;
@@ -4619,7 +4671,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         break;
       }
       case 'photo-effacer': S.photoEtat = null; break;
-      case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': return;
+      case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': case 'ticket-fichier': return;
       case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
       case 'ameliorer-encore': {
         const refus = (S.ameliorations ? S.ameliorations.propositions.filter((x) => x.refuse).map((x) => x.apres) : []);
@@ -5163,6 +5215,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'ticket-photo-suite') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.suite = true; S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
+    if (el.dataset.a === 'ticket-fichier') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; if (/pdf/i.test(fi.type) || /\.pdf$/i.test(fi.name)) lirePdfTicket(fi); else lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ticket-photo') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }

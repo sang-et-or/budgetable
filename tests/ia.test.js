@@ -16,7 +16,7 @@ test('ia : Mistral, messages alternés, réponse JSON', async () => {
   await new Promise((ok) => serveur.listen(0, ok));
   const port = serveur.address().port;
   const etat = await (await vraiFetch(`http://127.0.0.1:${port}/ia/etat`)).json();
-  assert.deepEqual(etat, { disponible: true, vision: true });
+  assert.deepEqual(etat, { disponible: true, vision: true, ticket: true, pdf: true });
   const r = await vraiFetch(`http://127.0.0.1:${port}/ia`, { method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: 'https://budgetable.onrender.com' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'Consignes' }, { role: 'user', content: 'Je n’ai pas de crème' }] }) });
   const j = await r.json();
   const refus = await vraiFetch(`http://127.0.0.1:${port}/ia`, { method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: 'https://pirate.example' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'x' }] }) });

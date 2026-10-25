@@ -15,6 +15,7 @@ const dns = require('dns').promises;
 const net = require('net');
 const { extraireRecette } = require('./extraire.js');
 const { promosDuMoment } = require('./promos.js');
+const { lireTicketAgent } = require('./ticket-agent.js');
 
 const PORT = process.env.PORT || 10000;
 // intelligence artificielle de Budgétable (commis de cuisine, goûts, photo du placard) : hébergée ici,
@@ -24,12 +25,17 @@ const FOURNISSEUR = process.env.MISTRAL_API_KEY ? 'mistral' : process.env.ANTHRO
 const CLE_API = process.env.MISTRAL_API_KEY || process.env.ANTHROPIC_API_KEY || '';
 const MODELE_TEXTE = process.env.MODELE_TEXTE || (FOURNISSEUR === 'mistral' ? 'mistral-small-latest' : 'claude-haiku-5-5');
 const MODELE_VISION = process.env.MODELE_VISION || (FOURNISSEUR === 'mistral' ? 'mistral-small-latest' : 'claude-haiku-5-5');
+// tickets : un modèle plus fort que pour la conversation (lecture fine des chiffres), et l'OCR de documents de Mistral
+const MODELE_TICKET = process.env.MODELE_TICKET || (FOURNISSEUR === 'mistral' ? 'mistral-medium-latest' : 'claude-sonnet-5-5');
+const MODELE_OCR = process.env.MODELE_OCR || 'mistral-ocr-latest';
 const MAX_IA_JOUR = +(process.env.MAX_IA_JOUR || 2000);
 const MAX_IA_HEURE_IP = +(process.env.MAX_IA_HEURE_IP || 60);
 const MAX_PHOTOS_JOUR = +(process.env.MAX_PHOTOS_JOUR || 300);
 const MAX_PHOTOS_HEURE_IP = +(process.env.MAX_PHOTOS_HEURE_IP || 12);
 let CATALOGUE = [];
 try { CATALOGUE = require('../js/engine.js').DATA.ingredients.map((i) => ({ id: i.id, nom: i.nom, unite: i.unite, cond: i.cond })); } catch (e) { /* pas de catalogue : la vision sera désactivée */ }
+let CATALOGUE_TICKET = CATALOGUE.slice();
+try { require('../js/catalogue.js'); const vus = new Set(CATALOGUE.map((i) => i.id)); CATALOGUE_TICKET = CATALOGUE.concat((globalThis.CatalogueExtra.INGREDIENTS || []).filter((i) => !vus.has(i.id)).map((i) => ({ id: i.id, nom: i.nom }))); } catch (e) { /* catalogue de base seulement */ }
 const ORIGINES = (process.env.ORIGINES || 'https://budgetable.onrender.com').split(',').map((s) => s.trim());
 const MAX_OCTETS = 3 * 1024 * 1024;
 const AGENT = 'Mozilla/5.0 (compatible; BudgetableRecettes/1.0; +https://budgetable.onrender.com)';
@@ -137,24 +143,25 @@ function lireCorps(req, max) {
   });
 }
 // un appel au modèle : messages [{ role, content }], image facultative (base64 JPEG) → texte de la réponse
-async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, max = 800, json = true } = {}) {
+async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, max = 800, json = true, temperature = 0.4, imageEnTete = false, delai = 45000 } = {}) {
   let url, entetes, corps;
+  const avecImage = (k) => image && k === (imageEnTete ? 0 : messages.length - 1);
   if (FOURNISSEUR === 'mistral') {
-    const msgs = messages.map((m, k) => (image && k === messages.length - 1)
+    const msgs = messages.map((m, k) => avecImage(k)
       ? { role: m.role, content: [{ type: 'image_url', image_url: 'data:image/jpeg;base64,' + image }, { type: 'text', text: m.content }] }
       : { role: m.role, content: m.content });
     url = 'https://api.mistral.ai/v1/chat/completions';
     entetes = { 'content-type': 'application/json', authorization: 'Bearer ' + CLE_API };
-    corps = { model: modele, max_tokens: max, temperature: 0.4, messages: msgs, ...(json ? { response_format: { type: 'json_object' } } : {}) };
+    corps = { model: modele, max_tokens: max, temperature, messages: msgs, ...(json ? { response_format: { type: 'json_object' } } : {}) };
   } else {
-    const msgs = messages.map((m, k) => (image && k === messages.length - 1)
+    const msgs = messages.map((m, k) => avecImage(k)
       ? { role: m.role, content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: m.content }] }
       : { role: m.role, content: m.content });
     url = 'https://api.anthropic.com/v1/messages';
     entetes = { 'content-type': 'application/json', 'x-api-key': CLE_API, 'anthropic-version': '2023-06-01' };
-    corps = { model: modele, max_tokens: max, messages: msgs };
+    corps = { model: modele, max_tokens: max, temperature, messages: msgs };
   }
-  const rep = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(45000), headers: entetes, body: JSON.stringify(corps) });
+  const rep = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(delai), headers: entetes, body: JSON.stringify(corps) });
   if (rep.status === 429) throw Object.assign(new Error('L’assistant est très sollicité : réessayez dans quelques minutes'), { code: 429 });
   if (!rep.ok) throw Object.assign(new Error('L’assistant ne répond pas pour le moment'), { code: 502 });
   const j = await rep.json();
@@ -195,18 +202,20 @@ ${liste}`;
   const autres = (Array.isArray(o.autres) ? o.autres : []).map((x) => String(x).slice(0, 40)).filter(Boolean).slice(0, 15);
   return { produits, autres };
 }
-/** Ticket de caisse en photo → lignes d'articles (libellé, quantité, prix payé), enseigne, date et total. */
-async function lireTicket(base64) {
-  const consigne = `Voici la photo d'un ticket de caisse (ou d'un récapitulatif de commande drive) français.
-Recopie chaque article acheté avec son prix payé, sans les lignes de total, TVA, paiement, fidélité ou publicité.
-Garde le libellé tel qu'il est écrit (avec le poids s'il y en a un). Une remise va dans "remise" de l'article concerné.
-Réponds UNIQUEMENT en JSON, sans texte autour :
-{"enseigne":"<nom du magasin ou null>","date":"<AAAA-MM-JJ ou null>","total":<nombre ou null>,"lignes":[{"libelle":"<texte>","qte":<nombre>,"prix":<prix payé pour la ligne>,"prixUnitaire":<prix d'une unité ou au kilo, ou null>,"auKilo":<true si vendu au poids>,"poidsKg":<poids en kg si vendu au poids, sinon null>}]}`;
-  const o = extraireJSON(await appelerModele([{ role: 'user', content: consigne }], { image: base64, modele: MODELE_VISION, max: 2500 }));
-  if (!o) return { lignes: [] };
-  const lignes = (Array.isArray(o.lignes) ? o.lignes : []).map((l) => ({ libelle: String(l.libelle || '').slice(0, 80), qte: Math.max(1, Math.min(50, Number(l.qte) || 1)), prix: Math.round((Number(l.prix) || 0) * 100) / 100, prixUnitaire: Number(l.prixUnitaire) || null, auKilo: !!l.auKilo, poidsKg: Number(l.poidsKg) || null }))
-    .filter((l) => l.libelle && l.prix > 0 && l.prix < 500).slice(0, 120);
-  return { enseigne: o.enseigne ? String(o.enseigne).slice(0, 40) : null, date: /^\d{4}-\d{2}-\d{2}$/.test(o.date || '') ? o.date : null, total: Number(o.total) || null, lignes };
+/** OCR de documents (Mistral) : photo ou PDF → texte (markdown). */
+async function ocrMistral(document) {
+  const rep = await fetch('https://api.mistral.ai/v1/ocr', { method: 'POST', signal: AbortSignal.timeout(40000), headers: { 'content-type': 'application/json', authorization: 'Bearer ' + CLE_API }, body: JSON.stringify({ model: MODELE_OCR, document }) });
+  if (!rep.ok) throw new Error('ocr ' + rep.status);
+  const j = await rep.json();
+  return (j.pages || []).map((p) => p.markdown || '').join('\n');
+}
+/** Ticket de caisse (photo, PDF ou texte collé) → articles vérifiés contre le total, voir ticket-agent.js. */
+function lireTicket(entree) {
+  return lireTicketAgent(entree, {
+    ocr: FOURNISSEUR === 'mistral' ? ocrMistral : null,
+    chat: (messages, { image }) => appelerModele(messages, { image, modele: MODELE_TICKET, max: 8000, temperature: 0, imageEnTete: true, delai: 60000 }),
+    catalogue: CATALOGUE_TICKET,
+  });
 }
 const memoire = new Map();
 const debit = new Map();
@@ -229,7 +238,7 @@ const serveur = http.createServer(async (req, res) => {
   const origine = req.headers.origin;
   const u = new URL(req.url, 'http://x');
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': ORIGINES.includes(origine) ? origine : ORIGINES[0], 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' }); return res.end(); }
-  if (u.pathname === '/ia/etat') return repondre(res, 200, { disponible: !!CLE_API, vision: !!CLE_API && CATALOGUE.length > 0 }, origine);
+  if (u.pathname === '/ia/etat') return repondre(res, 200, { disponible: !!CLE_API, vision: !!CLE_API && CATALOGUE.length > 0, ticket: !!CLE_API, pdf: FOURNISSEUR === 'mistral' }, origine);
   if (u.pathname === '/ia') {
     if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
     if (!CLE_API) return repondre(res, 503, { erreur: 'non_configure' }, origine);
@@ -270,12 +279,14 @@ const serveur = http.createServer(async (req, res) => {
     if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     try {
-      const corps = await lireCorps(req, 3 * 1024 * 1024);
-      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(JSON.parse(corps).image || '');
-      if (!m) return repondre(res, 400, { erreur: 'Photo illisible' }, origine);
+      const o = JSON.parse(await lireCorps(req, 9 * 1024 * 1024));
+      const img = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(o.image || '');
+      const pdf = /^data:application\/pdf;base64,([A-Za-z0-9+/=]+)$/.exec(o.pdf || '');
+      const texte = typeof o.texte === 'string' ? o.texte.slice(0, 20000) : '';
+      if (!img && !pdf && texte.trim().length < 10) return repondre(res, 400, { erreur: 'Ticket illisible' }, origine);
       const refus = quotaPhotos(ip);
       if (refus) return repondre(res, 429, { erreur: refus }, origine);
-      return repondre(res, 200, await lireTicket(m[1]), origine);
+      return repondre(res, 200, await lireTicket({ image: img && img[1], pdf: pdf && pdf[1], texte, suite: !!o.suite }), origine);
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
       return repondre(res, code, { erreur: e.code ? e.message : 'Lecture du ticket impossible pour le moment' }, origine);

@@ -382,7 +382,7 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .source-ticket { display: grid; gap: 4px; justify-items: start; text-align: left; padding: 14px; border-radius: 16px; border: 1px solid var(--trait); background: var(--surface); cursor: pointer; font: inherit; color: inherit; }
 .source-ticket:hover, .source-ticket:focus-within { border-color: var(--poireau); box-shadow: var(--ombre); }
 .source-ticket .ico { font-size: 1.8rem; }
-.table-ticket { display: grid; gap: 6px; max-height: 52vh; overflow: auto; padding-right: 4px; }
+.table-ticket { display: grid; gap: 6px; flex-shrink: 0; }
 .ligne-ticket { display: grid; grid-template-columns: minmax(0, 1.4fr) 92px minmax(0, 1.3fr) auto; gap: 8px; align-items: start; padding: 8px; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); }
 .ligne-ticket.ignoree { opacity: .5; }
 .libelle-ticket, .prix-ticket input, #ticket-cherche { width: 100%; font: inherit; font-size: .9rem; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 8px; background: var(--fond, #fff); color: inherit; }
