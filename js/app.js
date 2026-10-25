@@ -583,7 +583,7 @@
     <g fill="var(--moutarde)" stroke="var(--encre)" stroke-width="2.5"><ellipse cx="352" cy="232" rx="22" ry="7"/><ellipse cx="352" cy="222" rx="22" ry="7"/><ellipse cx="352" cy="212" rx="22" ry="7"/></g>
   </svg>`;
 
-  const PIED = '<nav class="pied small" aria-label="Informations légales"><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
+  const PIED = '<nav class="pied small" aria-label="Informations légales"><a href="/recettes/">Recettes</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
   /* ---------- comptes : fenêtre de connexion / inscription et synchronisation ---------- */
   const C = window.Compte || { actif: () => false, connecte: () => false, utilisateur: () => null };
   let compte = { vue: null, msg: '', erreur: '', charge: false, sync: null, voir: false };

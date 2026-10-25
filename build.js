@@ -53,4 +53,6 @@ for (const dossier of ['icons', 'captures']) {
   sw = sw.replace(/const VERSION = '[^']*';/, `const VERSION = 'budgetable-${version}';`).replace(/const FICHIERS = \[[^\]]*\];/, `const FICHIERS = ${JSON.stringify(fichiers)};`);
   fs.writeFileSync(path.join(dist, 'sw.js'), sw);
 }
+// pages lisibles par Google (recettes, recherches courantes) et plan du site complet
+{ const r = require('./scripts/pages-seo.js')(__dirname, dist); console.log(`pages SEO : ${r.recettes} recettes, ${r.pages} pages`); }
 console.log('dist/ prêt');
