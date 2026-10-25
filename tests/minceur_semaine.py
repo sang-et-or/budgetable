@@ -24,28 +24,34 @@ with sync_playwright() as p:
     page.locator("nav button[data-k=semaine]").click()
     main = page.locator("main")
     assert main.locator(".carte-minceur-semaine").count() == 1
-    n = main.locator(".ligne-minceur").count(); print("lignes minceur :", n); assert n >= 10
+    n = main.locator(".assiette-semaine").count(); print("lignes minceur :", n); assert n >= 10
     assert main.locator(".total-minceur").count() == 7
-    assert "Vous" in main.locator(".ligne-minceur").first.inner_text() and "enfants" in main.locator(".ligne-minceur").first.inner_text()
+    premier = main.locator(".assiette-semaine").first
+    assert "Pour vous" in premier.inner_text() and "kcal" in premier.inner_text()
+    premier.locator("summary").click()
+    t = premier.inner_text(); assert "Pour vous" in t and "part normale" in t and "enfants" in t.lower(), t
+    premier.screenshot(path=f"{OUT}/assiette-detail.png")
+    premier.locator("summary").click()
     main.locator(".jour").nth(1).screenshot(path=f"{OUT}/minceur-dans-semaine.png")
     fec = lambda: page.evaluate("""() => { const E = window.Engine, d = JSON.parse(localStorage.getItem('budgetable.v1')); return E.listeCourses(d.plan, d.profil).articles.filter((a) => E.ING[a.id].groupe === 'F' && E.ING[a.id].unite === 'g').reduce((t, a) => t + a.quantite, 0); }""")
     f0 = fec()
     # repas libre : part normale, courses remontées
+    main.locator(".assiette-semaine").first.locator("summary").click()
     main.locator("[data-a=m-libre]").first.click()
-    assert "repas libre" in main.locator(".ligne-minceur").first.inner_text()
+    assert "Repas libre" in main.locator(".assiette-semaine").first.inner_text()
     f1 = fec(); assert f1 >= f0
     main.locator("[data-a=m-libre]").first.click()
     # ne pas appliquer à la semaine
     page.locator(".carte-minceur-semaine [data-a=m-semaine]").click()
-    assert main.locator(".ligne-minceur").count() == 0 and main.locator(".total-minceur").count() == 0
+    assert main.locator(".assiette-semaine").count() == 0 and main.locator(".total-minceur").count() == 0
     sans = page.evaluate("""() => { const E = window.Engine, d = JSON.parse(localStorage.getItem('budgetable.v1')); const q = (l) => l.articles.filter((a) => E.ING[a.id].groupe === 'F' && E.ING[a.id].unite === 'g').reduce((t, a) => t + a.quantite, 0); return [q(E.listeCourses(d.plan, d.profil)), q(E.listeCourses(d.plan, { ...d.profil, programme: null }))]; }""")
     assert abs(sans[0] - sans[1]) < 1e-6 and sans[0] > f0, sans
     assert "n’est pas appliqué" in main.inner_text()
     page.get_by_role("button", name="L’ajouter à ma semaine").click()
-    assert main.locator(".ligne-minceur").count() == n
+    assert main.locator(".assiette-semaine").count() == n
     # sur téléphone
     page.set_viewport_size({"width": 390, "height": 844}); page.reload()
-    assert page.locator("main .ligne-minceur").count() >= 1
+    assert page.locator("main .assiette-semaine").count() >= 1
     page.screenshot(path=f"{OUT}/minceur-semaine-mobile.png")
     print("Erreurs JS :", erreurs or "aucune"); assert not erreurs
     print("MINCEUR SEMAINE OK")

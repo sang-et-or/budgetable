@@ -3005,12 +3005,43 @@
   }
   const minceurDansSemaine = () => !!(S.profil.programme && E.programmeActif(S.profil));
   /** Sous un plat de la semaine : « Vous : ½ pâtes · légumes ×1,5 · ≈ 420 kcal », et le bouton « repas libre ». */
+  /** Les quantités concrètes de l'assiette minceur pour une personne : féculent, légumes, protéine, fromage ou crème. */
+  const LEG_DISCRETS_APP = new Set(['oignon', 'ail', 'citron', 'citron_vert', 'persil', 'echalote', 'tomates_concassees', 'coulis_tomate', 'puree_tomate', 'concentre_tomate']);
+  function detailAssiette(r, f0) {
+    const a = E.assietteMinceur(r); if (!a) return [];
+    const fact = (id) => ((a.aj.find(([k]) => k === id) || [0, 1])[1]);
+    const nomC = (id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '');
+    const lignes = [];
+    const ajoute = (id, q, emoji, role) => { const fx = fact(id) * f0; lignes.push({ emoji, nom: nomC(id), pour: quantite(q * fx, E.ING[id].unite), normal: quantite(q, E.ING[id].unite), role, fx }); };
+    const ing = r.ing.filter(([id]) => E.ING[id] && !E.ING[id].perso);
+    ing.filter(([id]) => E.ING[id].groupe === 'F').forEach(([id, q]) => ajoute(id, q, id === 'riz' ? '🍚' : id === 'pomme_de_terre' ? '🥔' : id.startsWith('pain') ? '🥖' : '🍝', 'feculent'));
+    ing.filter(([id]) => E.ING[id].groupe === 'L' && !LEG_DISCRETS_APP.has(id)).slice(0, 3).forEach(([id, q]) => ajoute(id, q, '🥦', 'legume'));
+    ing.filter(([id]) => id === r.prot || (E.ING[id].groupe === 'P' && id !== r.prot)).slice(0, 2).forEach(([id, q]) => ajoute(id, q, id === 'oeufs' ? '🥚' : ['saumon', 'colin', 'thon', 'cabillaud', 'crevettes'].includes(id) ? '🐟' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'tofu'].includes(id) ? '🫘' : '🍗', 'proteine'));
+    ing.filter(([id]) => fact(id) === 0.5 && E.ING[id].groupe !== 'F').forEach(([id, q]) => ajoute(id, q, '🧀', 'gras'));
+    return lignes;
+  }
+  /** Sous un plat de la semaine : ce que la personne au programme met dans son assiette, en clair. */
   function ligneMinceur(m, j, slot) {
     if (!minceurDansSemaine() || !m || m.aChoisir) return '';
     const x = assietteRepas(m, j, slot);
     if (!x || x.dehors) return '';
-    return `<div class="ligne-minceur ${x.libre ? 'libre' : ''}"><span>🥗 <strong>Vous</strong> : ${esc(x.court)}${!x.libre && x.f < 1 ? ` · ${x.f === 0.5 ? '½' : '¾'} de part` : ''}${!x.libre && x.plus ? ' · + un fruit ou un yaourt' : ''} · <span class="num">≈ ${nb(Math.round(x.kcal / 10) * 10)} kcal</span>${x.enfants ? ` <span class="muted">· 👧 enfants : ${esc(x.enfants)}</span>` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">${x.libre ? 'remettre le coach' : 'repas libre'}</button></div>`;
+    const r = E.REC[m.recette];
+    const n0 = NUT(r);
+    const k0 = n0 ? Math.round(n0.kcal / 10) * 10 : 0, k = Math.round(x.kcal / 10) * 10;
+    if (x.libre) return `<div class="assiette-semaine libre"><div class="assiette-resume"><span>🍽️ <strong>Repas libre</strong> : vous mangez comme tout le monde${k ? ` · ≈ ${nb(k)} kcal` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Remettre le coach</button></div></div>`;
+    const a = E.assietteMinceur(r) || { aj: [] };
+    const fec = a.aj.filter(([id, f]) => f < 1 && E.ING[id].groupe === 'F').map(([id]) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase());
+    const resume = [fec.length ? `moitié moins de ${fec.join(' et ')}` : '', 'plus de légumes', a.aj.some(([id, f]) => f < 1 && E.ING[id].groupe !== 'F') ? 'fromage ou crème à part' : '', x.f < 1 ? `${x.f === 0.5 ? 'une demi' : 'trois quarts de'} part` : ''].filter(Boolean);
+    const lignes = detailAssiette(r, x.f < 1 ? x.f : 1);
+    const ROLE = { feculent: 'moitié', legume: 'plus', proteine: 'pareil', gras: 'moitié' };
+    return `<details class="assiette-semaine"><summary><span class="assiette-resume"><span>🥗 <strong>Pour vous</strong> : ${esc(resume.join(', '))}</span><span class="kcal-pour-vous num">≈ ${nb(k)} kcal${k0 && k0 > k ? ` <s>${nb(k0)}</s>` : ''}</span></span><span class="voir-detail small">Voir mon assiette</span></summary>
+      <div class="assiette-detail"><div class="mini-assiette" aria-hidden="true"><span class="q-leg">légumes</span><span class="q-prot">protéines</span><span class="q-fec">féculents</span></div>
+        <div class="stack" style="gap:6px;min-width:0"><table class="table-assiette small"><thead><tr><th></th><th>Pour vous</th><th class="muted">part normale</th></tr></thead><tbody>${lignes.map((l) => `<tr class="role-${l.role}"><td><span aria-hidden="true">${l.emoji}</span> ${esc(l.nom)}</td><td><strong>${esc(l.pour)}</strong> <span class="badge-role">${ROLE[l.role]}${l.role === 'gras' ? ', ajouté à la fin' : ''}</span></td><td class="muted">${esc(l.normal)}</td></tr>`).join('')}</tbody></table>
+        ${x.plus ? '<span class="small">🍎 Il vous reste de la marge : ajoutez un fruit ou un yaourt nature.</span>' : ''}
+        ${x.enfants ? `<span class="small">👧 Les enfants : ${esc(x.enfants)}. Astuce : servez les féculents et le fromage à part, chacun se sert.</span>` : ''}
+        <div><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Ce repas, je mange comme tout le monde (repas libre)</button></div></div></div></details>`;
   }
+
   /** En haut de la semaine : le coach minceur, avec la possibilité de le retirer de la semaine. */
   function carteMinceurSemaine() {
     const pr = S.profil.programme;
@@ -3019,7 +3050,7 @@
     if (pr.stabilisation) return '';
     const cible = cibleProg();
     const msg = String(pr.message || '').split(/(?<=[.!?])\s/)[0];
-    return `<section class="carte-minceur-semaine ecran-seul"><div class="spread" style="gap:8px;align-items:flex-start"><div class="stack" style="gap:2px;min-width:0"><strong>🥗 Coach minceur · semaine ${pr.semaine || 1}</strong><span class="small">${nb(cible)} kcal par jour pour vous${S.profil.foyer.enfants.length ? ', les enfants mangent normalement' : ''}. Votre assiette est indiquée sous chaque plat.</span>${msg ? `<span class="small muted">${esc(msg)}</span>` : ''}</div>
+    return `<section class="carte-minceur-semaine ecran-seul"><div class="spread" style="gap:8px;align-items:flex-start"><div class="stack" style="gap:2px;min-width:0"><strong>🥗 Coach minceur · semaine ${pr.semaine || 1}</strong><span class="small">${nb(cible)} kcal par jour pour vous${S.profil.foyer.enfants.length ? ', les enfants mangent normalement' : ''}. Un seul plat pour tout le monde : sous chaque plat, « Pour vous » dit comment remplir <strong>votre</strong> assiette (moitié moins de féculents, plus de légumes, la même viande ou le même poisson).</span>${msg ? `<span class="small muted">${esc(msg)}</span>` : ''}</div>
       <div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-petit btn-plein" data-a="onglet" data-k="minceur">Faire le point</button><button class="btn btn-petit" data-a="m-semaine">Ne pas l’appliquer</button></div></div></section>`;
   }
   function preparerSemaineMinceur() {
