@@ -300,24 +300,57 @@
   const GRAS = new Set(['creme', 'creme_liquide', 'creme_soja', 'emmental', 'mozzarella', 'parmesan', 'comte', 'cheddar', 'feta', 'fromage_frais', 'mascarpone', 'roquefort', 'camembert', 'chevre', 'munster']);
   const nomCourt = (id) => ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase();
   const listeNoms = (ids) => { const n = [...new Set(ids.map(nomCourt))]; return n.length <= 1 ? n.join('') : n.slice(0, -1).join(', ') + ' et ' + n[n.length - 1]; };
+  // Ce qui fait partie du plat ne s'enlève pas une fois le plat cuit (farine, pâte, chapelure, crème de la sauce, fromage gratiné,
+  // pommes de terre d'un gratin ou d'une soupe…) : on prend alors une plus petite part du plat, avec une salade à côté.
+  // Ce qui se sert à part (riz, pâtes, semoule, pain, fromage râpé à table…) se réduit dans l'assiette.
+  const BASE_PLAT = new Set(['farine', 'pate_feuilletee', 'pate_brisee', 'pate_sablee', 'pate_pizza', 'chapelure', 'maizena', 'levure', 'lasagnes', 'raviolis', 'puree_flocons', 'creme', 'creme_liquide', 'creme_soja', 'lait_coco', 'sauce_pates']);
+  const MODELES_MELANGES = new Set(['gratin', 'quiche', 'pizza', 'salade', 'omelette', 'veloute']);
+  const NOM_MELANGE = /gratin|quiche|tarte|pizza|lasagne|hachis|parmentier|cr[eê]pe|galette|cake|taboul|salade de|soupe|velout[eé]|potage|omelette|tortilla espagnole|risotto|paella|riz saut[eé]|croque|feuillet|clafoutis|flan|tartiflette|gnocchi|crumble|pain perdu|mijot[eé] .* avec|frittata/;
+  const PART_REDUITE = 0.75;
   function assietteMinceur(rec) {
     if (!rec || rec.gourmand || !rec.ing) return null;
-    const aj = [], fec = [], gras = [], leg = [];
+    const nom = norm(rec.nom || '');
+    const melange = MODELES_MELANGES.has(rec.modele) || (rec.modele === 'maison' && NOM_MELANGE.test(nom)) || (rec.modele === 'perso' && NOM_MELANGE.test(nom));
+    // un féculent ou un fromage servi à côté : pain des tartines, féculent « avec du riz / des pâtes… » d'un plat qui n'est pas mélangé
+    const ACCOMPAGNEMENTS = ['riz', 'riz_complet', 'pates', 'semoule', 'quinoa', 'boulgour', 'pain', 'pain_complet', 'tortillas', 'nouilles', 'sarrasin', 'polenta'];
+    const mot = (id) => norm(ING[id].nom).split(/[\s(]/)[0].replace(/s$/, '');
+    // servi à côté : un accompagnement (riz, pâtes, pain…), ou un féculent cité après « avec » dans le nom (« … avec des pommes de terre »)
+    const aCote = (id) => (melange ? (id.startsWith('pain') && !/pain perdu|croque|bruschetta|pain de mie farci/.test(nom)) : (ACCOMPAGNEMENTS.includes(id) || new RegExp('avec (du |de la |des |de l.)?' + mot(id)).test(nom)));
+    const aj = [], fec = [], gras = [], leg = [], integres = [];
     for (const [id] of rec.ing) {
       const i = ING[id]; if (!i || i.perso) continue;
-      if (i.groupe === 'F') { aj.push([id, 0.5]); fec.push(id); }
-      else if (GRAS.has(id)) { aj.push([id, 0.5]); gras.push(id); }
-      else if (i.groupe === 'L' && !['citron', 'citron_vert', 'ail', 'persil'].includes(id)) { aj.push([id, 1.5]); leg.push(id); }
+      const estFec = i.groupe === 'F', estGras = GRAS.has(id) || BASE_PLAT.has(id);
+      if (!estFec && !estGras) continue;
+      const integre = BASE_PLAT.has(id) || (estFec && !aCote(id)) || (estGras && melange) || rec.modele === 'pizza';
+      if (integre) integres.push(id);
+      else if (estFec) fec.push(id);
+      else gras.push(id);
     }
+    const legumes = rec.ing.map(([id]) => id).filter((id) => ING[id] && ING[id].groupe === 'L' && !['citron', 'citron_vert', 'ail', 'persil'].includes(id));
+    const legVisibles = (ids) => ids.filter((id) => !LEG_DISCRETS.has(id));
+    // petite part seulement si le plat est mélangé, ou si un féculent ou une pâte est cuit dedans (la crème d'une sauce de curry ne suffit pas)
+    const PATES_BASE = ['farine', 'pate_feuilletee', 'pate_brisee', 'pate_sablee', 'pate_pizza', 'chapelure', 'lasagnes', 'raviolis', 'puree_flocons'];
+    const reduite = integres.length > 0 && (melange || integres.some((id) => ING[id].groupe === 'F' || PATES_BASE.includes(id)));
+    for (const [id] of rec.ing) {
+      const i = ING[id]; if (!i || i.perso) continue;
+      if (fec.includes(id) || gras.includes(id)) aj.push([id, 0.5]);
+      else if (reduite) { if (!legumes.includes(id)) aj.push([id, PART_REDUITE]); }        // petite part ; les légumes du plat restent entiers
+      else if (legumes.includes(id)) { aj.push([id, 1.5]); leg.push(id); }
+    }
+    const ajout = reduite && ING.salade ? [['salade', 0.25]] : [];
     const conseils = [];
-    if (fec.length) conseils.push(`moitié moins de ${listeNoms(fec)}`);
-    if (leg.length) conseils.push(`plus de ${listeNoms(leg)} (une fois et demie)`);
+    const pluriel = integres.length > 1 || (integres[0] ? /^\S+[sx]\b/.test(nomCourt(integres[0])) : false);
+    if (reduite) conseils.push(`une part un peu plus petite (les trois quarts) : ${listeNoms(integres)} ${pluriel ? 'font' : 'fait'} partie du plat, on ne peut pas ${pluriel ? 'les ' : 'l’'}enlever une fois cuit`);
+    else if (integres.length) conseils.push(`${listeNoms(integres)} : dans la sauce, on n’y touche pas`);
+    if (fec.length) conseils.push(fec.every((id) => id === 'tortillas') ? 'une tortilla de moins, et plus de garniture de légumes' : `moitié moins de ${listeNoms(fec)}, servi${fec.length > 1 ? 's' : ''} à part`);
+    if (reduite) conseils.push('une grande salade verte ou des légumes à côté');
+    else if (legVisibles(leg).length) { const l = listeNoms(legVisibles(leg)); conseils.push(`plus ${/^[aeéèiouyh]/i.test(l) ? 'd’' : 'de '}${l} (une fois et demie)`); }
     else conseils.push('une grande salade ou des légumes en plus');
-    if (gras.length) conseils.push(`${listeNoms(gras)} : une petite cuillère pour vous, ajoutés dans les assiettes des autres au moment de servir`);
-    const court = [fec.length ? `½ ${listeNoms(fec)}` : '', leg.length ? 'légumes ×1,5' : '+ salade', gras.length ? `${gras.length > 1 ? 'fromage et crème' : nomCourt(gras[0])} à part` : ''].filter(Boolean).join(' · ');
-    return { aj, feculent: fec.length > 0, conseils, court };
+    if (gras.length) conseils.push(`${listeNoms(gras)} : une petite cuillère pour vous, ajouté${gras.length > 1 ? 's' : ''} dans les assiettes des autres au moment de servir`);
+    const court = [reduite ? '¾ de part + grande salade' : '', fec.length ? `½ ${listeNoms(fec)}` : '', !reduite ? (leg.length ? 'légumes ×1,5' : '+ salade') : '', gras.length ? `${gras.length > 1 ? 'fromage et crème' : nomCourt(gras[0])} à part` : ''].filter(Boolean).join(' · ');
+    return { aj, ajout, feculent: rec.ing.some(([id]) => ING[id] && ING[id].groupe === 'F'), conseils, court, reduite, integres, fecReduits: fec, grasReduits: gras };
   }
-  const recetteAdaptee = (rec, a) => (a ? { ...rec, ing: rec.ing.map(([id, q]) => { const x = a.aj.find(([k]) => k === id); return [id, x ? q * x[1] : q]; }) } : rec);
+  const recetteAdaptee = (rec, a) => (a ? { ...rec, ing: rec.ing.map(([id, q]) => { const x = a.aj.find(([k]) => k === id); return [id, x ? q * x[1] : q]; }).concat(a.ajout || []) } : rec);
   /** Complément pour les enfants quand le plat n'a pas de féculent : du pain (¼ de baguette par enfant). */
   const COMPLEMENT_ENFANT = ['pain', 0.25];
   function enfantsPresents(p, jour, slot) {
@@ -986,6 +1019,7 @@
       const pr = presence(p, j, slot);
       const pers = Math.min(Math.max(1, p.programme.personnes || 1), pr.a);
       if (pers > 0) for (const [id, f] of a.aj) { const q = (REC[m.recette].ing.find(([k]) => k === id) || [0, 0])[1]; besoins[id] = Math.max(0, (besoins[id] || 0) + q * (f - 1) * pers); }
+      if (pers > 0) for (const [id, q] of a.ajout || []) besoins[id] = (besoins[id] || 0) + q * pers;
       const e = enfantsPresents(p, j, slot);
       if (!a.feculent && e > 0 && ING[COMPLEMENT_ENFANT[0]]) besoins[COMPLEMENT_ENFANT[0]] = (besoins[COMPLEMENT_ENFANT[0]] || 0) + COMPLEMENT_ENFANT[1] * e;
     }));

@@ -3011,15 +3011,18 @@
     const a = E.assietteMinceur(r); if (!a) return [];
     const fact = (id) => ((a.aj.find(([k]) => k === id) || [0, 1])[1]);
     const nomC = (id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '');
-    const lignes = [];
-    const ajoute = (id, q, emoji, role) => { const fx = fact(id) * f0; lignes.push({ emoji, nom: nomC(id), pour: quantite(q * fx, E.ING[id].unite), normal: quantite(q, E.ING[id].unite), role, fx }); };
+    const lignes = [], vus = new Set();
+    const libelle = (id, fx) => (a.integres.includes(id) ? (a.reduite ? '¾, dans le plat' : 'dans la sauce') : fx <= 0.5 ? 'moitié, servi à part' : fx > 1 ? 'plus' : fx < 1 ? '¾ de part' : 'pareil');
+    const ajoute = (id, q, emoji, role) => { if (vus.has(id)) return; vus.add(id); const fx = fact(id) * f0; lignes.push({ emoji, nom: nomC(id), pour: quantite(q * fx, E.ING[id].unite), normal: quantite(q, E.ING[id].unite), role: a.integres.includes(id) ? 'integre' : role, label: libelle(id, fact(id)), fx }); };
     const ing = r.ing.filter(([id]) => E.ING[id] && !E.ING[id].perso);
-    ing.filter(([id]) => E.ING[id].groupe === 'F').forEach(([id, q]) => ajoute(id, q, id === 'riz' ? '🍚' : id === 'pomme_de_terre' ? '🥔' : id.startsWith('pain') ? '🥖' : '🍝', 'feculent'));
+    ing.filter(([id]) => E.ING[id].groupe === 'F' || ['farine', 'pate_feuilletee', 'pate_brisee', 'pate_sablee', 'pate_pizza', 'chapelure'].includes(id)).forEach(([id, q]) => ajoute(id, q, id === 'riz' ? '🍚' : id === 'pomme_de_terre' ? '🥔' : id.startsWith('pain') ? '🥖' : id === 'farine' ? '🌾' : id.startsWith('pate_') ? '🥧' : '🍝', 'feculent'));
     ing.filter(([id]) => E.ING[id].groupe === 'L' && !LEG_DISCRETS_APP.has(id)).slice(0, 3).forEach(([id, q]) => ajoute(id, q, '🥦', 'legume'));
-    ing.filter(([id]) => id === r.prot || (E.ING[id].groupe === 'P' && id !== r.prot)).slice(0, 2).forEach(([id, q]) => ajoute(id, q, id === 'oeufs' ? '🥚' : ['saumon', 'colin', 'thon', 'cabillaud', 'crevettes'].includes(id) ? '🐟' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'tofu'].includes(id) ? '🫘' : '🍗', 'proteine'));
-    ing.filter(([id]) => fact(id) === 0.5 && E.ING[id].groupe !== 'F').forEach(([id, q]) => ajoute(id, q, '🧀', 'gras'));
+    ing.filter(([id]) => id === r.prot || E.ING[id].groupe === 'P').slice(0, 2).forEach(([id, q]) => ajoute(id, q, id === 'oeufs' ? '🥚' : ['saumon', 'colin', 'thon', 'cabillaud', 'crevettes'].includes(id) ? '🐟' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'tofu'].includes(id) ? '🫘' : '🍗', 'proteine'));
+    ing.filter(([id]) => a.integres.includes(id) || a.grasReduits.includes(id)).forEach(([id, q]) => ajoute(id, q, ['creme', 'creme_liquide', 'lait_coco', 'creme_soja'].includes(id) ? '🥛' : '🧀', 'gras'));
+    for (const [id, q] of a.ajout || []) if (E.ING[id]) lignes.push({ emoji: '🥗', nom: 'Salade verte, à côté', pour: quantite(q, E.ING[id].unite), normal: '—', role: 'legume', label: 'en plus', fx: 1 });
     return lignes;
   }
+
   /** Sous un plat de la semaine : ce que la personne au programme met dans son assiette, en clair. */
   function ligneMinceur(m, j, slot) {
     if (!minceurDansSemaine() || !m || m.aChoisir) return '';
@@ -3031,12 +3034,15 @@
     if (x.libre) return `<div class="assiette-semaine libre"><div class="assiette-resume"><span>🍽️ <strong>Repas libre</strong> : vous mangez comme tout le monde${k ? ` · ≈ ${nb(k)} kcal` : ''}</span><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Remettre le coach</button></div></div>`;
     const a = E.assietteMinceur(r) || { aj: [] };
     const fec = a.aj.filter(([id, f]) => f < 1 && E.ING[id].groupe === 'F').map(([id]) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase());
-    const resume = [fec.length ? `moitié moins de ${fec.join(' et ')}` : '', 'plus de légumes', a.aj.some(([id, f]) => f < 1 && E.ING[id].groupe !== 'F') ? 'fromage ou crème à part' : '', x.f < 1 ? `${x.f === 0.5 ? 'une demi' : 'trois quarts de'} part` : ''].filter(Boolean);
+    const fecA = (a.fecReduits || []).map((id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase());
+    const resume = a.reduite ? ['une part un peu plus petite', fecA.length ? `moitié moins de ${fecA.join(' et ')}` : '', 'une grande salade à côté'].filter(Boolean)
+      : [fecA.length ? `moitié moins de ${fecA.join(' et ')}` : '', 'plus de légumes', (a.grasReduits || []).length ? 'fromage à part' : '', x.f < 1 ? `${x.f === 0.5 ? 'une demi' : 'trois quarts de'} part` : ''].filter(Boolean);
     const lignes = detailAssiette(r, x.f < 1 ? x.f : 1);
     const ROLE = { feculent: 'moitié', legume: 'plus', proteine: 'pareil', gras: 'moitié' };
     return `<details class="assiette-semaine"><summary><span class="assiette-resume"><span>🥗 <strong>Pour vous</strong> : ${esc(resume.join(', '))}</span><span class="kcal-pour-vous num">≈ ${nb(k)} kcal${k0 && k0 > k ? ` <s>${nb(k0)}</s>` : ''}</span></span><span class="voir-detail small">Voir mon assiette</span></summary>
       <div class="assiette-detail"><div class="mini-assiette" aria-hidden="true"><span class="q-leg">légumes</span><span class="q-prot">protéines</span><span class="q-fec">féculents</span></div>
-        <div class="stack" style="gap:6px;min-width:0"><table class="table-assiette small"><thead><tr><th></th><th>Pour vous</th><th class="muted">part normale</th></tr></thead><tbody>${lignes.map((l) => `<tr class="role-${l.role}"><td><span aria-hidden="true">${l.emoji}</span> ${esc(l.nom)}</td><td><strong>${esc(l.pour)}</strong> <span class="badge-role">${ROLE[l.role]}${l.role === 'gras' ? ', ajouté à la fin' : ''}</span></td><td class="muted">${esc(l.normal)}</td></tr>`).join('')}</tbody></table>
+        <div class="stack" style="gap:6px;min-width:0"><table class="table-assiette small"><thead><tr><th></th><th>Pour vous</th><th class="muted">part normale</th></tr></thead><tbody>${lignes.map((l) => `<tr class="role-${l.role}"><td><span aria-hidden="true">${l.emoji}</span> ${esc(l.nom)}</td><td><strong>${esc(l.pour)}</strong> <span class="badge-role">${esc(l.role === 'gras' && l.label.startsWith('moitié') ? 'à ajouter à la fin' : l.label)}</span></td><td class="muted">${esc(l.normal)}</td></tr>`).join('')}</tbody></table>
+        ${a.reduite ? `<span class="small">ℹ️ ${esc((a.integres || []).map((id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '').toLowerCase()).join(', '))} : cuit dans le plat, on ne peut pas l’enlever. Prenez une part un peu plus petite et complétez avec la salade.</span>` : ''}
         ${x.plus ? '<span class="small">🍎 Il vous reste de la marge : ajoutez un fruit ou un yaourt nature.</span>' : ''}
         ${x.enfants ? `<span class="small">👧 Les enfants : ${esc(x.enfants)}. Astuce : servez les féculents et le fromage à part, chacun se sert.</span>` : ''}
         <div><button class="btn-lien small" data-a="m-libre" data-j="${j}" data-s="${slot}">Ce repas, je mange comme tout le monde (repas libre)</button></div></div></div></details>`;
