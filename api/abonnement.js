@@ -11,7 +11,7 @@
 
 const PRIX = +(process.env.PRIX_CENTIMES || 299);
 const ESSAI_JOURS = +(process.env.ESSAI_JOURS || 7);
-const SITE = (process.env.SITE || 'https://budgetable.onrender.com').replace(/\/+$/, '');
+const SITE = (process.env.SITE || 'https://budgetable.fr').replace(/\/+$/, '');
 const SUPA_URL = (process.env.SUPABASE_URL || 'https://wrcxlvdyegfjawmwtozk.supabase.co').replace(/\/+$/, '');
 const SUPA_CLE = process.env.SUPABASE_ANON_KEY || 'sb_publishable_86qxUeodYl3N0Ey3jhFwfg_l3lnzvqW';
 const cleStripe = () => process.env.STRIPE_SECRET_KEY || '';
