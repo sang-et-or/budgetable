@@ -50,3 +50,11 @@ Frais de préparation 0,00 €`);
   assert.equal(r.enseigne.id, 'carrefour');
   assert.ok(r.lignes.length >= 3, JSON.stringify(r.lignes));
 });
+
+test('confusions de lecture corrigées (photo)', () => {
+  const r = T.analyser('COQUILLETTES 5O0G   e,89 A\nRIZ LONG 1KG   1,S9\nLAIT 1L  2 x O,95   1,9O\nTOTAL 4,38');
+  const noms = r.lignes.map((l) => l.libelle + '=' + l.prix);
+  assert.ok(noms.includes('COQUILLETTES 500G=0.89'), noms.join(' | '));
+  assert.ok(noms.includes('RIZ LONG 1KG=1.59'), noms.join(' | '));
+  assert.equal(r.lignes.find((l) => /LAIT/.test(l.libelle)).prixUnitaire, 0.95);
+});

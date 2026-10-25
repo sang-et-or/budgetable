@@ -46,8 +46,21 @@
   }
   const nettoyerLibelle = (l) => String(l).replace(RE_PRIX, '').replace(/\s+[A-D]\s*$/, '').replace(/\s{2,}/g, ' ').replace(/^[\s*#.\-]+|[\s*#.\-]+$/g, '').trim();
 
+  /** Corrige les confusions de lecture les plus courantes dans les prix et les poids (O, e, @ pour 0 ; S pour 5 ; l, I pour 1). */
+  const CHIFFRE = { O: '0', o: '0', Q: '0', D: '0', e: '0', '@': '0', S: '5', s: '5', l: '1', I: '1', i: '1', B: '8', Z: '2', z: '2' };
+  const enChiffres = (t) => t.replace(/[OoQDe@SslIiBZz]/g, (c) => CHIFFRE[c]);
+  function corrigerLecture(texte) {
+    return String(texte || '').split(/\r?\n/).map((l) => l
+      // prix en fin de ligne : « e,89 » → « 0,89 », « 1,S9 » → « 1,59 »
+      .replace(/(^|\s)([0-9OoQDe@SslIiBZz]{1,4})\s?[,.]\s?([0-9OoQDe@SslIiBZz]{2})(\s*(?:€|eur|[A-D*])?\s*)$/i, (m, a, e, d, f) => (/\d/.test(e + d) ? `${a}${enChiffres(e)},${enChiffres(d)}${f}` : m))
+      // poids et volumes : « 5O0G » → « 500G »
+      .replace(/(^|\s)([0-9OoQ@SslI]{1,4})\s?(KG|G|GR|L|CL|ML)\b/gi, (m, a, n, u) => (/\d/.test(n) ? `${a}${enChiffres(n)}${u}` : m))
+      // quantités : « 2 x O,95 »
+      .replace(/(\d)\s*[x×*]\s*([0-9OoQDe@Ss]{1,3})[,.]([0-9OoQDe@Ss]{2})/gi, (m, q, e, d) => `${q} x ${enChiffres(e)},${enChiffres(d)}`)).join('\n');
+  }
   /** Texte d'un ticket (ou d'un récapitulatif de drive) → { enseigne, date, total, lignes: [{ libelle, prix, qte, prixUnitaire, poids }] } */
   function analyser(texte) {
+    texte = corrigerLecture(texte);
     const lignesBrutes = String(texte || '').split(/\r?\n/).map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean);
     const lignes = [];
     let total = null;
@@ -56,12 +69,12 @@
       const brut = lignesBrutes[k], n = norm(brut);
       if (/total|net a payer|a payer|montant du/.test(n)) { const m = RE_PRIX.exec(brut); if (m && !/sous.?total|tva/.test(n)) total = prixNum(m[1]); continue; }
       const pp = RE_POIDS_PRIX.exec(brut);
-      const q = RE_QTE.exec(brut);
+      const q = RE_QTE.exec(brut) || /\s(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})(?!\d)/i.exec(brut);
       const m = RE_PRIX.exec(brut);
       if (/remise|reduction|r[eé]duc|promo|coupon|bon de r/.test(n) && m && lignes.length) { const v = Math.abs(prixNum(m[1])); const der = lignes[lignes.length - 1]; der.prix = Math.max(0, Math.round((der.prix - v) * 100) / 100); der.remise = (der.remise || 0) + v; continue; }
       if (HORS.test(n)) continue;
       // ligne « 2 x 1,15     2,30 » sans libellé : elle complète le dernier article (ou le prochain)
-      const libelleSeul = nettoyerLibelle(brut.replace(RE_QTE, '').replace(RE_POIDS_PRIX, '').replace(/eur\/kg|€\/kg/i, ''));
+      const libelleSeul = nettoyerLibelle(brut.replace(RE_QTE, '').replace(/\s\d{1,3}\s*[x×*]\s*\d{1,4}[,.]\d{2}(?!\d)/i, ' ').replace(RE_POIDS_PRIX, '').replace(/eur\/kg|€\/kg/i, ''));
       if ((q || pp) && libelleSeul.replace(/[^a-z]/gi, '').length < 3) {
         const info = pp ? { qte: 1, poids: { q: prixNum(pp[1]) * 1000, unite: 'g' }, prixUnitaire: prixNum(pp[2]), auKilo: true } : { qte: +q[1], prixUnitaire: prixNum(q[2]) };
         const prix = m ? prixNum(m[1]) : Math.round(info.qte * info.prixUnitaire * 100) / 100;
@@ -112,7 +125,7 @@
   /** Le prix trouvé est-il plausible par rapport au prix habituel (dans un rapport de 1 à 4) ? */
   const plausible = (prix, ref) => !(ref > 0) || (prix >= ref / 4 && prix <= ref * 4);
 
-  const api = { ENSEIGNES, analyser, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  const api = { ENSEIGNES, analyser, corrigerLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);
