@@ -159,6 +159,11 @@
     if (passes.length) jp.passes = passes;
   }
   /** Si la semaine n'a pas commencé aujourd'hui : proposer de la faire démarrer aujourd'hui, sans changer les plats. */
+  /** Après « Refaire les plats » : pouvoir revenir aux plats d'avant. */
+  function bandeauRefaire() {
+    if (!S.planAvantRefaire) return '';
+    return `<div class="bandeau bandeau-info small ecran-seul bandeau-refaire" role="status"><span>🔄 Nouveaux plats proposés. Les repas déjà mangés, pris dehors ou choisis par vous n’ont pas bougé.</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="refaire-plats">Encore</button><button class="btn btn-petit" data-a="refaire-annuler">Revenir aux plats d’avant</button><button class="btn-lien small" data-a="refaire-ok" aria-label="Fermer">✕</button></span></div>`;
+  }
   function boutonDemarrer() {
     if (!S.plan || !S.planDu || debutSemaine() === aujourdhui() && S.planDu === ISO(new Date())) return '';
     const auj = E.JOURS[aujourdhui()].toLowerCase();
@@ -972,7 +977,8 @@
         ${outils.map(([k, ic, titre, resume, f]) => `<div class="outil-m ${ouvert === k ? 'ouvert' : ''}"><button class="outil-tete" data-a="outil-mobile" data-k="${k}" aria-expanded="${ouvert === k}"><span class="outil-ic" aria-hidden="true">${ic}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${titre}</strong><span class="small muted">${esc(resume)}</span></span><span class="chevron" aria-hidden="true">›</span></button>${ouvert === k ? `<div class="outil-corps">${f()}</div>` : ''}</div>`).join('')}
       </section>
       ${boutonDemarrer()}${carteMinceurSemaine()}
-      <div class="actions-semaine-m"><button class="btn btn-petit" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer</button><button class="btn btn-petit" data-a="affiche-ouvrir">🖨 Pour le frigo</button><button class="btn btn-petit" data-a="nouvelle">↻ Nouvelle semaine</button></div>
+      <div class="actions-semaine-m"><button class="btn btn-petit" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer</button><button class="btn btn-petit" data-a="affiche-ouvrir">🖨 Pour le frigo</button><button class="btn btn-petit btn-plein" data-a="refaire-plats">🔄 Refaire les plats</button><button class="btn btn-petit" data-a="nouvelle">↻ Nouvelle semaine</button></div>
+      ${bandeauRefaire()}
       ${carteRituels()}`;
   }
   function ongletSemaine() {
@@ -983,7 +989,8 @@
     return `${bandeauSensible()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       ${boutonDemarrer()}${carteMinceurSemaine()}
-      <div class="row ecran-seul"><button class="btn" data-a="nouvelle">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
+      ${bandeauRefaire()}
+      <div class="row ecran-seul"><button class="btn btn-plein" data-a="refaire-plats" title="Nouveaux plats sur les mêmes jours ; les repas déjà mangés ou choisis restent">🔄 Refaire les plats</button><button class="btn" data-a="nouvelle" title="Recommence une semaine à partir d’aujourd’hui">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
@@ -3796,11 +3803,43 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     S.ranges = {};
     S.planDu = ISO(new Date());
     retirerRepasPasses();
+    S.planAvantRefaire = null;
     S.deduits = {};
     S.modeCourses = null;
     S.ceSoirOuvert = false;
   }
 
+  /**
+   * Refaire les plats de la semaine : de nouveaux plats sur les mêmes jours, en gardant ce qui est déjà mangé ou pris dehors,
+   * les repas choisis à la main (ou par les enfants), les repas passés, les desserts, petits-déjeuners et produits ajoutés.
+   */
+  function refairePlats() {
+    if (!S.plan) return 0;
+    const avant = JSON.parse(JSON.stringify(S.plan));
+    const neuf = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
+    const t = aujourdhui(), h = new Date().getHours();
+    const garde = [];
+    let n = 0;
+    const jours = S.plan.jours.map((jp, j) => {
+      const x = { ...jp };
+      for (const sl of E.SLOTS) {
+        const k = j + '-' + sl, m = jp[sl];
+        const passe = posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21));
+        if ((jp.passes || []).includes(sl) || !m) continue;
+        if (S.deduits[k] || m.choisi || m.choisiPar || m.dehors || passe) { garde.push(k); continue; }
+        const nm = neuf.jours[j][sl];
+        if (nm && E.REC[nm.recette]) { x[sl] = { ...nm, portions: m.portions }; n++; }
+      }
+      delete x.gamelleRecette;
+      return x;
+    });
+    let plan = { ...S.plan, jours, seed: neuf.seed, remplacements: (S.plan.remplacements || 0) + 1 };
+    plan = E.dedoublonner(plan, S.profil, { verrous: garde, notes: S.notes, classiques: S.classiques }).plan;
+    S.plan = plan;
+    S.planAvantRefaire = avant;
+    S.ceSoirOuvert = false;
+    return n;
+  }
   function allerQuestion(id) {
     const qs = questionsActives(S.profil);
     S.etape = Math.max(0, qs.findIndex((q) => q.id === id));
@@ -3888,6 +3927,14 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         toast(`Votre semaine commence aujourd’hui, ${E.JOURS[aujourdhui()].toLowerCase()}`);
         break;
       }
+      case 'refaire-plats': {
+        if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
+        const n = refairePlats();
+        toast(n ? `${pluriel(n, 'plat refait', 'plats refaits')} ; la liste de courses suit` : 'Tous les repas de la semaine sont déjà mangés ou choisis');
+        break;
+      }
+      case 'refaire-annuler': if (S.planAvantRefaire) { S.plan = S.planAvantRefaire; S.planAvantRefaire = null; toast('Plats d’avant remis'); } break;
+      case 'refaire-ok': S.planAvantRefaire = null; break;
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         nouvellePlanification(); toast('Nouvelle semaine créée'); break;
