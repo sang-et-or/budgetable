@@ -568,21 +568,62 @@
     } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
     if (S.onglet === 'profil' && S.vue === 'app') rendre();
   }
-  // à la connexion : on reprend les données du compte si elles sont plus récentes, sinon on y enregistre celles de l'appareil
+  // résumé d'un jeu de données (pour choisir lesquelles garder)
+  function resumeDonnees(d) {
+    if (!d) return null;
+    const p = d.profil || {};
+    return { plan: !!d.plan, du: d.planDu || null, gouts: Object.keys(p.gouts || {}).length + Object.keys(p.goutsDetail || {}).length, placard: Object.values(p.stock || {}).filter((q) => q > 0).length, recettes: (d.bibliotheque || []).length, tickets: (d.tickets || []).length, favoris: (d.classiques || []).length, notes: Object.keys(d.notes || {}).length };
+  }
+  // ce qui compte vraiment (le placard de base rangé d'office à l'installation ne compte pas)
+  const poidsDonnees = (r) => (r ? (r.plan ? 10 + r.gouts : 0) + r.recettes * 3 + r.tickets * 3 + r.favoris * 2 + r.notes : 0);
+  // copie de secours des données de l'appareil, avant tout remplacement (récupérable dans le profil)
+  function garderSecours() { try { const l = localStorage.getItem(CLE); if (l) { localStorage.setItem('budgetable.secours', l); localStorage.setItem('budgetable.secours.date', String(Date.now())); } } catch (e) { /* mémoire pleine */ } }
+  // à la connexion : jamais d'écrasement silencieux. Si l'appareil et le compte ont chacun des données, on demande lesquelles garder.
   async function synchroniserConnexion() {
     try {
       await C.moi();
       const distant = await C.lireDonnees();
       const local = JSON.parse(localStorage.getItem(CLE) || 'null');
-      const majLocale = +(localStorage.getItem('budgetable.maj') || 0);
-      if (distant && distant.donnees && distant.donnees.v === 1 && (!local || !local.plan || distant.maj > majLocale)) {
+      const rd = distant && distant.donnees && distant.donnees.v === 1 ? resumeDonnees(distant.donnees) : null, rl = resumeDonnees(local);
+      const memes = rd && local && JSON.stringify(distant.donnees.plan) === JSON.stringify(local.plan) && rd.placard === rl.placard && rd.tickets === rl.tickets && rd.recettes === rl.recettes;
+      if (rd && (!rl || poidsDonnees(rl) <= 2)) {
+        // appareil vide (nouvelle installation) : on reprend le compte
+        garderSecours();
         localStorage.setItem(CLE, JSON.stringify(distant.donnees));
         charger();
         if (S.vue === 'accueil' && S.plan) S.vue = 'app';
         toast('Bon retour ! Vos menus et vos réglages sont là');
+      } else if (rd && !memes && poidsDonnees(rd) > 2) {
+        // deux jeux de données différents : la personne choisit
+        compte.conflit = { distant: distant.donnees, rd, rl, maj: distant.maj };
+        S.vue = 'app'; S.onglet = 'profil';
       } else if (local) { await envoyerSync(); toast('Vos données sont enregistrées dans votre compte'); }
       compte.sync = { t: Date.now(), ok: true };
     } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
+    rendre();
+    if (compte.conflit) setTimeout(() => { const z = document.querySelector('[aria-label="Choisir les données à garder"]'); if (z && z.scrollIntoView) z.scrollIntoView({ block: 'start' }); }, 50);
+  }
+  function blocConflit() {
+    const c = compte.conflit; if (!c) return '';
+    const carte = (titre, r, action, sous) => `<div class="carte-conflit stack" style="gap:6px"><strong>${titre}</strong><span class="small muted">${sous}</span>
+      <ul class="small" style="margin:0;padding-left:18px">${[r.plan ? `une semaine de menus${r.du ? ` (depuis le ${new Date(r.du + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})` : ''}` : 'pas de semaine en cours', pluriel(r.gouts, 'goût enregistré', 'goûts enregistrés'), pluriel(r.placard, 'produit au placard', 'produits au placard'), pluriel(r.recettes, 'recette perso', 'recettes perso'), pluriel(r.tickets, 'ticket', 'tickets'), pluriel(r.favoris, 'favori', 'favoris')].map((x) => `<li>${x}</li>`).join('')}</ul>
+      <button class="btn btn-petit btn-plein" data-a="${action}">Garder celles-ci</button></div>`;
+    return `<section class="stack bandeau bandeau-alerte" style="gap:10px" role="alertdialog" aria-label="Choisir les données à garder"><strong>Votre compte et ce téléphone n’ont pas les mêmes données. Lesquelles garder ?</strong>
+      <span class="small">Rien n’est perdu : les autres sont gardées en copie de secours sur ce téléphone, récupérables dans « Sauvegarde de mes données ».</span>
+      <div class="grille-conflit" style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${carte('📱 Sur ce téléphone', c.rl, 'conflit-local', 'Ce que vous voyez en ce moment')}${carte('☁️ Dans votre compte', c.rd, 'conflit-compte', `Enregistré le ${new Date(c.maj || Date.now()).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}`)}</div></section>`;
+  }
+  async function choisirConflit(garderCompte) {
+    const c = compte.conflit; if (!c) return;
+    compte.conflit = null;
+    if (garderCompte) {
+      garderSecours();
+      localStorage.setItem(CLE, JSON.stringify(c.distant)); localStorage.setItem('budgetable.maj', String(Date.now()));
+      charger(); toast('Données du compte reprises : celles du téléphone sont en copie de secours');
+    } else {
+      // on garde le téléphone ; la version du compte reste récupérable ici aussi
+      try { localStorage.setItem('budgetable.secours', JSON.stringify(c.distant)); localStorage.setItem('budgetable.secours.date', String(Date.now())); } catch (e) { /* */ }
+      await envoyerSync(); toast('Données du téléphone enregistrées dans votre compte');
+    }
     rendre();
   }
   function champMdp(id, auto, label) {
@@ -671,7 +712,15 @@
       <p class="small">${C.connecte() ? 'Votre compte garde déjà vos données en ligne. Vous pouvez aussi en faire une copie dans un fichier.' : 'Sans compte, vos menus, goûts, placard et tickets ne sont que sur cet appareil : en désinstallant l’appli ou en changeant de téléphone, ils seraient perdus. Gardez une sauvegarde (dans vos fichiers, sur votre Drive, ou envoyée à vous-même par e-mail).'}</p>
       <p class="small muted">${resumeSauvegarde()}</p>
       <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="sauvegarde-faire">💾 Sauvegarder maintenant</button><label class="btn btn-petit">📂 Restaurer une sauvegarde<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></div>
+      ${secoursDispo() ? `<p class="small muted">Copie de secours du ${new Date(+(localStorage.getItem('budgetable.secours.date') || 0)).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} (avant le dernier remplacement des données). <button class="btn-lien" data-a="secours-reprendre">La reprendre</button></p>` : ''}
       ${confirmer}</section>`;
+  }
+  const secoursDispo = () => { try { return !!localStorage.getItem('budgetable.secours'); } catch (e) { return false; } };
+  function reprendreSecours() {
+    let d = null; try { d = JSON.parse(localStorage.getItem('budgetable.secours') || 'null'); } catch (e) { d = null; }
+    if (!d || d.v !== 1) { toast('Copie de secours illisible'); return; }
+    restaurationEnAttente = { donnees: d, date: new Date(+(localStorage.getItem('budgetable.secours.date') || Date.now())).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }), ...resumeDonnees(d) };
+    restaurationEnAttente.plan = !!d.plan;
   }
   function faireSauvegarde() {
     sauver();
@@ -714,6 +763,8 @@
   function restaurer() {
     const r = restaurationEnAttente; if (!r) return;
     try {
+      const avant = localStorage.getItem(CLE);
+      if (avant && avant !== JSON.stringify(r.donnees)) garderSecours();
       localStorage.setItem(CLE, JSON.stringify(r.donnees));
       localStorage.setItem('budgetable.maj', String(Date.now()));
     } catch (e) { toast('Mémoire du téléphone pleine : restauration impossible'); return; }
@@ -2981,7 +3032,7 @@
             <ul><li>Plusieurs semaines à l’avance</li><li>Ajustement automatique au budget</li><li>Comparaison des drives, dès que les vrais prix seront disponibles</li></ul>
             <label class="case"><input type="checkbox" id="premium-test" data-a="premium" ${S.premium ? 'checked' : ''}><span>Activer Premium en mode test (aucun paiement : Stripe sera branché plus tard)</span></label></div>
         </div></section>
-      ${blocCompte()}${blocSauvegarde()}
+      ${blocConflit()}${blocCompte()}${blocSauvegarde()}
       <section class="stack"><h2>L’application</h2>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
@@ -4824,6 +4875,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'photo-effacer': S.photoEtat = null; break;
       case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': case 'ticket-fichier': case 'sauvegarde-fichier': return;
       case 'sauvegarde-faire': faireSauvegarde(); return;
+      case 'secours-reprendre': reprendreSecours(); break;
+      case 'conflit-local': choisirConflit(false); return;
+      case 'conflit-compte': choisirConflit(true); return;
       case 'sauvegarde-restaurer-ok': restaurer(); break;
       case 'sauvegarde-restaurer-non': restaurationEnAttente = null; break;
       case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
