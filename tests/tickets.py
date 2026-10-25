@@ -42,11 +42,24 @@ with sync_playwright() as p:
     assert f.locator(".ligne-ticket.ignoree").count() >= 1
     f.screenshot(path=f"{OUT}/ticket-lignes.png")
     # corriger une ligne non reconnue s'il y en a une : choisir le produit
-    if f.locator(".produit-ticket.inconnu").count():
-        f.locator(".produit-ticket.inconnu").first.click(); page.wait_for_timeout(200)
+    if f.locator(".ligne-ticket:not(.ignoree) .produit-ticket.inconnu").count():
+        f.locator(".ligne-ticket:not(.ignoree) .produit-ticket.inconnu").first.click(); page.wait_for_timeout(200)
         page.locator("#ticket-propositions [data-a=ticket-choisir]").first.click()
+    # produits imprévus : la lessive (pas dans la liste) y figure, avec un total
+    imp = f.locator(".imprevus")
+    print("rubriques :", imp.count(), [x[:200] for x in imp.all_inner_texts()])
+    assert imp.count() == 1 and "LESSIVE" in imp.inner_text().upper() and "Produits imprévus" in imp.inner_text(), imp.inner_text() if imp.count() else "pas de rubrique"
+    total_imp = imp.locator("strong.num").first.inner_text()
+    imp.screenshot(path=f"{OUT}/imprevus.png")
+    cases = imp.locator("[data-a=ticket-imprevu-placard]")
+    decoche = None
+    if cases.count():
+        decoche = int(cases.first.get_attribute("data-i")); cases.first.uncheck()
     f.locator("[data-a=ticket-enregistrer]").click()
-    assert "C’est noté" in f.inner_text()
+    assert "C’est noté" in f.inner_text() and "imprévus" in f.inner_text()
+    tk = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).tickets[0]")
+    print("imprévus :", tk["imprevus"], total_imp, tk["detailImprevus"])
+    assert tk["imprevus"] >= 5.99 and tk["nImprevus"] >= 1
     d = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
     mag = d["prixMagasins"]["lidl-magasin"]; print("prix Lidl :", mag["prix"])
     assert mag["prix"]["pates"]["p"] in (0.59, 1.18) or abs(mag["prix"]["pates"]["p"] - 0.59 * 500 / page.evaluate("window.Engine.ING.pates.cond")) < 0.02
