@@ -69,12 +69,65 @@
   function trouverPapier(s) {
     const k = Math.min(1, 500 / Math.max(s.w, s.h)), p = redim(s, k);
     const f = flou(Float32Array.from(p.d), p.w, p.h, 2);
-    const seuil = otsu(Uint8ClampedArray.from(f));
+    const fu = Uint8ClampedArray.from(f);
+    // plusieurs seuils : Otsu sur toute la photo, puis Otsu sur la partie claire seulement (le papier est plus clair
+    // qu'un clavier rétroéclairé, une table claire ou un tissu) ; on garde le papier le plus « rectangulaire »
+    const s1 = otsu(fu), claires = fu.filter((v) => v > s1), s2 = claires.length > 100 ? otsu(claires) : 255;
+    const seuils = [s1, s2, Math.round((s2 + 255) / 2)].filter((v, i, t) => v < 250 && t.indexOf(v) === i);
+    const aire = p.w * p.h, perim = 2 * (p.w + p.h);
+    let meilleur = null, strict = false;
+    for (const seuil of seuils) {
+      const r = essaiPapier(p, f, seuil);
+      if (!r) continue;
+      // tout est clair au premier seuil : ticket en gros plan, ou posé sur une table claire. On n'accepte alors qu'un
+      // papier net, entièrement dans la photo (sinon on découperait une simple zone mieux éclairée du ticket)
+      if (seuil === s1 && r.n > aire * 0.8) { strict = true; continue; }
+      if (strict) { // papier net : entièrement visible, assez grand, et en hauteur comme un ticket
+        const L = (a2, b2) => Math.hypot(a2[0] - b2[0], a2[1] - b2[1]);
+        const larg = (L(r.q[0], r.q[1]) + L(r.q[3], r.q[2])) / 2, haut = (L(r.q[0], r.q[3]) + L(r.q[1], r.q[2])) / 2;
+        if (r.bord > perim * 0.08 || r.n < aire * 0.12 || haut < larg * 1.3) continue;
+      }
+      if (r.n < aire * 0.06 || r.n > aire * 0.9 || r.bord > perim * 0.4) continue;
+      const a4 = Math.abs(r.q.reduce((t, c, i) => { const d = r.q[(i + 1) % 4]; return t + c[0] * d[1] - d[0] * c[1]; }, 0)) / 2;
+      if (a4 > aire * 0.92) continue;                        // « papier » = toute la photo : ce n'est pas le ticket
+      const rect = r.n / Math.max(1, a4);                     // part du quadrilatère vraiment claire
+      if (rect < (strict ? 0.85 : 0.72)) continue;
+      // le papier occupe toute la largeur de la photo (gros plan) : rien à découper
+      if (Math.min(...r.q.map((c) => c[0])) < p.w * 0.03 && Math.max(...r.q.map((c) => c[0])) > p.w * 0.97) continue;
+      { // un ticket entièrement visible est en hauteur : une zone carrée au milieu de la photo n'en est qu'un morceau
+        const L = (a2, b2) => Math.hypot(a2[0] - b2[0], a2[1] - b2[1]);
+        const larg = (L(r.q[0], r.q[1]) + L(r.q[3], r.q[2])) / 2, haut = (L(r.q[0], r.q[3]) + L(r.q[1], r.q[2])) / 2;
+        if (haut < larg * 1.15 && r.bord < perim * 0.05) continue;
+      }
+      if (!meilleur || rect > meilleur.rect + 0.04) meilleur = { ...r, rect };
+    }
+    if (!meilleur) return null;
+    // contrôle : de l'autre côté de chaque bord découpé, le papier ne doit pas continuer (sinon on n'a découpé
+    // qu'une partie du ticket, par exemple la zone la mieux éclairée : mieux vaut alors lire la photo entière)
+    const q = meilleur.q, cxq = q.reduce((t, c) => t + c[0], 0) / 4, cyq = q.reduce((t, c) => t + c[1], 0) / 4;
+    for (let e = 0; e < 4; e++) {
+      const A = q[e], B = q[(e + 1) % 4], Lb = Math.hypot(B[0] - A[0], B[1] - A[1]); if (Lb < 10) continue;
+      let nx = -(B[1] - A[1]) / Lb, ny = (B[0] - A[0]) / Lb;
+      if ((A[0] - cxq) * nx + (A[1] - cyq) * ny < 0) { nx = -nx; ny = -ny; }   // normale vers l'extérieur
+      let sIn = 0, nIn = 0, sOut = 0, nOut = 0;
+      for (let t = 0.15; t <= 0.85; t += 0.02) {
+        const x = A[0] + (B[0] - A[0]) * t, y = A[1] + (B[1] - A[1]) * t;
+        for (const d of [6, 9, 12]) {
+          const xi = Math.round(x - nx * d), yi = Math.round(y - ny * d), xo = Math.round(x + nx * d), yo = Math.round(y + ny * d);
+          if (xi >= 0 && yi >= 0 && xi < p.w && yi < p.h) { sIn += f[yi * p.w + xi]; nIn++; }
+          if (xo >= 0 && yo >= 0 && xo < p.w && yo < p.h) { sOut += f[yo * p.w + xo]; nOut++; }
+        }
+      }
+      if (nOut > nIn * 0.6 && nIn && sOut / nOut > (sIn / nIn) * 0.97) return null;
+    }
+    const c = (t) => [t[0] / k, t[1] / k];
+    return { hg: c(meilleur.q[0]), hd: c(meilleur.q[1]), bd: c(meilleur.q[2]), bg: c(meilleur.q[3]) };
+  }
+  function essaiPapier(p, f, seuil) {
     // seuil bas (hystérésis) : la partie du papier dans l'ombre reste du papier si elle touche la partie claire
     let sb = 0, nb = 0, sh = 0, nh = 0; for (let i = 0; i < f.length; i++) if (f[i] > seuil) { sh += f[i]; nh++; } else { sb += f[i]; nb++; }
-    const fondM = nb ? sb / nb : 0, papM = nh ? sh / nh : 255, bas = fondM + 0.45 * (papM - fondM);
+    const fondM = nb ? sb / nb : 0, papM = nh ? sh / nh : 255, bas = Math.max(seuil - 25, fondM + 0.6 * (papM - fondM));
     const clair = new Uint8Array(p.w * p.h); for (let i = 0; i < f.length; i++) clair[i] = f[i] > seuil ? 2 : f[i] > bas ? 1 : 0;
-    // fermeture : le texte ne doit pas trouer le papier (dilatation du clair)
     const lab = new Int32Array(p.w * p.h); let meilleur = null, num = 0;
     for (let i0 = 0; i0 < clair.length; i0++) {
       if (clair[i0] !== 2 || lab[i0]) continue;
@@ -87,15 +140,18 @@
       if (!meilleur || n > meilleur.n) meilleur = { n, bord, num };
     }
     if (!meilleur) return null;
-    const aire = p.w * p.h, perim = 2 * (p.w + p.h);
-    if (meilleur.n < aire * 0.08 || meilleur.n > aire * 0.93 || meilleur.bord > perim * 0.35) return null;
-    // contour du papier (pixels du papier touchant l'extérieur)
+    // contour du papier (pixels du papier touchant l'extérieur ou le bord de la photo)
     const pts = [];
-    for (let y = 1; y < p.h - 1; y++) for (let x = 1; x < p.w - 1; x++) { const i = y * p.w + x; if (lab[i] === meilleur.num && (lab[i - 1] !== meilleur.num || lab[i + 1] !== meilleur.num || lab[i - p.w] !== meilleur.num || lab[i + p.w] !== meilleur.num)) pts.push([x, y]); }
+    for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) { const i = y * p.w + x; if (lab[i] === meilleur.num && (x === 0 || y === 0 || x === p.w - 1 || y === p.h - 1 || lab[i - 1] !== meilleur.num || lab[i + 1] !== meilleur.num || lab[i - p.w] !== meilleur.num || lab[i + p.w] !== meilleur.num)) pts.push([x, y]); }
     const q = quadrilatere(pts);
     if (!q) return null;
-    const c = (t) => [t[0] / k, t[1] / k];
-    return { hg: c(q[0]), hd: c(q[1]), bd: c(q[2]), bg: c(q[3]) };
+    // surface pleine du papier : les trous (le texte imprimé) comptent comme du papier
+    const dehors = new Uint8Array(p.w * p.h), pile = [];
+    for (let x = 0; x < p.w; x++) for (const y of [0, p.h - 1]) { const i = y * p.w + x; if (lab[i] !== meilleur.num && !dehors[i]) { dehors[i] = 1; pile.push(i); } }
+    for (let y = 0; y < p.h; y++) for (const x of [0, p.w - 1]) { const i = y * p.w + x; if (lab[i] !== meilleur.num && !dehors[i]) { dehors[i] = 1; pile.push(i); } }
+    while (pile.length) { const i = pile.pop(), x = i % p.w; for (const j of [i - 1, i + 1, i - p.w, i + p.w]) if (j >= 0 && j < dehors.length && !dehors[j] && lab[j] !== meilleur.num && Math.abs((j % p.w) - x) <= 1) { dehors[j] = 1; pile.push(j); } }
+    let plein = 0; for (let i = 0; i < dehors.length; i++) if (!dehors[i]) plein++;
+    return { q, n: plein, bord: meilleur.bord };
   }
   // enveloppe convexe (chaîne monotone)
   function enveloppe(P) {
@@ -156,7 +212,6 @@
     let i0 = 0, m = Infinity; coins.forEach((c, i) => { if (c[0] + c[1] < m) { m = c[0] + c[1]; i0 = i; } });
     coins = coins.slice(i0).concat(coins.slice(0, i0));
     const L01 = Math.hypot(coins[1][0] - coins[0][0], coins[1][1] - coins[0][1]), L12 = Math.hypot(coins[2][0] - coins[1][0], coins[2][1] - coins[1][1]);
-    if (L01 > L12 * 1.15) coins = [coins[3], coins[0], coins[1], coins[2]]; // photo prise de côté : on remet le ticket debout
     return coins;
   }
   // homographie (4 points → 4 points), résolution de Gauss
@@ -298,27 +353,54 @@
     return { img: o, decalage: maxAbs };
   }
 
+  /**
+   * Bande du total (à droite du mot « Total ») déclinée en plusieurs versions (légère rotation, taille, noir et blanc) :
+   * le total est souvent imprimé en grand, espacé, et en bas du ticket là où le papier gondole. On lit chaque version et on vote.
+   */
+  function variantesTotal(s, mot) {
+    const h = mot.y1 - mot.y0, ya = Math.max(0, Math.round(mot.y0 - h * 1.2)), yb = Math.min(s.h, Math.round(mot.y1 + h * 1.2)), xa = Math.min(s.w - 20, Math.round(mot.x1 + h * 0.5));
+    if (yb - ya < 8) return [];
+    const b = img(s.w - xa, yb - ya); for (let y = ya; y < yb; y++) b.d.set(s.d.subarray(y * s.w + xa, (y + 1) * s.w), (y - ya) * b.w);
+    const res = [];
+    for (const ang of [-3, -2, -1, 0, 1]) for (const k of [0.5, 0.65, 0.8]) {
+      let v = redim(tourner(b, ang), k * 40 / Math.max(20, h));
+      const t = otsu(v.d), o = img(v.w, v.h); for (let i = 0; i < v.d.length; i++) o.d[i] = v.d[i] > t ? 255 : 0;
+      res.push(o);
+    }
+    return res;
+  }
   /** Photo d'un ticket (niveaux de gris) → image prête pour la lecture. */
   function pretraiter(gris, largeur, hauteur, opts = {}) {
     let s = img(largeur, hauteur, Uint8ClampedArray.from(gris));
     const infos = {};
-    const LARG = opts.largeur || 1100;   // largeur du papier en sortie : ~25 px par caractère sur un ticket de 40 colonnes
+    const CIBLE = opts.cible || 48;   // pas visé entre deux lignes de texte (px) : la taille où la lecture est la plus sûre
     const coins = opts.sansPapier ? null : trouverPapier(s);
-    let r = coins && redresser(s, coins, LARG);
-    if (r) { infos.papier = true; s = r; }
-    else { // ticket en gros plan : on met simplement la largeur à l'échelle
-      infos.papier = false; s = redim(s, Math.max(0.4, Math.min(3, LARG / s.w)));
+    let r = null;
+    if (coins) {
+      // largeur de sortie = largeur réelle du papier sur la photo (aucune perte de résolution) ; la taille du texte est réglée ensuite
+      const L = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const lw = (L(coins.hg, coins.hd) + L(coins.bg, coins.bd)) / 2;
+      r = redresser(s, coins, Math.max(500, Math.min(2400, lw)));
     }
+    if (r) {
+      infos.papier = true; s = r;
+    } else infos.papier = false;
     s = eclairage(s, Math.max(8, Math.round(s.w / 60)));
     const a = inclinaison(s, r ? 4 : 10); infos.angle = a;
     s = tourner(s, a);
-    let pas = pasDesLignes(s); infos.pas = pas;
-    // texte trop petit ou trop gros pour la lecture : vise ~38 px entre deux lignes
-    // (la largeur du papier est déjà normalisée : on ne remet à l'échelle que si le texte est franchement minuscule)
-    if (pas > 0 && pas < 22) { const k = Math.min(2.5, 34 / pas); s = redim(s, k); pas = Math.round(pas * k); infos.echelle = k; }
+    let pas = pasDesLignes(s);
+    // sur un ticket, une ligne fait de 3 à 9 % de la largeur du papier (32 à 56 caractères par ligne) : sinon le pas est mal mesuré
+    if (r && (pas < s.w * 0.03 || pas > s.w * 0.09)) pas = Math.round(s.w * 0.055);
+    // texte à la bonne taille pour la lecture
+    let k = pas > 0 ? CIBLE / pas : (r ? 1 : Math.min(3, 1600 / Math.min(s.w, s.h)));
+    k = Math.max(0.4, Math.min(3, k));
+    if (s.w * k > 3000) k = 3000 / s.w;
+    if (s.h * k > 9000) k = Math.min(k, 9000 / s.h);
+    if (Math.abs(k - 1) > 0.06) { s = redim(s, k); pas = Math.round(pas * k); infos.echelle = Math.round(k * 100) / 100; }
+    infos.pas = pas;
     if (!opts.sansAplanir) { const ap = aplanir(s, pas); s = ap.img; infos.gondole = Math.round(ap.decalage); }
     return { gris: s.d, largeur: s.w, hauteur: s.h, infos };
   }
 
-  return { pretraiter, trouverPapier, redresser, inclinaison, tourner, eclairage, pasDesLignes, aplanir, redim, otsu };
+  return { variantesTotal, pretraiter, trouverPapier, redresser, inclinaison, tourner, eclairage, pasDesLignes, aplanir, redim, otsu };
 });

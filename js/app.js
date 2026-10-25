@@ -2469,7 +2469,7 @@
   let numExtrait = 0;
   function decouperExtraits(c, lignes, boites) {
     for (const l of lignes) {
-      const bs = (l.src || []).map((i) => boites[i]).filter(Boolean);
+      const bs = l.boite ? [l.boite] : boites ? (l.src || []).map((i) => boites[i]).filter(Boolean) : [];
       if (!bs.length) continue;
       const y0 = Math.max(0, Math.min(...bs.map((b) => b.y0)) - 8), y1 = Math.min(c.height, Math.max(...bs.map((b) => b.y1)) + 8);
       if (y1 - y0 < 8 || y1 - y0 > c.height / 3) continue;
@@ -2478,7 +2478,8 @@
       e.getContext('2d').drawImage(c, 0, y0, c.width, y1 - y0, 0, 0, e.width, e.height);
       const id = 'x' + (++numExtrait); EXTRAITS.set(id, e.toDataURL('image/jpeg', 0.75)); l.extrait = id;
       // lecture peu sûre sur cette ligne : à vérifier en priorité
-      if (Math.min(...bs.map((b) => b.conf)) < 70) l.incertain = true;
+      if (!l.boite && Math.min(...bs.map((b) => b.conf)) < 70) l.incertain = true;
+      delete l.boite;
     }
   }
   /** Photo du ticket : redressée en niveaux de gris et contrastée, lue par l'assistant du site s'il est là, sinon sur l'appareil. */
@@ -2529,20 +2530,43 @@
         const colleAuTotal = () => { const m = TK.meilleureLecture(textes); return m && m.a.total && Math.abs(m.a.lignes.reduce((x, l) => x + l.prix, 0) - m.a.total) < 0.05; };
         const A = await lireTout('6');
         const colonne = document.createElement('canvas'); colonne.width = c.width - x0; colonne.height = c.height; colonne.getContext('2d').drawImage(c, x0, 0, colonne.width, colonne.height, 0, 0, colonne.width, colonne.height);
-        await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789,.-' });
+        await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789,.-*' });
         B = motsDe(await worker.recognize(colonne, {}, { blocks: true })).filter((w) => /\d/.test(w.text)).map((w) => ({ ...w, bbox: { x0: w.bbox.x0 + x0, x1: w.bbox.x1 + x0, y0: w.bbox.y0, y1: w.bbox.y1 } }));
         etape++;
         ajouterLecture(A.mots, A.texte);
+        const tousMots = [A.mots];
         for (const psm of ['11', '4']) {
           if (colleAuTotal()) break;   // la somme colle au total : inutile de relire
           const C = await lireTout(psm);
-          ajouterLecture(C.mots, C.texte);
+          ajouterLecture(C.mots, C.texte); tousMots.push(C.mots);
         }
+        // relecture ciblée du total (souvent en grand, espacé, en bas où le papier gondole) : plusieurs versions, vote
+        let totalCible = null;
+        try {
+          for (const mots of tousMots) {
+            const w = mots.find((m) => /^t[o0][t7][a@4][l1i]/i.test(String(m.text).trim()) && !mots.some((n) => /sous/i.test(n.text) && Math.abs(n.bbox.y0 - m.bbox.y0) < 20));
+            if (!w) continue;
+            if (S.ticket) { S.ticket.lecture = { etat: 'encours', pct: 95, texte: 'Lecture du total…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = 'Lecture du total…'; }
+            await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '0123456789,.€ ' });
+            const lus = [];
+            for (const v of window.TicketImage.variantesTotal({ w: pre.largeur, h: pre.hauteur, d: pre.gris }, w.bbox)) {
+              const cv = document.createElement('canvas'); cv.width = v.w; cv.height = v.h;
+              const g2 = cv.getContext('2d'), id2 = g2.createImageData(v.w, v.h);
+              for (let i = 0, j = 0; j < v.d.length; i += 4, j++) { id2.data[i] = id2.data[i + 1] = id2.data[i + 2] = v.d[j]; id2.data[i + 3] = 255; }
+              g2.putImageData(id2, 0, 0);
+              const rv = await worker.recognize(cv); lus.push(rv.data ? rv.data.text : '');
+            }
+            totalCible = TK.voterTotal(lus);
+            if (totalCible) break;
+          }
+        } catch (e) { totalCible = null; }
         await worker.terminate();
-        const best = TK.meilleureLecture(textes);
+        // fusion ligne par ligne des lectures (vote), ou la meilleure lecture entière : celle qui colle au total
+        const lectures = textes.map((tx, i) => ({ texte: tx, boites: boitesDe[i] })).filter((x) => x.boites);
+        const best = TK.choisirLecture({ lectures, textes, totalCible });
         t.texte = (t.suite && t.texte ? t.texte + '\n' : '') + (best ? best.texte : '');
         r = best ? best.a : TK.analyser('');
-        if (best && boitesDe[best.k]) decouperExtraits(c, r.lignes, boitesDe[best.k]);
+        if (best) decouperExtraits(c, r.lignes, best.fusion ? null : boitesDe[best.k]);
       }
       t.lecture = null;
       if (!r.lignes.length) { t.erreur = 'Je n’ai pas réussi à lire d’article sur cette photo. Reprenez-la bien à plat, avec de la lumière, ou collez le texte, ou saisissez les articles.'; rendre(); return; }

@@ -14,7 +14,7 @@
   const norm = (t) => String(t || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae').replace(/Æ/g, 'AE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const prixNum = (s) => Number(String(s).replace(/\s/g, '').replace(',', '.'));
   // lignes qui ne sont pas des articles
-  const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|n[°o]\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|lot \d|\bqte\b|\bpu\b|prix unit|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|n° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
+  const HORS = /\*{3,}|x{4,}|\b\d{1,2}[:h]\d{2}\b|\bn[°o]\.?\s?\d|visa|mastercard|maestro|\baid\b|a0000|autoris|\bref\b|\bpan\b|emv|\blot \d|\bqte\b|\bpu\b|prix unit|total|tva|\bht\b|\bttc\b|carte|\bcb\b|esp[eè]ces|rendu|monnaie|fid[eé]lit|avantage|nb ?art|nombre d|articles?\b|merci|ticket|caisse|siret|t[eé]l[eé]?ph|\btel\b|www|http|bon d.?achat|paiement|montant|a payer|net a|cagnotte|points?\b|vendeur|h[oô]te|transaction|terminal|contactless|sans contact|debit|cr[eé]dit|date|heure|magasin|code|\bn° ?\d|facture|livraison|frais de|consigne|sac (cabas|plastique)/;
   const RE_PRIX = /(-?\d{1,4}\s?[,.]\s?\d{2})\d?\s*(?:€|eur|euros?|e|c)?\s*(?:[a-d]|\*|[0-9]{1,2}|t\d)?\s*$/i;
   const RE_QTE = /^\s*(\d{1,3})\s*[x×*]\s*(\d{1,4}[,.]\d{2})/i;
   const RE_POIDS_PRIX = /(\d+[,.]\d{1,3})\s*kg\s*[x×*]\s*(\d+[,.]\d{2})/i;
@@ -57,12 +57,22 @@
   const enChiffres = (t) => t.replace(/[OoQDe@SslIiBZz]/g, (c) => CHIFFRE[c]);
   function corrigerLecture(texte) {
     return String(texte || '').split(/\r?\n/).map((l) => l
+      // bruit en fin de ligne (« 4,78 | », guillemets, traits)
+      .replace(/(\d)\s*[|¦'"‘’“”_~]+\s*$/, '$1')
+      // symboles en début de ligne (« *AUCHAN », « ¥CHAMPIGNON », « #CRISTALINE »)
+      .replace(/^[^A-Za-z0-9À-ÿ-]+/, '')
+      // « 242,39   4,78 » : l'étoile de « 2*2,39 » lue comme un 4 (vérifié : 2 × 2,39 = 4,78)
+      .replace(/(\s)(\d)4(\d{1,2}[,.]\d{2})(\s+)(\d{1,4}[,.]\d{2})/, (m, a, q, p, e, t) => (Math.abs(+q * prixNum(p) - prixNum(t)) < 0.011 ? `${a}${q}*${p}${e}${t}` : m))
+      // quantité « 2*2,39 » lue « 2¥2,39 », « 2#2,39 », « 2+2,39 »
+      .replace(/(\s)(\d{1,2})\s*[¥#+%§]\s*(\d{1,3}[,.]\d{2})(?=\s)/g, '$1$2*$3')
       // « 5,   49 » : espaces après la virgule
       .replace(/(\d)\s*([,.])\s+(\d{2})(?!\d)/g, '$1$2$3')
       // « BEURRE  115A » : virgule perdue sur le prix en fin de ligne d'article
       .replace(/^(.*[a-z].*\s)(\d{1,2})(\d{2})(\s*(?:€|eur)?\s*[A-D*]?\s*)$/i, (m, a, e, d, f) => (/\d[,.]\d{2}/.test(a) || /\b(caisse|tel|n°|siret|ticket|magasin)\b/i.test(a) || /\d\s*$/.test(a.trim()) && !/[a-z]\s*$/i.test(a.trim()) ? m : `${a}${e},${d}${f}`))
       // code TVA en fin de ligne lu avec un accent (« À », « Â ») ou en minuscule
       .replace(/\s[àáâä](\s*)$/i, ' A$1').replace(/\s[éèê](\s*)$/i, ' B$1')
+      // « 2856 » pour « 285G » dans un libellé (suivi du prix)
+      .replace(/([a-z]\s+)(\d{2,3})6\b(?=\s+-?\d{1,4}[,.]\d{2})/i, '$1$2G')
       // « 5006 » pour « 500G » : un G lu comme un 6 après un poids rond
       .replace(/\b([1-9]\d?0)6\b(?!\s*[x×*])/g, '$1G')
       // prix en fin de ligne : « e,89 » → « 0,89 », « 1,S9 » → « 1,59 »
@@ -112,7 +122,7 @@
     return notes[0] || null;
   }
   // chiffres que la lecture confond le plus souvent (zéro barré ou pointé des tickets, 1 et 7…)
-  const CONFUS = { 0: '689', 1: '74', 2: '7', 3: '89', 4: '1', 5: '683', 6: '085', 7: '12', 8: '06359', 9: '08' };
+  const CONFUS = { 0: '689', 1: '74', 2: '7', 3: '89', 4: '1', 5: '6839', 6: '085', 7: '12', 8: '06359', 9: '085' };
   /** Montants voisins d'un prix mal lu : un seul chiffre changé. */
   function variantes(v) {
     const s = Math.abs(v).toFixed(2), res = new Set();
@@ -148,6 +158,96 @@
     const sols = [];
     for (let i = 0; i < lignes.length; i++) for (const xi of euros(lignes[i].prix)) for (let j = i + 1; j < lignes.length; j++) for (const xj of euros(lignes[j].prix)) if (Math.abs(r2(lignes[i].prix - xi + lignes[j].prix - xj) - ecart) < 0.005) sols.push([i, xi, j, xj]);
     if (sols.length === 1) { const [i, xi, j, xj] = sols[0]; appliquer(i, xi); appliquer(j, xj); }
+  }
+  /**
+   * Plusieurs lectures de la même photo (avec la position de chaque ligne) → une seule, ligne par ligne, par vote :
+   * pour chaque ligne du ticket, le prix lu le plus souvent ; le total lu le plus souvent ; puis correction par le calcul.
+   * lectures : [{ texte, boites }] (boites[i] = boîte de la ligne i du texte).
+   */
+  function fusionnerLectures(lectures, totalConnu) {
+    const L = lectures.filter((x) => x && x.texte && x.boites && x.boites.length);
+    if (!L.length) return null;
+    const res = L.map((x, r) => ({ r, a: analyser(x.texte), boites: x.boites }));
+    const hauteurs = L.flatMap((x) => x.boites.map((b) => b.y1 - b.y0)).sort((a, b) => a - b);
+    const hm = hauteurs[Math.floor(hauteurs.length / 2)] || 20;
+    const items = [];
+    for (const { r, a, boites } of res) for (const l of a.lignes) {
+      const b = boites[(l.src || [])[0]]; if (!b) continue;
+      items.push({ r, y: (b.y0 + b.y1) / 2, l, boite: (l.src || []).map((i) => boites[i]).filter(Boolean).reduce((u, x) => ({ y0: Math.min(u.y0, x.y0), y1: Math.max(u.y1, x.y1), conf: Math.min(u.conf, x.conf == null ? 100 : x.conf) }), { y0: 1e9, y1: -1e9, conf: 100 }) });
+    }
+    items.sort((a, b) => a.y - b.y);
+    const groupes = [];
+    for (const it of items) {
+      const g = groupes.find((x) => Math.abs(x.y - it.y) < hm * 0.7 && !x.items.some((y) => y.r === it.r));
+      if (g) { g.items.push(it); g.y = g.items.reduce((s2, x) => s2 + x.y, 0) / g.items.length; } else groupes.push({ y: it.y, items: [it] });
+    }
+    const minVotes = L.length >= 3 ? 2 : 1;
+    const vote = (vals) => { const n = new Map(); for (const v of vals) if (v != null) n.set(v, (n.get(v) || 0) + 1); let best = null, bn = 0; for (const [v, c] of n) if (c > bn) { best = v; bn = c; } return { v: best, n: bn }; };
+    const versLigne = (g) => {
+      const prix = vote(g.items.map((x) => x.l.prix)).v;
+      const avec = g.items.filter((x) => x.l.prix === prix);
+      const choisi = avec.slice().sort((a, b) => (b.l.libelle.match(/[a-z]/gi) || []).length - (a.l.libelle.match(/[a-z]/gi) || []).length)[0];
+      const l = { ...choisi.l, prix };
+      l.boite = { y0: Math.min(...g.items.map((x) => x.boite.y0)), y1: Math.max(...g.items.map((x) => x.boite.y1)) };
+      const accord = avec.length / g.items.length;
+      // autres prix lus pour cette ligne par les autres lectures (pour la correction par le total)
+      l.alternatives = [...new Set(g.items.map((x) => x.l.prix).filter((v) => v !== prix))];
+      if (accord < 0.6 || g.items.length < minVotes) l.incertain = true;
+      delete l.src; l.y = g.y;
+      return l;
+    };
+    const lignes = groupes.filter((g) => g.items.length >= minVotes).map(versLigne);
+    const tot = vote(res.map((x) => x.a.total));
+    const total = totalConnu != null ? totalConnu : tot.v;
+    // lignes vues par une seule lecture : gardées (à vérifier) si elles comblent l'écart avec le total
+    if (total != null) {
+      const seules = groupes.filter((g) => g.items.length < minVotes).map(versLigne).filter((l) => l.prix > 0 && /[a-z]{3,}/i.test(l.libelle));
+      let manque = r2(total - lignes.reduce((x, l) => x + l.prix, 0));
+      for (const l of seules.sort((a, b) => b.prix - a.prix)) if (manque > 0.005 && l.prix <= manque + 0.005) { l.incertain = true; l.ajoutee = true; lignes.push(l); manque = r2(manque - l.prix); }
+    }
+    lignes.sort((a, b) => a.y - b.y); lignes.forEach((l) => delete l.y);
+    reconcilier(lignes, total);
+    // l'écart persiste : on essaie les autres prix lus pour une ou deux lignes (une seule combinaison doit tomber pile)
+    if (total != null) {
+      const ec = () => r2(lignes.reduce((x, l) => x + l.prix, 0) - total);
+      let e = ec();
+      if (Math.abs(e) > 0.005) {
+        const alt = lignes.map((l, i) => (l.alternatives || []).map((v) => [i, v])).flat();
+        const un = alt.filter(([i, v]) => Math.abs(r2(lignes[i].prix - v) - e) < 0.005);
+        let sol = un.length === 1 ? [un[0]] : null;
+        if (!sol && !un.length) {
+          const deux = [];
+          for (let a = 0; a < alt.length; a++) for (let b = a + 1; b < alt.length; b++) if (alt[a][0] !== alt[b][0] && Math.abs(r2(lignes[alt[a][0]].prix - alt[a][1] + lignes[alt[b][0]].prix - alt[b][1]) - e) < 0.005) deux.push([alt[a], alt[b]]);
+          if (deux.length === 1) sol = deux[0];
+        }
+        if (sol) for (const [i, v] of sol) { lignes[i].prix = v; lignes[i].corrige = true; if (!lignes[i].auKilo) lignes[i].prixUnitaire = r2(v / (lignes[i].qte || 1)); }
+        else if (Math.abs(ec()) > 0.005) reconcilier(lignes, total);
+      }
+    }
+    lignes.forEach((l) => delete l.alternatives);
+    // la lecture la plus complète sert de texte affiché
+    const texte = L[res.slice().sort((a, b) => b.a.lignes.length - a.a.lignes.length)[0].r].texte;
+    return { texte, a: { enseigne: res.map((x) => x.a.enseigne).find(Boolean) || null, date: res.map((x) => x.a.date).find(Boolean) || null, total, lignes } };
+  }
+  /**
+   * Choisit entre la fusion ligne par ligne et la meilleure lecture entière : celle dont la somme tombe le plus près
+   * du total (relu à part quand c'est possible), puis celle qui a le plus d'articles.
+   */
+  function choisirLecture({ lectures, textes, totalCible }) {
+    const cands = [];
+    const f = fusionnerLectures(lectures || [], totalCible); if (f && f.a.lignes.length) cands.push({ ...f, fusion: true });
+    const m = meilleureLecture(textes || []);
+    if (m) { if (totalCible != null && (m.a.total == null || Math.abs(m.a.lignes.reduce((x, l) => x + l.prix, 0) - m.a.total) > 0.02)) { m.a.total = totalCible; reconcilier(m.a.lignes, totalCible); } cands.push(m); }
+    const note = (c) => { const t = c.a.total, e = t == null ? null : Math.abs(c.a.lignes.reduce((x, l) => x + l.prix, 0) - t); return (e == null ? 0 : e < 0.02 ? 100 : -Math.min(60, e * 4)) + c.a.lignes.length + (c.fusion ? 0.5 : 0); };
+    cands.sort((x, y) => note(y) - note(x));
+    return cands[0] || null;
+  }
+  /** Lectures de la bande du total → le montant lu le plus souvent (au moins 2 fois), ou null. */
+  function voterTotal(textes) {
+    const n = new Map();
+    for (const t of textes) { const m = /(\d{1,4})\s?[,.]\s?(\d{2})(?!\d)/.exec(String(t || '').replace(/[^\d,. ]/g, ' ').replace(/\s+/g, ' ')); if (m) { const v = +(m[1] + '.' + m[2]); if (v > 0) n.set(v, (n.get(v) || 0) + 1); } }
+    let best = null, bn = 1; for (const [v, c] of n) if (c > bn) { best = v; bn = c; }
+    return best;
   }
   /** Texte d'un ticket (ou d'un récapitulatif de drive) → { enseigne, date, total, lignes: [{ libelle, prix, qte, prixUnitaire, poids }] } */
   function analyser(texte) {
@@ -324,7 +424,7 @@
     }
     return best.score >= 3.2 ? { id: best.id, score: best.score } : { id: null, score: Math.max(0, best.score) };
   }
-  const api = { reconstruireBoites, variantes, reconcilier, indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
+  const api = { choisirLecture, voterTotal, fusionnerLectures, reconstruireBoites, variantes, reconcilier, indexCatalogue, reconnaitreProduit, ENSEIGNES, analyser, corrigerLecture, reconstruire, meilleureLecture, prixPaquet, plausible, detecterEnseigne, detecterDate, poidsDe, norm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Ticket = api;
 })(typeof window !== 'undefined' ? window : globalThis);

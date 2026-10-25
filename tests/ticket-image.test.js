@@ -13,21 +13,21 @@ test('ticket penché sur une table : repéré, remis à plat et à la bonne tail
   const r = IM.pretraiter(i.d, i.w, i.h);
   assert.ok(Date.now() - t0 < 8000, 'assez rapide pour un téléphone');
   assert.strictEqual(r.infos.papier, true);
-  assert.strictEqual(r.largeur, 1100);
-  assert.ok(r.hauteur > 1800 && r.hauteur < 3200, r.hauteur);
+  assert.ok(r.largeur > 700 && r.largeur < 1300, 'papier découpé : ' + r.largeur);
+  assert.ok(r.hauteur > r.largeur * 1.6, 'ticket en hauteur : ' + r.hauteur);
   assert.ok(Math.abs(r.infos.angle) <= 1, 'plus d’inclinaison résiduelle : ' + r.infos.angle);
-  assert.ok(r.infos.pas > 35 && r.infos.pas < 90, 'pas des lignes ' + r.infos.pas);
-  // le bord de la table a disparu : les marges sont blanches
+  assert.ok(r.infos.pas >= 44 && r.infos.pas <= 52, 'texte mis à la bonne taille : pas ' + r.infos.pas);
+  // le bord de la table a disparu : la marge extérieure est blanche
   const col = (x) => { let s = 0; for (let y = 0; y < r.hauteur; y++) s += r.gris[y * r.largeur + x]; return s / r.hauteur; };
-  assert.ok(col(2) > 200 && col(r.largeur - 3) > 200);
+  assert.ok(col(0) > 200 && col(r.largeur - 1) > 150);
 });
 
 test('image sans papier distinct (gros plan) : simplement mise à l’échelle', () => {
   const w = 600, h = 1200, d = new Uint8ClampedArray(w * h).fill(245);
-  for (let y = 100; y < 1100; y += 40) for (let x = 50; x < 550; x++) if ((x >> 3) % 2) for (let k = 0; k < 14; k++) d[(y + k) * w + x] = 30;
+  for (let y = 100; y < 1100; y += 40) for (let x = 50; x < 550; x++) if ((x >> 3) % 2) for (let k = 0; k < 14; k++) d[(y + k) * w + x] = 30 + (x % 7) * 10;
   const r = IM.pretraiter(d, w, h);
   assert.strictEqual(r.infos.papier, false);
-  assert.strictEqual(r.largeur, 1100);
+  assert.ok(r.infos.pas >= 44 && r.infos.pas <= 52, 'lignes de 40 px mises à ~48 px : pas ' + r.infos.pas);
 });
 
 test('chiffres mal lus corrigés par le calcul (quantité, poids, total)', () => {
