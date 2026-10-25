@@ -191,6 +191,14 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 .voile { position: fixed; inset: 0; background: rgb(10 15 12 / .45); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
 .fiche { background: var(--surface); width: 100%; max-width: 640px; max-height: 92%; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 22px max(20px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px; }
 @media (min-width: 700px) { .voile { align-items: center; } .fiche { border-radius: 20px; max-height: 88%; } }
+.voile-tuto { z-index: 60; }
+.fenetre-tuto { max-width: 440px; gap: 12px; text-align: left; }
+.tuto-emoji { font-size: 3.2rem; line-height: 1; animation: tuto-saut .5s ease; }
+@keyframes tuto-saut { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tuto-emoji { animation: none; } }
+.tuto-points { display: flex; gap: 6px; }
+.tuto-points span { width: 8px; height: 8px; border-radius: 99px; background: var(--trait); }
+.tuto-points span.actif { width: 22px; background: var(--poireau, #2f6b47); }
 .fiche ul, .fiche ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
 .etoiles { display: flex; gap: 4px; }
 .etoiles button { border: 0; background: none; font-size: 1.7rem; line-height: 1; padding: 2px; color: var(--trait); }
