@@ -195,6 +195,19 @@ ${liste}`;
   const autres = (Array.isArray(o.autres) ? o.autres : []).map((x) => String(x).slice(0, 40)).filter(Boolean).slice(0, 15);
   return { produits, autres };
 }
+/** Ticket de caisse en photo → lignes d'articles (libellé, quantité, prix payé), enseigne, date et total. */
+async function lireTicket(base64) {
+  const consigne = `Voici la photo d'un ticket de caisse (ou d'un récapitulatif de commande drive) français.
+Recopie chaque article acheté avec son prix payé, sans les lignes de total, TVA, paiement, fidélité ou publicité.
+Garde le libellé tel qu'il est écrit (avec le poids s'il y en a un). Une remise va dans "remise" de l'article concerné.
+Réponds UNIQUEMENT en JSON, sans texte autour :
+{"enseigne":"<nom du magasin ou null>","date":"<AAAA-MM-JJ ou null>","total":<nombre ou null>,"lignes":[{"libelle":"<texte>","qte":<nombre>,"prix":<prix payé pour la ligne>,"prixUnitaire":<prix d'une unité ou au kilo, ou null>,"auKilo":<true si vendu au poids>,"poidsKg":<poids en kg si vendu au poids, sinon null>}]}`;
+  const o = extraireJSON(await appelerModele([{ role: 'user', content: consigne }], { image: base64, modele: MODELE_VISION, max: 2500 }));
+  if (!o) return { lignes: [] };
+  const lignes = (Array.isArray(o.lignes) ? o.lignes : []).map((l) => ({ libelle: String(l.libelle || '').slice(0, 80), qte: Math.max(1, Math.min(50, Number(l.qte) || 1)), prix: Math.round((Number(l.prix) || 0) * 100) / 100, prixUnitaire: Number(l.prixUnitaire) || null, auKilo: !!l.auKilo, poidsKg: Number(l.poidsKg) || null }))
+    .filter((l) => l.libelle && l.prix > 0 && l.prix < 500).slice(0, 120);
+  return { enseigne: o.enseigne ? String(o.enseigne).slice(0, 40) : null, date: /^\d{4}-\d{2}-\d{2}$/.test(o.date || '') ? o.date : null, total: Number(o.total) || null, lignes };
+}
 const memoire = new Map();
 const debit = new Map();
 function tropDeDemandes(ip) {
@@ -249,6 +262,23 @@ const serveur = http.createServer(async (req, res) => {
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
       return repondre(res, code, { erreur: e.code ? e.message : 'Reconnaissance impossible pour le moment' }, origine);
+    }
+  }
+  if (u.pathname === '/ticket') {
+    if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
+    if (!CLE_API) return repondre(res, 503, { erreur: 'non_configure' }, origine);
+    if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    try {
+      const corps = await lireCorps(req, 3 * 1024 * 1024);
+      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(JSON.parse(corps).image || '');
+      if (!m) return repondre(res, 400, { erreur: 'Photo illisible' }, origine);
+      const refus = quotaPhotos(ip);
+      if (refus) return repondre(res, 429, { erreur: refus }, origine);
+      return repondre(res, 200, await lireTicket(m[1]), origine);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
+      return repondre(res, code, { erreur: e.code ? e.message : 'Lecture du ticket impossible pour le moment' }, origine);
     }
   }
   if (u.pathname === '/sante' || u.pathname === '/') return repondre(res, 200, { ok: true }, origine);

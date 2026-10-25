@@ -1025,6 +1025,20 @@
     return raisons.slice(0, 3);
   }
 
+  /* ---------- prix d'un magasin (relevés sur les tickets de caisse) ---------- */
+  let SOURCE_MAGASIN = null;
+  /** prix : { ingrédient: prix d'un paquet } relevés dans un magasin ; null pour revenir aux prix de démonstration. */
+  function definirPrixMagasin(prix, infos) {
+    for (const i of Object.values(ING)) if (i.prixBase != null) { i.prixDemo = i.prixBase; delete i.prixBase; }
+    let n = 0;
+    if (prix) for (const [id, p] of Object.entries(prix)) if (ING[id] && !ING[id].perso && p > 0) { ING[id].prixBase = ING[id].prixDemo; ING[id].prixDemo = p; n++; }
+    cacheCout.clear();
+    SOURCE_MAGASIN = prix && n ? { type: 'magasin', libelle: `Prix ${infos && infos.nom ? 'de ' + infos.nom : 'de votre magasin'}`, detail: `${n} prix relevés sur vos tickets${infos && infos.nom ? ' chez ' + infos.nom : ''}${infos && infos.date ? ' (dernier le ' + infos.date + ')' : ''} ; les autres produits gardent un prix de démonstration.`, date: infos && infos.date } : null;
+    return n;
+  }
+  /** Prix habituel d'un produit (sans les prix de magasin). */
+  const prixReference = (id) => (ING[id] ? (ING[id].prixBase != null ? ING[id].prixBase : ING[id].prixDemo) : 0);
+  const sourcePrix = () => SOURCE_MAGASIN || DATA.PRIX_SOURCE;
   /* ---------- liste de courses et budget ---------- */
   const PLACARD_BASE = ['huile_olive', 'curry', 'cumin', 'paprika', 'bouillon', 'moutarde'];
   function stockIds(p) {
@@ -1109,7 +1123,7 @@
     const economieStock = round2(articles.filter((a) => a.enStock).reduce((s, a) => s + a.cout, 0));
     // coût de ce qui est réellement mangé cette semaine (le reste des paquets sert ensuite)
     const consomme = round2(articles.filter((a) => !a.enStock && !a.libre).reduce((s, a) => s + (a.quantite - (a.auPlacard || 0)) * ING[a.id].prixDemo / ING[a.id].cond, 0));
-    return { articles, total, consomme, economieStock, source: DATA.PRIX_SOURCE };
+    return { articles, total, consomme, economieStock, source: sourcePrix() };
   }
 
   function coutRepas(m) { return round2(coutPortion(REC[m.recette]) * m.portions); }
@@ -1124,7 +1138,7 @@
       conseils.push('Indiquer vos provisions déjà présentes : elles sont retirées du total.');
       if (p.dejeuners.mode === 'maison') conseils.push('Si certains déjeunent dehors en semaine, le préciser dans le profil.');
     }
-    return { estimation: liste.total, consomme: liste.consomme, budget: p.budget, ecart, ok: ecart <= 0, conseils, source: DATA.PRIX_SOURCE };
+    return { estimation: liste.total, consomme: liste.consomme, budget: p.budget, ecart, ok: ecart <= 0, conseils, source: sourcePrix() };
   }
 
   function moinsCheres(liste, n) {
@@ -1445,7 +1459,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    definirPrixMagasin, prixReference, sourcePrix, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

@@ -377,6 +377,30 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .dep-case:disabled { opacity: .45; cursor: not-allowed; }
 .dep-case.ici { opacity: 1; border: 2px solid var(--poireau); background: color-mix(in srgb, var(--poireau) 10%, var(--surface)); }
 .dep-echange { font-size: .72rem; color: var(--poireau); font-weight: 700; }
+.fenetre-ticket { max-width: 900px; }
+.sources-ticket { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.source-ticket { display: grid; gap: 4px; justify-items: start; text-align: left; padding: 14px; border-radius: 16px; border: 1px solid var(--trait); background: var(--surface); cursor: pointer; font: inherit; color: inherit; }
+.source-ticket:hover, .source-ticket:focus-within { border-color: var(--poireau); box-shadow: var(--ombre); }
+.source-ticket .ico { font-size: 1.8rem; }
+.table-ticket { display: grid; gap: 6px; max-height: 52vh; overflow: auto; padding-right: 4px; }
+.ligne-ticket { display: grid; grid-template-columns: minmax(0, 1.4fr) 92px minmax(0, 1.3fr) auto; gap: 8px; align-items: start; padding: 8px; border-radius: 12px; border: 1px solid var(--trait); background: var(--surface); }
+.ligne-ticket.ignoree { opacity: .5; }
+.libelle-ticket, .prix-ticket input, #ticket-cherche { width: 100%; font: inherit; font-size: .9rem; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 8px; background: var(--fond, #fff); color: inherit; }
+.prix-ticket { display: flex; align-items: center; gap: 4px; }
+.prix-ticket input { text-align: right; }
+.produit-ticket { text-align: left; font: inherit; font-size: .9rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px dashed var(--poireau); background: color-mix(in srgb, var(--poireau) 7%, var(--surface)); color: inherit; cursor: pointer; }
+.produit-ticket.inconnu { border-color: var(--tomate); background: color-mix(in srgb, var(--tomate) 7%, var(--surface)); }
+.resume-ticket { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.resume-ticket > div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--poireau) 7%, var(--surface)); }
+.comparatif-magasins { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.comparatif-magasins li { display: grid; grid-template-columns: minmax(0, 1.2fr) 80px auto 70px; gap: 10px; align-items: center; }
+.barre-couv { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--poireau) 15%, transparent); overflow: hidden; }
+.barre-couv i { display: block; height: 100%; background: var(--poireau); }
+.liste-tickets { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
+.liste-tickets li { display: grid; grid-template-columns: 90px 1fr auto auto; gap: 8px; }
+.sablier { font-size: 2.6rem; animation: balance 1.2s ease-in-out infinite; }
+@keyframes balance { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+@media (max-width: 640px) { .ligne-ticket { grid-template-columns: minmax(0, 1fr) 90px; } .ligne-ticket > :nth-child(3) { grid-column: 1 / -1; } .comparatif-magasins li { grid-template-columns: 1fr auto; } .comparatif-magasins .barre-couv, .comparatif-magasins li > .small { display: none; } }
 .bascule-g { display: flex; gap: 6px; flex-wrap: wrap; }
 .ardoise-matin { background: linear-gradient(135deg, #f6d38b, #f0a85a); color: #3b2410; border-radius: 22px; padding: 22px 20px; display: grid; gap: 4px; box-shadow: var(--ombre); }
 .ardoise-matin h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }
@@ -1145,6 +1169,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/petitdej.js"></script>
 <script src="js/programme.js"></script>
 <script src="js/sport.js"></script>
+<script src="js/ticket.js"></script>
 <script src="js/saison.js"></script>
 <script src="js/nutrition.js"></script>
 <script src="js/commis.js"></script>

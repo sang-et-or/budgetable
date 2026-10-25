@@ -100,7 +100,7 @@
       delete p.programme;
       delete p.sport;
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {} };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -124,13 +124,13 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {} });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
       if (S.plan && !Array.isArray(S.profil.provisionsRangees)) rangerProvisions(S.profil);
     } catch (e) { /* données illisibles : on repart de zéro */ }
-    finally { definirGourmand(); E.definirVariantes(S.variantes || []); }
+    finally { definirGourmand(); E.definirVariantes(S.variantes || []); try { appliquerPrixMagasin(); } catch (e) { /* prix de démonstration */ } }
   }
 
   /* ---------- outils ---------- */
@@ -1525,7 +1525,7 @@
     const restants = articlesARangerTous();
     const coches = restants.filter((a) => S.coches[a.id]);
     if (!restants.length) {
-      return Object.keys(S.ranges).length ? `<section class="carte stack courses-faites ecran-seul" style="gap:8px"><strong>✓ Courses rangées dans le placard</strong><div><button class="btn btn-petit" data-a="onglet" data-k="placard">Voir mon placard</button></div></section>` : '';
+      return Object.keys(S.ranges).length ? `<section class="carte stack courses-faites ecran-seul" style="gap:8px"><strong>✓ Courses rangées dans le placard</strong><div class="row" style="gap:6px"><button class="btn btn-petit" data-a="onglet" data-k="placard">Voir mon placard</button><button class="btn btn-petit btn-plein" data-a="ticket-ouvrir">🧾 Comparer mon ticket</button></div></section>` : '';
     }
     if (S.choixRanger && coches.length && coches.length < restants.length) {
       return `<section class="carte stack courses-faites ecran-seul" style="gap:10px"><strong>Qu’avez-vous rapporté ?</strong>
@@ -1535,6 +1535,7 @@
     }
     return `<section class="carte stack courses-faites ecran-seul" style="gap:8px">
       <button class="btn btn-plein btn-grand" data-a="courses-faites">✓ Courses faites : tout mettre au placard</button>
+      <button class="btn" data-a="ticket-ouvrir">🧾 J’ai mon ticket : comparer les prix et tout ranger</button>
       <span class="small muted">${coches.length && coches.length < restants.length ? `${coches.length} sur ${restants.length} articles cochés : on vous demandera ce que vous avez rapporté.` : `${pluriel(restants.length, 'article')} ajoutés à votre placard, avec leurs quantités. Ensuite, les repas cuisinés s’en déduisent.`}</span></section>`;
   }
   function repasATraiter() {
@@ -2347,6 +2348,180 @@
       <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock || a.couvertParPlacard ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
   }
+  /* ---------- tickets de caisse et récapitulatifs de drive : vrais prix par magasin, comparaison ---------- */
+  const TK = window.Ticket;
+  const ENSEIGNES_TICKET = TK ? TK.ENSEIGNES.map(([id, nom]) => [id, nom]) : [];
+  const cleMagasin = (enseigne, type) => `${enseigne || 'autre'}-${type === 'drive' ? 'drive' : 'magasin'}`;
+  const nomMagasin = (enseigne, type) => { const e = ENSEIGNES_TICKET.find(([k]) => k === enseigne); return `${e ? e[1] : 'Autre magasin'}${type === 'drive' ? ' Drive' : ''}`; };
+  function appliquerPrixMagasin() {
+    const m = S.magasinActif && (S.prixMagasins || {})[S.magasinActif];
+    E.definirPrixMagasin(m ? Object.fromEntries(Object.entries(m.prix || {}).map(([id, x]) => [id, x.p])) : null, m ? { nom: m.nom, date: m.maj ? new Date(m.maj + 'T12:00:00').toLocaleDateString('fr-FR') : '' } : null);
+  }
+  const NON_ALIMENTAIRE_TICKET = /lessive|papier|essuie|mouchoir|shampo|gel douche|savon|dentifrice|brosse|sac\b|sacs\b|nettoy|eponge|javel|piles?\b|couche|lingette|deodorant|rasoir|litiere|croquette|patee|bougie|ampoule|serviette|coton|vaisselle|adoucissant|desodor|insecticide|journal|magazine|carte cadeau/;
+  const MOTS_VAGUES = new Set(['liquide', 'entier', 'demi', 'ecreme', 'nature', 'bio', 'frais', 'fraiche', 'extra', 'maxi', 'mini', 'lot', 'sachet', 'boite', 'pack', 'classique', 'tranches', 'tranche', 'barquette', 'filet', 'filets', 'plein', 'air', 'gros', 'petit', 'petits', 'grand', 'format', 'familial', 'eco', 'premium', 'gourmand', 'origine', 'france', 'cat', 'calibre', 'piece', 'pieces', 'unite', 'promo', 'offre', 'marque', 'repere', 'pouce', 'bouteille', 'brique', 'pot', 'kg', 'les', 'des', 'aux', 'avec', 'sans', 'pour']);
+  /** Rapproche un libellé de ticket d'un produit du catalogue (en retenant les corrections déjà faites). */
+  function rapprocher(libelle) {
+    const cle = TK.norm(libelle).replace(/\d+([,.]\d+)?\s*(kg|g|gr|l|cl|ml)\b/g, '').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const appris = (S.correspondances || {})[cle];
+    if (appris !== undefined) return { id: appris || null, cle, appris: true };
+    if (NON_ALIMENTAIRE_TICKET.test(cle)) return { id: null, cle, nonAlim: true };
+    const mots = cle.split(' ').filter((m) => m.length > 2 && !MOTS_VAGUES.has(m));
+    const essais = [cle, mots.slice(0, 2).join(' '), mots[0]].filter((x) => x && x.length >= 3);
+    for (const e of essais) { const l = window.Saisie.chercherIngredients(e, 1).filter((id) => E.ING[id] && !E.ING[id].perso); if (l.length) return { id: l[0], cle }; }
+    return { id: null, cle };
+  }
+  const nbPaquets = (l, ing) => (l.poids && ((l.poids.unite === 'g' && ing.unite === 'g') || (l.poids.unite === 'ml' && ing.unite === 'ml')) ? (l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1)) / ing.cond : (l.qte || 1));
+  function preparerLignes(r) {
+    const t = S.ticket;
+    t.lignes = (r.lignes || []).map((l) => { const ra = rapprocher(l.libelle); return { ...l, poids: l.poids || (l.poidsKg ? { q: l.poidsKg * 1000, unite: 'g' } : TK.poidsDe(l.libelle)), id: ra.id, cle: ra.cle, ignore: !!ra.nonAlim || (ra.appris && !ra.id) }; });
+    if (r.enseigne && !t.enseigne) { const d = typeof r.enseigne === 'string' ? TK.detecterEnseigne(r.enseigne) : r.enseigne; if (d) t.enseigne = d.id; }
+    if (r.date) t.date = r.date;
+    if (r.total) t.total = r.total;
+    t.etape = 'lignes';
+  }
+  let tesseractCharge = null;
+  function chargerTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (!tesseractCharge) tesseractCharge = new Promise((ok, ko) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; sc.onload = () => ok(window.Tesseract); sc.onerror = () => { tesseractCharge = null; ko(new Error('chargement')); }; document.head.appendChild(sc); });
+    return tesseractCharge;
+  }
+  /** Photo du ticket : redressée en niveaux de gris et contrastée, lue par l'assistant du site s'il est là, sinon sur l'appareil. */
+  async function lirePhotoTicket(fichier) {
+    const t = S.ticket; t.lecture = { etat: 'encours', pct: 0, texte: 'Préparation de la photo…' }; rendre();
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(fichier); });
+      const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+      const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
+      for (let i = 0; i < px.length; i += 4) { const v = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]; const w = v > 150 ? 255 : v < 90 ? 0 : (v - 90) * 4.25; px[i] = px[i + 1] = px[i + 2] = w; }
+      g.putImageData(d, 0, 0);
+      let r = null;
+      // 1. l'assistant du site, plus fiable sur les tickets froissés (quand il est configuré)
+      try {
+        const etat = await fetch(`${LECTEUR}/ia/etat`, { signal: AbortSignal.timeout(8000) }).then((x) => x.json());
+        if (etat && etat.vision) {
+          t.lecture = { etat: 'encours', pct: 30, texte: 'L’assistant lit votre ticket…' }; rendre();
+          const rep = await fetch(`${LECTEUR}/ticket`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ image: c.toDataURL('image/jpeg', 0.85) }), signal: AbortSignal.timeout(60000) });
+          if (rep.ok) { const j = await rep.json(); if (j && j.lignes && j.lignes.length) r = j; }
+        }
+      } catch (e) { /* on lit sur l'appareil */ }
+      // 2. lecture sur l'appareil (Tesseract, gratuit, la photo ne quitte pas le téléphone)
+      if (!r) {
+        t.lecture = { etat: 'encours', pct: 5, texte: 'Chargement du lecteur de texte (la première fois, quelques secondes)…' }; rendre();
+        const T = await chargerTesseract();
+        const res = await T.recognize(c, 'fra', { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { S.ticket.lecture = { etat: 'encours', pct: Math.round(m.progress * 100), texte: 'Lecture du ticket…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `Lecture du ticket… ${Math.round(m.progress * 100)} %`; } } });
+        t.texte = res && res.data ? res.data.text : '';
+        r = TK.analyser(t.texte);
+      }
+      t.lecture = null;
+      if (!r.lignes.length) { t.erreur = 'Je n’ai pas réussi à lire d’article sur cette photo. Reprenez-la bien à plat, avec de la lumière, ou collez le texte, ou saisissez les articles.'; rendre(); return; }
+      preparerLignes(r); rendre();
+    } catch (e) {
+      t.lecture = null; t.erreur = 'Lecture impossible (connexion ?). Vous pouvez coller le texte du ticket ou saisir les articles.'; rendre();
+    }
+  }
+  function vueTicket() {
+    const t = S.ticket;
+    if (!t) return '';
+    const tete = (titre, sous) => `<div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><div class="stack" style="gap:4px"><span class="eyebrow">Ticket de caisse</span><h2 id="ticket-titre">${titre}</h2>${sous ? `<span class="small muted">${sous}</span>` : ''}</div><button class="btn btn-petit" data-a="ticket-fermer">Fermer</button></div>`;
+    const choixMagasin = `<div class="stack" style="gap:6px"><strong>Où avez-vous fait vos courses ?</strong>
+      <div class="row" role="radiogroup" style="gap:6px">${[['magasin', '🏬 En magasin'], ['drive', '🚗 En drive ou en livraison']].map(([k, v]) => `<button class="chip" role="radio" data-a="ticket-type" data-k="${k}" aria-checked="${t.type === k}" aria-pressed="${t.type === k}">${v}</button>`).join('')}</div>
+      <div class="row" style="gap:6px">${ENSEIGNES_TICKET.map(([k, nom]) => `<button class="chip chip-petit" data-a="ticket-enseigne" data-k="${k}" aria-pressed="${t.enseigne === k}">${esc(nom)}</button>`).join('')}<button class="chip chip-petit" data-a="ticket-enseigne" data-k="autre" aria-pressed="${t.enseigne === 'autre'}">Autre</button></div></div>`;
+    let corps = '';
+    if (t.lecture) corps = `${tete('Lecture du ticket…')}<div class="stack" style="gap:8px;align-items:center;padding:20px"><div class="sablier" aria-hidden="true">🧾</div><strong id="ticket-progres">${esc(t.lecture.texte)}${t.lecture.pct ? ` ${t.lecture.pct} %` : ''}</strong><span class="small muted">La photo est lue sur votre téléphone.</span></div>`;
+    else if (t.etape === 'source') corps = `${tete('Comparer mon ticket avec l’appli', 'Les vrais prix de votre magasin remplacent les prix de démonstration, et vous pourrez comparer les magasins et les drives.')}
+      ${choixMagasin}
+      ${t.erreur ? `<div class="bandeau bandeau-alerte small"><span>${esc(t.erreur)}</span></div>` : ''}
+      <div class="sources-ticket">
+        <label class="source-ticket"><span class="ico" aria-hidden="true">📷</span><strong>Prendre le ticket en photo</strong><span class="small muted">Ticket à plat, bien éclairé, en entier</span><input type="file" accept="image/*" capture="environment" data-a="ticket-photo" class="visuellement-cache"></label>
+        <button class="source-ticket" data-a="ticket-coller"><span class="ico" aria-hidden="true">📋</span><strong>Coller le récapitulatif</strong><span class="small muted">E-mail ou page de commande du drive</span></button>
+        <button class="source-ticket" data-a="ticket-saisir"><span class="ico" aria-hidden="true">✍️</span><strong>Saisir les articles</strong><span class="small muted">Libellé et prix, ligne par ligne</span></button>
+      </div>
+      ${t.coller ? `<label class="champ"><span>Texte du ticket ou de la commande</span><textarea id="ticket-texte" rows="8" placeholder="Collez ici le récapitulatif de votre commande ou le texte du ticket">${esc(t.texte || '')}</textarea></label><div><button class="btn btn-plein" data-a="ticket-analyser">Lire les articles</button></div>` : ''}`;
+    else if (t.etape === 'lignes') {
+      const lignes = t.lignes;
+      const prises = lignes.filter((l) => l.id && !l.ignore);
+      const totalLignes = Math.round(lignes.filter((l) => !l.ignore).reduce((s, l) => s + (l.prix || 0), 0) * 100) / 100;
+      const estim = Math.round(prises.reduce((s, l) => s + E.prixReference(l.id) * nbPaquets(l, E.ING[l.id]), 0) * 100) / 100;
+      const payeReconnu = Math.round(prises.reduce((s, l) => s + (l.prix || 0), 0) * 100) / 100;
+      corps = `${tete(`${pluriel(lignes.length, 'article')} sur le ticket`, 'Vérifiez le produit associé à chaque ligne : touchez-le pour le changer. Les produits non alimentaires peuvent être ignorés.')}
+      ${choixMagasin}
+      <div class="table-ticket" role="table" aria-label="Articles du ticket">${lignes.map((l, i) => {
+        const ing = l.id && E.ING[l.id];
+        const pp = ing ? TK.prixPaquet(l, ing) : null, ref = ing ? E.prixReference(l.id) : 0;
+        const doute = pp && !TK.plausible(pp, ref);
+        return `<div class="ligne-ticket ${l.ignore ? 'ignoree' : ''}" role="row">
+          <div class="stack" style="gap:2px;min-width:0"><input class="libelle-ticket" type="text" value="${esc(l.libelle)}" data-a="ticket-libelle" data-i="${i}" aria-label="Libellé"><span class="small muted">${l.qte > 1 ? `${l.qte} × ${euros(l.prixUnitaire || l.prix / l.qte)} · ` : ''}${l.poids ? quantite(l.auKilo ? l.poids.q : l.poids.q * (l.qte || 1), l.poids.unite) : ''}</span></div>
+          <label class="prix-ticket"><input type="text" inputmode="decimal" value="${String(l.prix).replace('.', ',')}" data-a="ticket-prix" data-i="${i}" aria-label="Prix payé"> €</label>
+          <div class="stack" style="gap:2px;min-width:0">${S.ticketCherche === i ? `<input type="search" id="ticket-cherche" data-a="ticket-cherche" data-i="${i}" placeholder="Chercher le produit…" autocomplete="off"><div id="ticket-propositions" class="row" style="gap:4px"></div>`
+            : `<button class="produit-ticket ${ing ? '' : 'inconnu'}" data-a="ticket-produit" data-i="${i}">${ing ? esc(ing.nom.replace(/\s*\([^)]*\)\s*$/, '')) : 'Choisir le produit'}</button>`}
+            ${pp && !l.ignore ? `<span class="small ${doute ? 'alerte-ing' : 'muted'}">${euros(pp)} le paquet (${esc(ing.condLabel)}) · appli ${euros(ref)}${doute ? ' · à vérifier' : ''}</span>` : ''}</div>
+          <label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label></div>`;
+      }).join('')}</div>
+      <div><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button></div>
+      <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
+        <div><span class="small muted">${pluriel(prises.length, 'produit reconnu', 'produits reconnus')} : payé</span><strong class="num">${euros(payeReconnu)}</strong></div>
+        <div><span class="small muted">Estimation de l’appli</span><strong class="num">${euros(estim)}</strong><span class="small ${payeReconnu > estim ? 'alerte-ing' : 'muted'}">${estim ? (payeReconnu > estim ? `+${euros(payeReconnu - estim)} plus cher` : `${euros(estim - payeReconnu)} moins cher`) : ''}</span></div></div>
+      <label class="case small"><input type="checkbox" data-a="ticket-ranger" ${t.ranger ? 'checked' : ''}><span>Ranger ces produits dans mon placard</span></label>
+      <label class="case small"><input type="checkbox" data-a="ticket-utiliser" ${t.utiliser ? 'checked' : ''}><span>Utiliser les prix de ce magasin pour mes menus et ma liste de courses</span></label>
+      <button class="btn btn-plein btn-grand" data-a="ticket-enregistrer" ${prises.length && t.enseigne ? '' : 'disabled'}>${t.enseigne ? `Enregistrer les prix ${esc(nomMagasin(t.enseigne, t.type))}` : 'Choisissez le magasin'}</button>`;
+    } else if (t.etape === 'fin') {
+      const f = t.fin;
+      corps = `${tete('C’est noté, merci !')}
+      <div class="chiffres-calc"><div><span class="small muted">Prix enregistrés</span><strong class="num repere-final">${f.n}</strong><span class="small muted">chez ${esc(f.nom)}</span></div><div><span class="small muted">Payé (produits reconnus)</span><strong class="num">${euros(f.paye)}</strong></div><div><span class="small muted">Estimation de l’appli</span><strong class="num">${euros(f.estim)}</strong></div></div>
+      <p style="margin:0">${f.paye > f.estim ? `Vos courses ont coûté <strong>${euros(f.paye - f.estim)} de plus</strong> que l’estimation : vos menus et votre liste utilisent maintenant les vrais prix de ${esc(f.nom)}.` : `Vos courses ont coûté <strong>${euros(f.estim - f.paye)} de moins</strong> que l’estimation : bien joué !`}${f.ranges ? ` ${pluriel(f.ranges, 'produit rangé', 'produits rangés')} dans votre placard.` : ''}</p>
+      <p class="small muted" style="margin:0">Scannez aussi les tickets d’autres magasins ou drives : la page Courses comparera le prix de votre liste partout.</p>
+      <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="ticket-fermer">Voir ma liste de courses</button><button class="btn" data-a="ticket-ouvrir">Scanner un autre ticket</button></div>`;
+    }
+    return `<div class="voile" data-a="ticket-fond"><div class="fiche fenetre-ticket" role="dialog" aria-modal="true" aria-labelledby="ticket-titre">${corps}</div></div>`;
+  }
+  function enregistrerTicket() {
+    const t = S.ticket, p = S.profil;
+    const cle = cleMagasin(t.enseigne, t.type), nom = nomMagasin(t.enseigne, t.type);
+    S.prixMagasins = S.prixMagasins || {};
+    const mag = S.prixMagasins[cle] = S.prixMagasins[cle] || { nom, enseigne: t.enseigne, type: t.type, prix: {} };
+    const date = t.date || ISO(new Date());
+    const parId = {};
+    S.correspondances = S.correspondances || {};
+    for (const l of t.lignes) {
+      if (l.cle) S.correspondances[l.cle] = l.ignore ? '' : (l.id || undefined);
+      if (!l.id || l.ignore) continue;
+      const ing = E.ING[l.id], pp = TK.prixPaquet(l, ing);
+      if (pp && TK.plausible(pp, E.prixReference(l.id))) (parId[l.id] = parId[l.id] || []).push(pp);
+    }
+    for (const [id, l] of Object.entries(parId)) mag.prix[id] = { p: Math.round(l.reduce((s, x) => s + x, 0) / l.length * 100) / 100, d: date };
+    mag.maj = date;
+    const prises = t.lignes.filter((l) => l.id && !l.ignore);
+    const paye = Math.round(prises.reduce((s, l) => s + (l.prix || 0), 0) * 100) / 100;
+    const estim = Math.round(prises.reduce((s, l) => s + E.prixReference(l.id) * nbPaquets(l, E.ING[l.id]), 0) * 100) / 100;
+    let ranges = 0;
+    if (t.ranger) { const aj = prises.map((l) => [l.id, nbPaquets(l, E.ING[l.id]) * E.ING[l.id].cond]); p.stock = E.ajouterAuStock(p.stock, aj); ranges = aj.length; }
+    S.tickets = [{ d: date, mag: cle, nom, total: t.total || paye, paye, estim, n: prises.length }].concat(S.tickets || []).slice(0, 60);
+    if (t.utiliser) S.magasinActif = cle;
+    appliquerPrixMagasin();
+    t.fin = { n: Object.keys(parId).length, nom, paye, estim, ranges };
+    t.etape = 'fin';
+  }
+  /** Sur la page Courses : scanner un ticket, choisir les prix utilisés, comparer la liste entre magasins. */
+  function blocTickets(liste) {
+    const mags = Object.entries(S.prixMagasins || {});
+    const aPrendre = liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard && !a.libre && E.ING[a.id] && !E.ING[a.id].perso);
+    const compare = mags.map(([k, m]) => {
+      let total = 0, connus = 0;
+      for (const a of aPrendre) { const x = (m.prix || {})[a.id]; total += a.conditionnements * (x ? x.p : E.prixReference(a.id)); if (x) connus++; }
+      return { k, m, total: Math.round(total * 100) / 100, couverture: aPrendre.length ? Math.round(connus / aPrendre.length * 100) : 0 };
+    }).sort((a, b) => a.total - b.total);
+    const demo = Math.round(aPrendre.reduce((s, a) => s + a.conditionnements * E.prixReference(a.id), 0) * 100) / 100;
+    return `<section class="carte stack ecran-seul bloc-tickets" style="gap:10px"><div class="spread"><h2>🧾 Mes tickets et mes prix</h2><button class="btn btn-plein btn-petit" data-a="ticket-ouvrir">Scanner un ticket</button></div>
+      <p class="small muted" style="margin:0">Après vos courses, scannez le ticket (ou collez le récapitulatif du drive) : l’appli apprend les vrais prix de chaque magasin et compare le prix de votre liste.</p>
+      ${mags.length ? `<div class="stack" style="gap:6px"><strong class="small">Prix utilisés pour mes menus et ma liste</strong><div class="row" role="radiogroup" style="gap:6px"><button class="chip" role="radio" data-a="magasin-actif" data-k="" aria-checked="${!S.magasinActif}" aria-pressed="${!S.magasinActif}">Prix de démonstration</button>${mags.map(([k, m]) => `<button class="chip" role="radio" data-a="magasin-actif" data-k="${k}" aria-checked="${S.magasinActif === k}" aria-pressed="${S.magasinActif === k}">${esc(m.nom)} <span class="small muted">· ${Object.keys(m.prix || {}).length} prix</span></button>`).join('')}</div></div>
+      <div class="stack" style="gap:6px"><strong class="small">Ma liste de la semaine selon le magasin</strong>${compare.every((c) => !c.couverture) ? '<span class="small muted">Aucun article de votre liste actuelle n’a encore de prix relevé : la comparaison se remplira avec vos prochains tickets.</span>' : ''}<ul class="comparatif-magasins">${compare.map((c, i) => `<li><span>${i === 0 && compare.length > 1 && c.couverture && c.total < compare[compare.length - 1].total - 0.01 ? '🏆 ' : ''}<strong>${esc(c.m.nom)}</strong></span><span class="barre-couv" title="${c.couverture} % des articles avec un vrai prix"><i style="width:${c.couverture}%"></i></span><span class="small muted">${c.couverture} % de vrais prix</span><strong class="num">${euros(c.total)}</strong></li>`).join('')}<li class="muted"><span>Prix de démonstration</span><span></span><span></span><span class="num">${euros(demo)}</span></li></ul>
+      <span class="small muted">Pour les articles dont le prix n’a pas encore été relevé dans un magasin, le prix de démonstration est utilisé : plus vous scannez de tickets, plus la comparaison est juste.</span></div>` : ''}
+      ${(S.tickets || []).length ? `<details class="small"><summary>Mes derniers tickets (${S.tickets.length})</summary><ul class="liste-tickets">${S.tickets.slice(0, 10).map((x) => `<li><span>${new Date(x.d + 'T12:00:00').toLocaleDateString('fr-FR')}</span><span>${esc(x.nom)}</span><span class="num">${euros(x.paye)}</span><span class="small ${x.paye > x.estim ? 'alerte-ing' : 'muted'}">${x.estim ? (x.paye > x.estim ? '+' : '−') + euros(Math.abs(x.paye - x.estim)) + ' / estimation' : ''}</span></li>`).join('')}</ul></details>` : ''}
+    </section>`;
+  }
+
   function blocAjoutCourses() {
     return `<section class="carte stack ecran-seul ajout-courses" style="gap:8px"><h2>Ajouter un produit à la liste</h2>
       <form class="row" style="gap:8px;flex-wrap:nowrap" onsubmit="return false"><label class="champ" style="flex:1;min-width:0"><span class="sr">Produit à ajouter</span><input type="search" id="manuel-cherche" data-a="manuel-cherche" placeholder="Ex. café, papier toilette, pommes…" autocomplete="off" enterkeyhint="done"></label><button class="btn btn-plein" data-a="manuel-ajouter-texte" type="button">Ajouter</button></form>
@@ -2419,6 +2594,7 @@
       ${liste.economieStock > 0 ? `<p class="small" style="padding-top:12px">Grâce à vos réserves : <strong class="num">${euros(liste.economieStock)}</strong> économisés</p>` : ''}
       <div class="ticket-total"><span>Total estimé</span><span class="num">${euros(liste.total)}</span></div></div>
       ${blocCoursesFaites()}
+      ${blocTickets(liste)}
       <details class="carte ecran-seul" id="mes-drives" ${S.drivesOuverts ? 'open' : ''}><summary data-a="drives-ouvrir"><strong>Mes drives près de chez moi</strong> <span class="small muted">· trouver les drives autour de chez vous, comparer</span></summary>
         <div class="stack" style="gap:16px;margin-top:12px">${ongletDrives()}</div></details>`;
   }
@@ -3811,7 +3987,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const avant = document.querySelector('.fiche');
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
-    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance() + vueDeplacer();
+    app.innerHTML = html + vueChoix() + vueCourses() + vueAuMenu() + vueFiche() + vueEdition() + vueAjoutGourmand() + vueCoach() + vueBudget() + vuePresence() + vueBilan() + vueAmeliorer() + vueCalcKcal() + vueAffiche() + vueGamelles() + vueEnvoi() + vueCompte() + vueProspectus() + vueAideInstall() + vueSeance() + vueDeplacer() + vueTicket();
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
     document.documentElement.classList.toggle('mode-affiche', modeAffiche);
@@ -3916,7 +4092,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const el = ev.target.closest('[data-a]');
     if (!el) return;
     const a = el.dataset.a;
-    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond' || a === 'deplacer-fond') && ev.target !== el) return;
+    if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond' || a === 'deplacer-fond' || a === 'ticket-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
       case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
@@ -3964,6 +4140,21 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         toast(`Votre semaine commence aujourd’hui, ${E.JOURS[aujourdhui()].toLowerCase()}`);
         break;
       }
+      case 'ticket-ouvrir': S.ticket = { etape: 'source', type: 'magasin', enseigne: '', lignes: [], ranger: true, utiliser: true, coller: false, texte: '' }; S.ticketCherche = null; break;
+      case 'ticket-fermer': case 'ticket-fond': if (S.ticket && S.ticket.lecture) return; S.ticket = null; S.ticketCherche = null; break;
+      case 'ticket-type': S.ticket.type = el.dataset.k; break;
+      case 'ticket-enseigne': S.ticket.enseigne = el.dataset.k; break;
+      case 'ticket-coller': S.ticket.coller = true; S.ticket.erreur = ''; break;
+      case 'ticket-saisir': S.ticket.lignes = [{ libelle: '', prix: 0, qte: 1, id: null }]; S.ticket.etape = 'lignes'; break;
+      case 'ticket-analyser': { const z = document.getElementById('ticket-texte'); const txt = z ? z.value : ''; S.ticket.texte = txt; const r = TK.analyser(txt); if (!r.lignes.length) { S.ticket.erreur = 'Aucun article trouvé dans ce texte : vérifiez qu’il contient les libellés et les prix.'; break; } if (r.enseigne) S.ticket.enseigne = r.enseigne.id; if (/drive|commande|livraison|retrait/i.test(txt)) S.ticket.type = 'drive'; preparerLignes(r); break; }
+      case 'ticket-produit': S.ticketCherche = +el.dataset.i; setTimeout(() => { const c = document.getElementById('ticket-cherche'); if (c) { c.value = (S.ticket.lignes[+el.dataset.i].libelle || '').toLowerCase().replace(/[^a-zà-ÿ ]/g, ' ').trim().split(/\s+/).slice(0, 2).join(' '); c.dispatchEvent(new Event('input', { bubbles: true })); c.focus(); } }, 30); break;
+      case 'ticket-choisir': { const i = +el.dataset.i; S.ticket.lignes[i].id = el.dataset.id || null; S.ticket.lignes[i].ignore = false; S.ticketCherche = null; break; }
+      case 'ticket-ignorer': S.ticket.lignes[+el.dataset.i].ignore = el.checked; break;
+      case 'ticket-ajout-ligne': S.ticket.lignes.push({ libelle: '', prix: 0, qte: 1, id: null }); break;
+      case 'ticket-ranger': S.ticket.ranger = el.checked; return;
+      case 'ticket-utiliser': S.ticket.utiliser = el.checked; return;
+      case 'ticket-enregistrer': enregistrerTicket(); toast('Prix enregistrés'); break;
+      case 'magasin-actif': S.magasinActif = el.dataset.k; appliquerPrixMagasin(); toast(el.dataset.k ? `Vos menus et votre liste utilisent les prix de ${S.prixMagasins[el.dataset.k].nom}` : 'Retour aux prix de démonstration'); break;
       case 'deplacer': S.deplacer = { j: +el.dataset.j, s: el.dataset.s }; S.menuRepas = null; break;
       case 'deplacer-fermer': case 'deplacer-fond': S.deplacer = null; break;
       case 'deplacer-vers': {
@@ -4336,7 +4527,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         break;
       }
       case 'photo-effacer': S.photoEtat = null; break;
-      case 'photo-produit': case 'photo-placard': return;
+      case 'photo-produit': case 'photo-placard': case 'ticket-photo': return;
       case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
       case 'ameliorer-encore': {
         const refus = (S.ameliorations ? S.ameliorations.propositions.filter((x) => x.refuse).map((x) => x.apres) : []);
@@ -4756,6 +4947,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       if (t.length >= 3) minuterieOFF = setTimeout(() => chercherOFF(t), 600);
       return;
     }
+    if (el.dataset.a === 'ticket-libelle') { const l = S.ticket.lignes[+el.dataset.i]; l.libelle = el.value; l.poids = TK.poidsDe(el.value); return; }
+    if (el.dataset.a === 'ticket-prix') { const v = Number(el.value.replace(',', '.')); if (v >= 0) { const l = S.ticket.lignes[+el.dataset.i]; l.prix = v; l.prixUnitaire = Math.round(v / (l.qte || 1) * 100) / 100; } return; }
+    if (el.dataset.a === 'ticket-cherche') {
+      const z = document.getElementById('ticket-propositions'), i = el.dataset.i, t = el.value.trim();
+      if (z) z.innerHTML = (t.length < 2 ? [] : window.Saisie.chercherIngredients(t, 8).filter((id) => E.ING[id] && !E.ING[id].perso)).map((id) => `<button class="chip chip-petit" data-a="ticket-choisir" data-i="${i}" data-id="${id}">${esc(E.ING[id].nom)}</button>`).join('') + `<button class="chip chip-petit" data-a="ticket-choisir" data-i="${i}" data-id="">Pas dans la liste</button>`;
+      return;
+    }
     if (el.dataset.a === 'prog-champ') {
       S.progForm[el.dataset.k] = el.value.trim();
       const z = document.getElementById('prog-resultat'); if (z) z.innerHTML = resultatBilanMinceur();
@@ -4872,6 +5070,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (el.dataset.a === 'carnet-scan') { scannerPhoto(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
+    if (el.dataset.a === 'ticket-photo') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
     if (el.dataset.a === 'ed-extra' && edition) { edition.extras[+el.dataset.i].coche = el.checked; rendre(); return; }
