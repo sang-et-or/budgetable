@@ -162,7 +162,7 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const euros = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   const nb = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
-  const pluriel = (n, s, p) => `${n} ${n > 1 ? (p || s + 's') : s}`;
+  const pluriel = (n, s, p) => `${Number.isInteger(n) ? n : nb(n)} ${n >= 2 ? (p || s + 's') : s}`;
   const aujourdhui = () => (new Date().getDay() + 6) % 7;
   /** Jour (0 = lundi) par lequel commence la semaine du planning : le jour de sa création. */
   const debutSemaine = () => (S.planDu ? (new Date(S.planDu + 'T12:00:00').getDay() + 6) % 7 : aujourdhui());
@@ -192,6 +192,22 @@
   const joursOrdonnes = () => ordreJours().map((j) => [S.plan.jours[j], j]);
   const posJour = (j) => ordreJours().indexOf(j);
   const tagDemo = '<span class="tag tag-demo" title="Prix de démonstration : ne viennent d’aucun magasin">Prix démo</span>';
+  /** Quantité d'une recette, telle qu'on la mesure en cuisine : œufs entiers, demi-légume possible, grammes et ml arrondis. */
+  const ENTIERS = /oeuf|œuf|pain burger|baguette|tortilla|wrap|galette|yaourt|pot |crêpe|brick|feuille de lasagne|sachet|cube/i;
+  function quantiteRecette(q, unite, id) {
+    const ing = E.ING[id] || {};
+    if (unite === 'g' || unite === 'ml') {
+      const pas = q < 10 ? 1 : q < 50 ? 5 : q < 250 ? 10 : q < 1000 ? 25 : 50;
+      const v = Math.max(pas, Math.round(q / pas) * pas);
+      return unite === 'g' ? (v >= 1000 ? `${nb(v / 1000)} kg` : `${v} g`) : (v >= 1000 ? `${nb(v / 1000)} L` : v >= 100 && v % 10 === 0 ? `${nb(v / 10)} cl` : `${v} ml`);
+    }
+    // à la pièce : les œufs et ce qui ne se coupe pas → entier ; le reste → à la demi-pièce près en petite quantité
+    if (ENTIERS.test(ing.nom || '') || /oeuf|tortilla|pain_burger/.test(id || '')) { const v = Math.max(1, Math.round(q)); return `${v}`; }
+    if (q < 3) { const v = Math.max(0.5, Math.round(q * 2) / 2); const e = Math.floor(v); return v % 1 ? (e ? `${e} ½` : '½') : `${v}`; }
+    return `${Math.round(q)}`;
+  }
+  /** Portions affichées : à la demi-portion près. */
+  const portionsAffichees = (n) => Math.max(0.5, Math.round(n * 2) / 2);
   function quantite(q, unite) {
     if (unite === 'g') return q >= 1000 ? `${nb(q / 1000)} kg` : `${Math.ceil(q)} g`;
     if (unite === 'ml') return q >= 1000 ? `${nb(q / 1000)} L` : `${Math.ceil(q)} ml`;
@@ -3115,7 +3131,7 @@
       ${blocQuantites(m)}
       ${r.variante ? (() => { const d = E.differences(r); const lib = (l) => l.map((id) => E.ING[id].nom.toLowerCase()).join(', '); return `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:4px"><strong>✏️ Ma version de ce plat${S.versionsPreferees && S.versionsPreferees[r.base] === r.id ? ' (à chaque fois)' : ''}</strong><span>${[d.ajouts.length ? 'ajouté : ' + lib(d.ajouts) : '', d.retraits.length ? 'retiré : ' + lib(d.retraits) : '', d.quantites.length ? 'quantités changées : ' + lib(d.quantites) : ''].filter(Boolean).join(' · ') || 'quantités ajustées'}</span>${!fiche.recette ? '<div><button class="btn-lien small" data-a="plat-origine">Revenir à la recette d’origine</button></div>' : ''}</div></div>`; })() : ''}
       ${!fiche.recette && !m.deRestes ? blocAmeliorer(m, r) : ''}
-      <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite)}</span></li>`).join('')}</ul></div>
+      <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(portionsAffichees(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantiteRecette(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite, id)}</span></li>`).join('')}</ul></div>
       ${blocAssietteMinceur(r, fiche.jour, fiche.slot)}
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
@@ -3237,7 +3253,7 @@
       ${nutriFiche(r, 'part')}
       ${!c.ok ? `<div class="bandeau bandeau-demo small">Attention : ${esc(libAllergie(c.raison))}.</div>` : ''}
       ${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : ''}
-      <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantite(q * parts, E.ING[id].unite)}</span></li>`).join('')}</ul></div>
+      <div class="stack" style="gap:8px"><h3>Ingrédients</h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantiteRecette(q * parts, E.ING[id].unite, id)}</span></li>`).join('')}</ul></div>
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="gourmand-ajouter" data-r="${r.id}">Ajouter à ma semaine</button>${r.perso ? `<button class="btn" data-a="ed-modifier-g" data-r="${r.id}">Modifier</button>` : ''}</div>
       <section class="commis stack" style="gap:8px"><div class="spread"><h3>Le commis de cuisine</h3><span class="tag tag-ok">${iaDispo ? 'IA' : 'Astuces'}</span></div>${blocChef(r, parts)}</section>
@@ -3598,13 +3614,13 @@
     const nomC = (id) => E.ING[id].nom.replace(/\s*\([^)]*\)\s*$/, '');
     const lignes = [], vus = new Set();
     const libelle = (id, fx) => (a.integres.includes(id) ? (a.reduite ? '¾, dans le plat' : 'dans la sauce') : fx <= 0.5 ? 'moitié, servi à part' : fx > 1 ? 'plus' : fx < 1 ? '¾ de part' : 'pareil');
-    const ajoute = (id, q, emoji, role) => { if (vus.has(id)) return; vus.add(id); const fx = fact(id) * f0; lignes.push({ emoji, nom: nomC(id), pour: quantite(q * fx, E.ING[id].unite), normal: quantite(q, E.ING[id].unite), role: a.integres.includes(id) ? 'integre' : role, label: libelle(id, fact(id)), fx }); };
+    const ajoute = (id, q, emoji, role) => { if (vus.has(id)) return; vus.add(id); const fx = fact(id) * f0; lignes.push({ emoji, nom: nomC(id), pour: quantiteRecette(q * fx, E.ING[id].unite, id), normal: quantiteRecette(q, E.ING[id].unite, id), role: a.integres.includes(id) ? 'integre' : role, label: libelle(id, fact(id)), fx }); };
     const ing = r.ing.filter(([id]) => E.ING[id] && !E.ING[id].perso);
     ing.filter(([id]) => E.ING[id].groupe === 'F' || ['farine', 'pate_feuilletee', 'pate_brisee', 'pate_sablee', 'pate_pizza', 'chapelure'].includes(id)).forEach(([id, q]) => ajoute(id, q, id === 'riz' ? '🍚' : id === 'pomme_de_terre' ? '🥔' : id.startsWith('pain') ? '🥖' : id === 'farine' ? '🌾' : id.startsWith('pate_') ? '🥧' : '🍝', 'feculent'));
     ing.filter(([id]) => E.ING[id].groupe === 'L' && !LEG_DISCRETS_APP.has(id)).slice(0, 3).forEach(([id, q]) => ajoute(id, q, '🥦', 'legume'));
     ing.filter(([id]) => id === r.prot || E.ING[id].groupe === 'P').slice(0, 2).forEach(([id, q]) => ajoute(id, q, id === 'oeufs' ? '🥚' : ['saumon', 'colin', 'thon', 'cabillaud', 'crevettes'].includes(id) ? '🐟' : ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs', 'tofu'].includes(id) ? '🫘' : '🍗', 'proteine'));
     ing.filter(([id]) => a.integres.includes(id) || a.grasReduits.includes(id)).forEach(([id, q]) => ajoute(id, q, ['creme', 'creme_liquide', 'lait_coco', 'creme_soja'].includes(id) ? '🥛' : '🧀', 'gras'));
-    for (const [id, q] of a.ajout || []) if (E.ING[id]) lignes.push({ emoji: '🥗', nom: 'Salade verte, à côté', pour: quantite(q, E.ING[id].unite), normal: '—', role: 'legume', label: 'en plus', fx: 1 });
+    for (const [id, q] of a.ajout || []) if (E.ING[id]) lignes.push({ emoji: '🥗', nom: 'Salade verte, à côté', pour: quantiteRecette(q, E.ING[id].unite, id), normal: '—', role: 'legume', label: 'en plus', fx: 1 });
     return lignes;
   }
 
@@ -5554,7 +5570,7 @@ Réponds uniquement avec un objet JSON de cette forme :
     const interdits = [].concat((p.allergies || []).map((a) => 'allergie ' + ((L.allergies || {})[a] || a)), p.regime && p.regime !== 'aucun' ? ['régime ' + ((L.regime || {})[p.regime] || p.regime)] : [], (p.refus || []).map((x) => 'n’aime pas ' + (E.ING[x] ? E.ING[x].nom : x)));
     return `Tu es le commis de cuisine de Budgétable, une application française de menus économiques. La personne est en train de cuisiner cette recette :
 Nom : ${r.nom} — ${nb(m.portions)} portion(s) adulte(s), ${r.temps} min, niveau ${['', 'facile', 'moyen', 'avancé'][r.niveau]}.
-Ingrédients : ${r.ing.map(([id, q]) => `${E.ING[id].nom} ${quantite(q * m.portions, E.ING[id].unite)}`).join(' ; ')}.
+Ingrédients : ${r.ing.map(([id, q]) => `${E.ING[id].nom} ${quantiteRecette(q * m.portions, E.ING[id].unite, id)}`).join(' ; ')}.
 Étapes : ${r.etapes.map((e, i) => `${i + 1}. ${e}`).join(' ')}
 Contraintes du foyer à respecter absolument dans tes suggestions : ${interdits.length ? interdits.join(', ') : 'aucune indiquée'}.
 Règles :
