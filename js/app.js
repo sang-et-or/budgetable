@@ -1210,10 +1210,13 @@
     if (m.deRestes) return `<div class="bandeau bandeau-ok small">♻ Ce sont les restes du dîner d’hier : rien à cuisiner, il suffit de réchauffer ${pluriel(m.portions, 'portion')}.</div>`;
     const j = fiche.jour, sl = fiche.slot;
     const ex = m.extra || { gamelles: 0, demain: 0, congel: 0 };
-    const suiv = S.plan.jours[j + 1];
+    // lendemain dans la semaine (qui peut commencer n'importe quel jour : après dimanche vient lundi), comme le moteur
+    const jl = (j + 1) % 7 === debutSemaine() ? null : (j + 1) % 7;
+    const suiv = jl == null ? null : S.plan.jours[jl];
+    const nomDemain = jl == null ? 'demain' : E.JOURS[jl].toLowerCase();
     const demainOk = sl === 'diner' && suiv && suiv.dejeuner;
     const vers = m.restes && m.restes.vers;
-    const parts = [`${nb(m.portions)} à table`].concat(ex.gamelles ? [`${nb(ex.gamelles)} pour ${pluriel(S.plan.jours[j + 1].gamelles.n, 'gamelle')} de demain`] : [], ex.demain ? [`${nb(ex.demain)} pour le déjeuner de demain`] : [], ex.congel ? [`${nb(ex.congel)} au congélateur`] : []);
+    const parts = [`${nb(m.portions)} à table`].concat(ex.gamelles ? [`${nb(ex.gamelles)} pour ${suiv && suiv.gamelles && suiv.gamelles.n ? pluriel(suiv.gamelles.n, 'gamelle') : 'les gamelles'} de demain`] : [], ex.demain ? [`${nb(ex.demain)} pour le déjeuner de demain`] : [], ex.congel ? [`${nb(ex.congel)} au congélateur`] : []);
     return `<section class="carte-quantites stack" style="gap:10px"><h3>Quantités et restes</h3>
       <div class="spread"><span>À table${m.manuel ? ' <button class="btn-lien small" data-a="fiche-portions-auto">revenir au calcul auto</button>' : ''}</span>${pas('fiche-portions', m.portions, 'Portions à table', 0.5)}</div>
       <div class="stack" style="gap:6px"><span class="small"><strong>Cuisiner en plus pour avoir des restes ?</strong></span><div class="row" style="gap:6px">
@@ -1221,8 +1224,8 @@
         ${demainOk ? `<button class="chip" data-a="fiche-restes" data-k="dejeuner" aria-pressed="${vers === 'dejeuner'}">Pour le déjeuner de demain</button>` : ''}
         <button class="chip" data-a="fiche-restes" data-k="congel" aria-pressed="${vers === 'congel'}">Pour le congélateur</button></div>
         ${vers === 'congel' ? `<div class="spread"><span class="small">Portions à congeler</span>${pas('fiche-congel', ex.congel || m.restes.n || 0, 'Portions à congeler', 1)}</div>` : ''}
-        ${vers === 'dejeuner' ? `<span class="small muted">Le déjeuner de ${E.JOURS[j + 1].toLowerCase()} devient « restes » : rien à racheter pour ce repas.</span>` : ''}
-        ${ex.gamelles ? `<span class="small pourquoi">+ ${nb(ex.gamelles)} pour les gamelles de ${E.JOURS[j + 1].toLowerCase()} midi</span>` : ''}</div>
+        ${vers === 'dejeuner' ? `<span class="small muted">Le déjeuner de ${nomDemain} devient « restes » : rien à racheter pour ce repas.</span>` : ''}
+        ${ex.gamelles ? `<span class="small pourquoi">+ ${nb(ex.gamelles)} pour les gamelles de ${nomDemain} midi</span>` : ''}</div>
       <div class="total-cuisson"><span>À cuisiner</span><strong class="num">${pluriel(E.aCuisiner(m), 'portion')}</strong></div>
       ${parts.length > 1 ? `<span class="small muted">${esc(parts.join(' + '))}. Les quantités ci-dessous sont pour tout ce qu’il faut cuisiner.</span>` : ''}
     </section>`;
