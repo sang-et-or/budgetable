@@ -17,22 +17,22 @@ with sync_playwright() as p:
     page.wait_for_timeout(400)
     tuto = page.locator(".fenetre-tuto")
     assert tuto.count() == 1, "la visite s'ouvre après la première semaine"
-    assert "1/7" in tuto.inner_text()
+    assert "1/9" in tuto.inner_text()
     vus = []
-    for i in range(6):
+    for i in range(8):
         vus.append(page.locator(".fenetre-tuto h2").inner_text())
         page.locator(".fenetre-tuto [data-a=tuto-suiv]").click(); page.wait_for_timeout(150)
-    assert "7/7" in tuto.inner_text(), tuto.inner_text()
+    assert "9/9" in tuto.inner_text(), tuto.inner_text()
     assert page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).onglet") == "profil"
     page.locator(".fenetre-tuto [data-a=tuto-prec]").click(); page.wait_for_timeout(150)
-    assert "6/7" in tuto.inner_text()
+    assert "8/9" in tuto.inner_text()
     page.locator(".fenetre-tuto [data-a=tuto-fin]").click(); page.wait_for_timeout(200)
     assert page.locator(".fenetre-tuto").count() == 0
     page.reload(); page.wait_for_timeout(600)
     assert page.locator(".fenetre-tuto").count() == 0, "ne revient pas après l'avoir vue"
     page.locator("nav button[data-k=profil]:visible").click(); page.wait_for_timeout(200)
     page.locator("[data-a=tuto-ouvrir]").click(); page.wait_for_timeout(200)
-    assert page.locator(".fenetre-tuto").count() == 1 and "1/7" in page.locator(".fenetre-tuto").inner_text()
+    assert page.locator(".fenetre-tuto").count() == 1 and "1/9" in page.locator(".fenetre-tuto").inner_text()
     page.screenshot(path="/tmp/claude-0/-home-claude/e7ca5389-2d6a-596d-9613-ea14ab557a7b/scratchpad/tuto.png")
     print("étapes :", vus)
     nav.close()

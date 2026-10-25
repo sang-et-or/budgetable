@@ -797,7 +797,9 @@
     { e: '🛒', t: 'La liste de courses se fait toute seule', p: 'Triée par rayon, avec les bons conditionnements. Cochez en magasin, ou envoyez-la vers votre drive. Ce qui est au placard n’est pas racheté.', o: 'courses' },
     { e: '🍽', t: 'Ce soir, on soulève la cloche', p: 'Le plat du soir, la recette pas à pas et les quantités pour le bon nombre de personnes, sans chercher.', o: 'soir' },
     { e: '🧾', t: 'Placard et tickets de caisse', p: 'Photographiez vos tickets : Budgétable range vos courses au placard et suit vos vrais prix pour comparer les magasins.', o: 'placard' },
-    { e: '🥐', t: 'Gourmand et coachs', p: 'Petits-déjeuners, desserts et goûters, vos propres recettes. Et si vous le voulez : un coach minceur ou un coach sportif adapte vos menus.', o: 'gourmand' },
+    { e: '🥐', t: 'Le coin gourmand', p: 'Petits-déjeuners, desserts, goûters et entrées à ajouter à la semaine, et vos propres recettes.', o: 'gourmand' },
+    { e: '🥗', t: 'Votre coach nutritionnel', p: 'Minceur, sportif, famille ou femme de 40 ans et plus : le coach adapte vos menus à votre objectif, vous donne un bilan de la semaine et répond à vos questions. Le programme minceur vous suit semaine après semaine, en douceur.', o: 'minceur' },
+    { e: '🏃', t: 'Votre coach sportif', p: 'Un programme de séances à votre niveau, à la maison ou en salle, avec le suivi de vos séances et des repas qui vont avec vos jours d’entraînement.', o: 'sport' },
     { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Profil ». Créez votre compte gratuit pour retrouver votre semaine sur tous vos appareils.', o: 'profil' }
   ];
   function vueTuto() {
@@ -990,6 +992,13 @@
       </section>
       <section class="stack" style="gap:16px"><div class="titre-section"><p class="eyebrow">Tout au même endroit</p><h2>De l’idée du menu au panier</h2></div>
         <div class="fonctions">${FONCTIONS.map(([ic, c, t, d]) => `<article class="fonction" style="--c:${c}"><span class="fonction-ic">${ICONES[ic]}</span><h3>${t}</h3><p class="small muted">${d}</p></article>`).join('')}</div>
+      </section>
+      <section class="stack coachs-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Vos coachs inclus</p><h2>Un coach nutrition et un coach sport, dans la même appli</h2></div>
+        <div class="coachs-duo">
+          <article class="coach-carte" style="--c:#2b8a7e"><span class="coach-emoji" aria-hidden="true">🥗</span><h3>Coach nutritionnel</h3><p class="small muted">Choisissez votre objectif : minceur, sportif, famille ou femme de 40 ans et plus. Vos menus s’adaptent, avec un bilan nutritionnel chaque semaine et des réponses à vos questions.</p><ul class="small"><li>Programme minceur personnalisé, en douceur</li><li>Calories, Nutri-Score et apports de la semaine</li><li>Astuces simples, sans régime strict</li></ul></article>
+          <article class="coach-carte" style="--c:#d0502e"><span class="coach-emoji" aria-hidden="true">🏃</span><h3>Coach sportif</h3><p class="small muted">Un programme de séances à votre niveau, à la maison ou en salle, et des repas qui suivent vos jours d’entraînement.</p><ul class="small"><li>Séances guidées et suivi de vos progrès</li><li>Petits-déjeuners et repas pour récupérer</li><li>Débutant ou confirmé, à votre rythme</li></ul></article>
+        </div>
+        <p class="small muted" style="margin:0">Des conseils de bon sens, pas un avis médical : en cas de problème de santé, de grossesse ou de trouble alimentaire, parlez-en d’abord à votre médecin.</p>
       </section>
       <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Trois étapes, et c’est prêt</h2></div>
         <ol class="etapes">

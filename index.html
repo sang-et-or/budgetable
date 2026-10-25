@@ -191,6 +191,12 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 .voile { position: fixed; inset: 0; background: rgb(10 15 12 / .45); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
 .fiche { background: var(--surface); width: 100%; max-width: 640px; max-height: 92%; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 22px max(20px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px; }
 @media (min-width: 700px) { .voile { align-items: center; } .fiche { border-radius: 20px; max-height: 88%; } }
+.coachs-duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.coach-carte { background: var(--surface); border: 1px solid var(--trait); border-top: 5px solid var(--c); border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.coach-carte h3 { margin: 0; }
+.coach-carte p { margin: 0; }
+.coach-carte ul { margin: 4px 0 0; padding-left: 1.1em; display: grid; gap: 3px; }
+.coach-emoji { font-size: 2rem; line-height: 1; }
 .voile-tuto { z-index: 60; }
 .fenetre-tuto { max-width: 440px; gap: 12px; text-align: left; }
 .tuto-emoji { font-size: 3.2rem; line-height: 1; animation: tuto-saut .5s ease; }
@@ -1199,7 +1205,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <div id="app"><main style="max-width:760px;margin:0 auto;padding:32px 16px;font-family:system-ui,sans-serif">
 <h1>Budgétable : les menus de la semaine selon vos goûts et votre budget</h1>
 <p>Budgétable prépare vos 7 déjeuners et 7 dîners de la semaine selon vos goûts, la saison, vos allergies, le temps que vous avez et qui mange à la maison. La liste de courses se fait toute seule, triée par rayon, sans racheter ce qui est déjà au placard, avec le budget estimé de chaque plat.</p>
-<p>Recettes faciles et pas chères, plats de saison, restes et gamelles, portions enfants, coach minceur et coach sportif, tickets de caisse pour comparer les magasins. 7 jours gratuits, puis 2,99 € par mois, sans engagement.</p>
+<p>Recettes faciles et pas chères, plats de saison, restes et gamelles, portions enfants, un coach nutritionnel (minceur, sportif, famille, femmes de 40 ans et plus) et un coach sportif, tickets de caisse pour comparer les magasins. 7 jours gratuits, puis 2,99 € par mois, sans engagement.</p>
 <ul><li><a href="/planificateur-de-repas.html">Planificateur de repas</a></li><li><a href="/recettes/">Toutes nos recettes faciles et pas chères</a></li><li><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a></li><li><a href="/planning-repas-semaine.html">Planning des repas de la semaine</a></li><li><a href="/liste-de-courses.html">Liste de courses automatique</a></li><li><a href="/menus-de-saison.html">Menus de saison</a></li></ul>
 </main></div>
 <noscript><p style="padding:16px">Budgétable a besoin de JavaScript pour fonctionner.</p></noscript>
