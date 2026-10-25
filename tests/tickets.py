@@ -74,6 +74,11 @@ with sync_playwright() as p:
     f.locator("[data-a=ticket-photo]").set_input_files({"name": "ticket.png", "mimeType": "image/png", "buffer": open("icons/icon-192.png", "rb").read()})
     page.wait_for_selector(".ligne-ticket", timeout=15000)
     assert f.locator("[data-a=ticket-enseigne][data-k=aldi][aria-pressed=true]").count() == 1
+    # long ticket : la suite en photo ajoute les lignes
+    n1 = f.locator(".ligne-ticket").count()
+    f.locator("[data-a=ticket-photo-suite]").set_input_files({"name": "suite.png", "mimeType": "image/png", "buffer": open("icons/icon-192.png", "rb").read()})
+    page.wait_for_function(f"document.querySelectorAll('.ligne-ticket').length > {n1}", timeout=15000)
+    assert f.locator(".ligne-ticket").count() == n1 * 2
     # le texte lu est visible et corrigeable
     f.locator(".texte-lu summary").click()
     page.fill("#ticket-texte-lu", page.input_value("#ticket-texte-lu").replace("COQUILLETTES 500G           0,59", "SPAGHETTI 500G           0,79"))

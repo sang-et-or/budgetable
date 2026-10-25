@@ -2426,28 +2426,38 @@
       if (!r) {
         t.lecture = { etat: 'encours', pct: 5, texte: 'Chargement du lecteur de texte (la première fois, quelques secondes)…' }; rendre();
         const T = await chargerTesseract();
-        // plusieurs lectures (bloc de texte, mots épars), lignes reconstruites par la position des mots ; on garde la plus crédible
-        const passes = [['6', 'Lecture du ticket'], ['11', 'Vérification des prix'], ['4', 'Dernière vérification']];
+        // plusieurs lectures : le ticket entier (bloc de texte, puis mots épars) et la colonne des prix seule, en chiffres uniquement ;
+        // lignes reconstruites par la position des mots, et on garde la lecture dont la somme colle au total
+        const etapes = ['Lecture du ticket', 'Lecture des prix', 'Vérification', 'Dernière vérification'];
         let etape = 0;
-        const worker = await T.createWorker('fra', 1, { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { const pct = Math.round(((etape + m.progress) / passes.length) * 100); S.ticket.lecture = { etat: 'encours', pct, texte: passes[etape][1] + '…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `${passes[etape][1]}… ${pct} %`; } } });
+        const worker = await T.createWorker('fra', 1, { logger: (m) => { if (m.status === 'recognizing text' && S.ticket) { const pct = Math.round(((etape + m.progress) / etapes.length) * 100); S.ticket.lecture = { etat: 'encours', pct, texte: etapes[etape] + '…' }; const z = document.getElementById('ticket-progres'); if (z) z.textContent = `${etapes[etape]}… ${pct} %`; } } });
+        const motsDe = (res) => ((res.data && res.data.blocks) || []).flatMap((b) => (b.paragraphs || []).flatMap((p) => (p.lines || []).flatMap((l) => l.words || [])));
+        const lireTout = async (psm) => { await worker.setParameters({ tessedit_pageseg_mode: psm, preserve_interword_spaces: '1', user_defined_dpi: '300', tessedit_char_whitelist: '' }); const res = await worker.recognize(c, {}, { text: true, blocks: true }); etape++; return { mots: motsDe(res), texte: res.data ? res.data.text : '' }; };
+        const x0 = Math.round(c.width * 0.6);
+        const sansPrix = (mots) => mots.filter((w) => !(w.bbox.x0 > x0 && /^[-\d.,€]+$/.test(String(w.text).trim())));
         const textes = [];
-        for (const [psm] of passes) {
-          await worker.setParameters({ tessedit_pageseg_mode: psm, preserve_interword_spaces: '1', user_defined_dpi: '300' });
-          const res = await worker.recognize(c, {}, { text: true, blocks: true });
-          const mots = ((res.data && res.data.blocks) || []).flatMap((b) => (b.paragraphs || []).flatMap((p) => (p.lines || []).flatMap((l) => l.words || [])));
-          textes.push(TK.reconstruire(mots, c.width), res.data ? res.data.text : '');
-          etape++;
-          const meilleur = TK.meilleureLecture(textes);
-          if (meilleur && meilleur.a.total && Math.abs(meilleur.a.lignes.reduce((x, l) => x + l.prix, 0) - meilleur.a.total) < 0.05) break;   // la somme colle au total : inutile de relire
+        const colleAuTotal = () => { const m = TK.meilleureLecture(textes); return m && m.a.total && Math.abs(m.a.lignes.reduce((x, l) => x + l.prix, 0) - m.a.total) < 0.05; };
+        const A = await lireTout('6');
+        const colonne = document.createElement('canvas'); colonne.width = c.width - x0; colonne.height = c.height; colonne.getContext('2d').drawImage(c, x0, 0, colonne.width, colonne.height, 0, 0, colonne.width, colonne.height);
+        await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '0123456789,.-' });
+        const B = motsDe(await worker.recognize(colonne, {}, { blocks: true })).filter((w) => /\d/.test(w.text)).map((w) => ({ ...w, bbox: { x0: w.bbox.x0 + x0, x1: w.bbox.x1 + x0, y0: w.bbox.y0, y1: w.bbox.y1 } }));
+        etape++;
+        textes.push(TK.reconstruire(sansPrix(A.mots).concat(B), c.width), TK.reconstruire(A.mots, c.width), A.texte);
+        for (const psm of ['11', '4']) {
+          if (colleAuTotal()) break;   // la somme colle au total : inutile de relire
+          const C = await lireTout(psm);
+          textes.push(TK.reconstruire(sansPrix(C.mots).concat(B), c.width), TK.reconstruire(C.mots, c.width), C.texte);
         }
         await worker.terminate();
         const best = TK.meilleureLecture(textes);
-        t.texte = best ? best.texte : '';
+        t.texte = (t.suite && t.texte ? t.texte + '\n' : '') + (best ? best.texte : '');
         r = best ? best.a : TK.analyser('');
       }
       t.lecture = null;
       if (!r.lignes.length) { t.erreur = 'Je n’ai pas réussi à lire d’article sur cette photo. Reprenez-la bien à plat, avec de la lumière, ou collez le texte, ou saisissez les articles.'; rendre(); return; }
-      preparerLignes(r); rendre();
+      if (t.suite && t.lignes && t.lignes.length) { const avant = t.lignes; const total = r.total || t.total; preparerLignes(r); t.lignes = avant.concat(t.lignes); t.total = total; t.suite = false; }
+      else preparerLignes(r);
+      rendre();
     } catch (e) {
       t.lecture = null; t.erreur = 'Lecture impossible (connexion ?). Vous pouvez coller le texte du ticket ou saisir les articles.'; rendre();
     }
@@ -2465,7 +2475,7 @@
       ${choixMagasin}
       ${t.erreur ? `<div class="bandeau bandeau-alerte small"><span>${esc(t.erreur)}</span></div>` : ''}
       <div class="sources-ticket">
-        <label class="source-ticket"><span class="ico" aria-hidden="true">📷</span><strong>Prendre le ticket en photo</strong><span class="small muted">Ticket à plat, bien éclairé, en entier</span><input type="file" accept="image/*" capture="environment" data-a="ticket-photo" class="visuellement-cache"></label>
+        <label class="source-ticket"><span class="ico" aria-hidden="true">📷</span><strong>Prendre le ticket en photo</strong><span class="small muted">De près, à plat, bien éclairé. Long ticket : en plusieurs photos</span><input type="file" accept="image/*" capture="environment" data-a="ticket-photo" class="visuellement-cache"></label>
         <button class="source-ticket" data-a="ticket-coller"><span class="ico" aria-hidden="true">📋</span><strong>Coller le récapitulatif</strong><span class="small muted">E-mail ou page de commande du drive</span></button>
         <button class="source-ticket" data-a="ticket-saisir"><span class="ico" aria-hidden="true">✍️</span><strong>Saisir les articles</strong><span class="small muted">Libellé et prix, ligne par ligne</span></button>
       </div>
@@ -2491,7 +2501,7 @@
           <label class="case small"><input type="checkbox" data-a="ticket-ignorer" data-i="${i}" ${l.ignore ? 'checked' : ''}><span>Ignorer</span></label></div>`;
       }).join('')}</div>
       ${t.total && Math.abs(t.total - lignes.reduce((x, l) => x + (l.prix || 0), 0)) > 0.1 ? `<div class="bandeau bandeau-alerte small"><span>⚠️ La somme des lignes (${euros(lignes.reduce((x, l) => x + (l.prix || 0), 0))}) ne correspond pas au total du ticket (${euros(t.total)}) : une ligne a peut-être été mal lue ou oubliée. Vérifiez les prix, ou corrigez le texte lu plus bas.</span></div>` : t.total ? `<div class="bandeau bandeau-info small"><span>✓ La somme des lignes correspond au total du ticket (${euros(t.total)}).</span></div>` : ''}
-      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button></div>
+      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="ticket-ajout-ligne">+ Ajouter une ligne</button><label class="btn btn-petit">📷 Ajouter la suite du ticket<input type="file" accept="image/*" capture="environment" data-a="ticket-photo-suite" class="visuellement-cache"></label></div>
       ${t.texte ? `<details class="texte-lu small" ${t.voirTexte ? 'open' : ''}><summary data-a="ticket-voir-texte">Voir et corriger le texte lu sur la photo</summary><p class="muted" style="margin:6px 0">Une ligne mal lue ? Corrigez le texte ci-dessous (un article par ligne, le prix à la fin), puis « Relire ».</p><textarea id="ticket-texte-lu" rows="10">${esc(t.texte)}</textarea><div><button class="btn btn-petit btn-plein" data-a="ticket-relire">Relire le texte</button></div></details>` : ''}
       <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
         <div><span class="small muted">${pluriel(prises.length, 'produit reconnu', 'produits reconnus')} : payé</span><strong class="num">${euros(payeReconnu)}</strong></div>
@@ -4598,7 +4608,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         break;
       }
       case 'photo-effacer': S.photoEtat = null; break;
-      case 'photo-produit': case 'photo-placard': case 'ticket-photo': return;
+      case 'photo-produit': case 'photo-placard': case 'ticket-photo': case 'ticket-photo-suite': return;
       case 'ameliorer': S.bilanOuvert = false; lancerAmeliorations(); break;
       case 'ameliorer-encore': {
         const refus = (S.ameliorations ? S.ameliorations.propositions.filter((x) => x.refuse).map((x) => x.apres) : []);
@@ -5141,6 +5151,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (el.dataset.a === 'carnet-scan') { scannerPhoto(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-produit') { photoProduit(el.files && el.files[0]); el.value = ''; return; }
     if (el.dataset.a === 'photo-placard') { photoPlacard(el.files && el.files[0]); el.value = ''; return; }
+    if (el.dataset.a === 'ticket-photo-suite') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.suite = true; S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ticket-photo') { const fi = el.files && el.files[0]; el.value = ''; if (fi && S.ticket) { S.ticket.erreur = ''; lirePhotoTicket(fi); } return; }
     if (el.dataset.a === 'ed-photo' && edition) { photoPerso(el.files && el.files[0]); return; }
     if (el.dataset.a === 'ed-ing' && edition) { edition.ing[+el.dataset.i].coche = el.checked; rendre(); return; }
