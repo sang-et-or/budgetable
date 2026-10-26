@@ -776,7 +776,7 @@
     return reste > 0 ? { mode: 'essai', reste } : { mode: 'expire' };
   }
   // ce qui demande l'abonnement une fois l'essai terminé (la semaine en cours, la liste, le placard et les recettes restent consultables)
-  const ACTIONS_ABONNES = new Set(['commencer', 'nouvelle', 'refaire-plats', 'choix', 'plat-editer', 'complement-ouvrir', 'ticket-ouvrir', 'gourmand-ajouter', 'jaica-ouvrir', 'coach-envoyer', 'chef-envoyer', 'ed-nouveau', 'ed-nouveau-g', 'deplacer-ouvrir', 'test-go']);
+  const ACTIONS_ABONNES = new Set(['commencer', 'nouvelle', 'refaire-plats', 'choix', 'plat-editer', 'complement-ouvrir', 'ticket-ouvrir', 'gourmand-ajouter', 'jaica-ouvrir', 'coach-envoyer', 'chat-question', 'chat-ouvrir', 'chef-envoyer', 'ed-nouveau', 'ed-nouveau-g', 'deplacer-ouvrir', 'test-go']);
   function etiquetteAbo() {
     const d = droitsAbo();
     return d.mode === 'abonne' ? '<span class="tag tag-ok">Abonné</span>' : d.mode === 'essai' ? `<button class="tag tag-simu btn-tag" data-a="abo-ouvrir">Essai gratuit · ${pluriel(d.reste, 'jour')}</button>` : d.mode === 'expire' ? '<button class="tag tag-alerte btn-tag" data-a="abo-ouvrir">Essai terminé</button>' : '';
@@ -865,7 +865,7 @@
     { e: '🍽', t: 'Ce soir, on soulève la cloche', p: 'Le plat du soir, la recette pas à pas et les quantités pour le bon nombre de personnes, sans chercher.', o: 'soir' },
     { e: '🧾', t: 'Placard et tickets de caisse', p: 'Photographiez vos tickets : Budgétable range vos courses au placard et suit vos vrais prix pour comparer les magasins.', o: 'placard' },
     { e: '🥐', t: 'Le coin gourmand', p: 'Petits-déjeuners, desserts, goûters et entrées à ajouter à la semaine, et vos propres recettes.', o: 'gourmand' },
-    { e: '🥗', t: 'Votre coach nutritionnel', p: 'Minceur, sportif, famille ou femme de 40 ans et plus : le coach adapte vos menus à votre objectif, vous donne un bilan de la semaine et répond à vos questions. Le programme minceur vous suit semaine après semaine, en douceur.', o: 'minceur' },
+    { e: '🥗', t: 'Votre coach nutritionnel', p: 'Minceur, sportif, famille ou femme de 40 ans et plus : le coach adapte vos menus à votre objectif, vous donne un bilan de la semaine et répond à vos questions : écrivez-lui avec le bouton 💬 Mon coach. Le programme minceur vous suit semaine après semaine, en douceur.', o: 'minceur' },
     { e: '🏃', t: 'Votre coach sportif', p: 'Un programme de séances à votre niveau, à la maison ou en salle, avec le suivi de vos séances et des repas qui vont avec vos jours d’entraînement.', o: 'sport' },
     { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Profil ». Sans compte, rien n’est gardé : créez votre compte gratuit pour garder votre semaine et la retrouver sur tous vos appareils.', o: 'profil' }
   ];
@@ -1101,7 +1101,7 @@
     const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, sport: ongletSport, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
-    return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
+    return `<div class="wrap"><div class="store" aria-hidden="true"></div>${S.plan && !S.afficheOuverte ? `<button class="fab-coach ecran-seul" data-a="chat-ouvrir" aria-label="Parler à mon coach"><span aria-hidden="true">💬</span><span>Mon coach</span></button>` : ''}<div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
       <div class="ecran-seul"><div class="entete" style="margin-bottom:10px"><button class="marque marque-lien" data-a="accueil" title="Page d’accueil">${LOGO}Budgétable</button><div class="row" style="gap:8px;align-items:center">${etiquetteAbo()}${C.connecte() ? `<button class="puce-compte" data-a="onglet" data-k="profil" title="Mon compte"><span class="avatar petit" aria-hidden="true">${esc(((C.utilisateur() && (C.utilisateur().prenom || C.utilisateur().email)) || '?').charAt(0).toUpperCase())}</span><span class="sr">Mon compte</span></button>` : '<button class="btn btn-petit" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}</div></div><div class="nappe" aria-hidden="true"></div></div>
       ${contenu}</main></div></div>`;
   }
@@ -3294,7 +3294,7 @@
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
         <p class="small muted" style="margin:0">${S.profil.coach ? esc(COACHS[S.profil.coach].accroche) : 'Minceur, sportif, ou femme de 40 ans et plus : vos menus suivent votre objectif.'}</p>
-        <div class="row" style="gap:8px"><button class="btn btn-petit ${S.profil.coach ? '' : 'btn-plein'}" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button><button class="btn btn-petit" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? 'Mon coach sportif' : 'Coach sportif'}</button></div></section>
+        <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="chat-ouvrir">💬 Parler à mon coach</button><button class="btn btn-petit" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button><button class="btn btn-petit" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? 'Mon coach sportif' : 'Coach sportif'}</button></div></section>
       <section class="carte stack"><div class="spread"><h2>Vos goûts</h2><div class="row"><button class="btn btn-petit btn-plein" data-a="test-go" data-depuis="app">Faire le test de goût</button><button class="btn btn-petit" data-a="gouts-effacer">Effacer mes goûts</button></div></div>
         ${blocGouts()}<p class="small muted">Vos notes de recettes affinent aussi vos goûts.</p></section>
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
@@ -4471,6 +4471,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (!c) {
       return `<section class="carte stack invite-coach" style="gap:8px"><strong>🎯 Un coach pour vos menus ?</strong><div>${lienProg}</div>
         <span class="small muted">Budgétable prépare votre semaine selon votre objectif.</span>
+        <div><button class="btn btn-petit btn-plein" data-a="chat-ouvrir">💬 Parler à un coach</button></div>
         <div class="row" style="gap:6px">${Object.entries(COACHS).map(([k, x]) => `<button class="chip" data-a="coach-voir" data-k="${k}">${x.emoji} ${esc(x.court)}</button>`).join('')}</div></section>`;
     }
     const b = E.bilanCoach(S.plan, S.profil);
@@ -4478,6 +4479,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const astuces = [0, 1].map((k) => c.astuces[(semaine * 2 + k) % c.astuces.length]);
     return `<section class="carte stack coach-actif" style="gap:10px">
       <div class="spread"><strong>${c.emoji} ${esc(c.nom)}</strong><button class="btn-lien small" data-a="coach-voir" data-k="${S.profil.coach}">Changer</button></div>
+      <div><button class="btn btn-petit btn-plein" data-a="chat-ouvrir">💬 Parler à mon coach</button></div>
       ${S.profil.coach === 'minceur' ? `<div>${lienProg}</div>` : ''}
       ${b ? `<ul class="objectifs-coach">${c.objectifs(b).map(([txt, ok, cible]) => `<li class="${ok ? 'ok' : 'a-voir'}"><span aria-hidden="true">${ok ? '✓' : '•'}</span><span><strong>${esc(txt)}</strong> <span class="small muted">${esc(cible)}</span></span></li>`).join('')}</ul>` : ''}
       <div class="stack" style="gap:4px"><span class="eyebrow">Les conseils de la semaine</span>${astuces.map((a) => `<span class="small">💡 ${esc(a)}</span>`).join('')}</div>
@@ -4501,6 +4503,82 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       </div>
       ${actif ? `<div class="row" style="gap:8px"><button class="btn btn-plein" data-a="coach-semaine" data-k="${k}">Refaire une semaine ${esc(c.court.toLowerCase())}</button><button class="btn" data-a="coach-arreter">Arrêter le coach</button></div>`
         : `<button class="btn btn-plein btn-grand" data-a="coach-semaine" data-k="${k}">Préparer ma semaine avec le ${esc(c.nom.toLowerCase())}</button>`}
+      <div><button class="btn" data-a="chat-ouvrir">💬 Poser une question à ${actif ? 'mon' : 'un'} coach</button></div>
+    </div></div>`;
+  }
+
+  /* ---------- parler à son coach alimentaire (messagerie) ---------- */
+  const coachChat = { ouvert: false, tours: [], attente: false, message: '' };
+  const QUESTIONS_COACH = ['Ma semaine est-elle équilibrée ?', 'Comment manger plus de légumes ?', 'Une idée de dîner léger ?', 'Mes enfants boudent les légumes'];
+  function coachCourant() { const k = S.profil.coach; return k && COACHS[k] ? { k, ...COACHS[k] } : { k: null, nom: 'Coach Budgétable', emoji: '🥗', court: 'Équilibre', accroche: 'Des repas variés et équilibrés, à petit budget.', pour: 'Des légumes à chaque repas, des protéines variées, des féculents complets, peu de produits trop gras, salés ou sucrés.', astuces: ['Remplissez la moitié de l’assiette de légumes.', 'Alternez viande, poisson, œufs et légumineuses dans la semaine.', 'Préférez l’eau aux boissons sucrées.', 'Un fruit ou un yaourt nature en dessert.'] }; }
+  function resumeBilanCoach() {
+    const b = S.plan && window.Nutrition ? window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING) : null;
+    if (!b) return null;
+    const aRevoir = b.reperes.filter((r) => r.etat !== 'ok');
+    return { b, texte: `${b.atteints} repères sur ${b.reperes.length} atteints ; à améliorer : ${aRevoir.map((r) => `${r.nom} (${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur} ${r.unite || ''}, repère : ${r.repere})`).join(' ; ') || 'rien'}`, aRevoir };
+  }
+  function consignesCoachAlimentaire() {
+    const p = S.profil, c = coachCourant(), g = E.resumeGouts(p.gouts);
+    const semaine = S.plan ? S.plan.jours.map((jp, j) => `${E.JOURS[j]} : ${['dejeuner', 'diner'].map((sl) => jp[sl] && E.REC[jp[sl].recette] ? E.REC[jp[sl].recette].nom : '—').join(' / ')}`).join(' ; ') : 'pas encore de semaine';
+    const bil = resumeBilanCoach();
+    return `Tu es le ${c.k ? c.nom.toLowerCase() : 'coach'} de Budgétable, une application française de menus de la semaine à petit budget. Tu discutes par messagerie avec la personne.
+Ton rôle : ${c.accroche} Dans ses menus : ${c.pour}
+Son foyer : ${p.foyer.adultes || 1} adulte(s) et ${(p.foyer.enfants || []).length} enfant(s). Elle aime : ${g.aime.join(', ') || 'non renseigné'}. Elle aime moins : ${g.evite.join(', ') || 'non renseigné'}. Régime : ${E.LIBELLES.regime[p.regime] || 'aucun'}. Allergies : ${(p.allergies || []).join(', ') || 'aucune'}.
+Sa semaine : ${semaine}.
+Bilan nutritionnel de la semaine : ${bil ? bil.texte : 'non disponible'}.
+Règles :
+- Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
+- Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
+- Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
+- Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
+- Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
+- Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
+  }
+  /** Réponse sans IA (assistant indisponible ou très sollicité) : conseils tirés du coach et du bilan de la semaine. */
+  function reponseLocaleCoach(q) {
+    const t = TK && TK.norm ? TK.norm(q) : String(q).toLowerCase(), c = coachCourant(), bil = resumeBilanCoach();
+    if (/vomi|plus manger|culpab|malaise|anorex|boulim/.test(t)) return 'Merci de me le confier. Ce que vous ressentez compte : parlez-en à votre médecin ou à une personne de confiance, ils pourront vraiment vous aider. Je reste là pour des repas simples et sans pression.';
+    if (/semaine|equilibr|bilan|repere/.test(t) && bil) return `Votre semaine atteint ${bil.b.atteints} repères sur ${bil.b.reperes.length}${bil.aRevoir.length ? ` ; à améliorer : ${bil.aRevoir.map((r) => r.nom.toLowerCase()).join(', ')}. ${bil.aRevoir[0].conseil || ''} « Améliorer ma semaine » vous propose des plats à changer.` : '. Bravo, c’est très équilibré !'}`;
+    if (/enfant|petit|bebe|ado/.test(t)) return COACHS.famille.pour.replace(/^Les/, 'Pour les enfants : les') + ' Le coach famille peut préparer toute la semaine dans cet esprit.';
+    if (/legume|fibre/.test(t)) return 'Glissez des légumes partout : dans les sauces, les gratins, les omelettes et les soupes. Visez la moitié de l’assiette, et pensez aux surgelés nature, pas chers et déjà prêts. 🥕';
+    if (/leger|soir|diner|mincir|maigrir|kilo|poids/.test(t)) return COACHS.minceur.accroche + ' ' + COACHS.minceur.pour + ' Le coach minceur peut préparer votre semaine dans cet esprit.';
+    if (/prot|muscl|sport/.test(t)) return COACHS.sportif.accroche + ' ' + COACHS.sportif.pour;
+    if (/40|menopause|calcium|os\b/.test(t)) return COACHS.femme40.accroche + ' ' + COACHS.femme40.pour;
+    return c.astuces.slice(0, 2).join(' ') + ' Posez-moi une question sur vos repas ou votre semaine.';
+  }
+  async function envoyerCoachChat(question) {
+    const texte = String(question || '').trim().slice(0, 500);
+    if (!texte || coachChat.attente) return;
+    coachChat.tours.push({ role: 'user', content: texte }); coachChat.message = '';
+    const secours = reponseLocaleCoach(texte);
+    if (!iaDispo) { coachChat.attente = true; rendre(); setTimeout(() => { coachChat.tours.push({ role: 'assistant', content: secours }); coachChat.attente = false; rendre(); defilerChat(); }, 700); defilerChat(); return; }
+    coachChat.attente = true; rendre(); defilerChat();
+    try {
+      const r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() }, ...coachChat.tours.slice(-8)], { cache: false });
+      coachChat.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
+    } catch (e) {
+      if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.';
+      coachChat.tours.push({ role: 'assistant', content: secours });
+    }
+    coachChat.attente = false; rendre(); defilerChat();
+  }
+  function defilerChat() { setTimeout(() => { const f = document.querySelector('.chat-fil'); if (f) f.scrollTop = f.scrollHeight; }, 30); }
+  function vueChatCoach() {
+    if (!coachChat.ouvert) return '';
+    const c = coachCourant();
+    const bulles = [{ role: 'assistant', content: `Bonjour ! Je suis votre ${c.k ? c.nom.toLowerCase() : 'coach Budgétable'} ${c.emoji} Posez-moi vos questions sur vos repas, votre équilibre ou votre semaine.` }].concat(coachChat.tours);
+    return `<div class="voile" data-a="chat-fond"><div class="fiche fenetre-chat" role="dialog" aria-modal="true" aria-label="Discussion avec votre coach">
+      <header class="chat-tete"><span class="chat-avatar" aria-hidden="true">${c.emoji}</span><div class="stack" style="gap:0;min-width:0;flex:1"><strong>Votre coach Budgétable</strong><small>${esc(c.k ? c.nom : 'Coach équilibre')} · ${iaDispo ? 'en ligne' : 'conseils rapides'}</small></div><button class="btn btn-petit" data-a="chat-fermer">Fermer</button></header>
+      <div class="chat-fil" aria-live="polite">
+        ${bulles.map((t) => `<div class="chat-ligne ${t.role === 'user' ? 'moi' : 'coach'}"><div class="chat-bulle">${esc(t.content)}</div></div>`).join('')}
+        ${coachChat.attente ? '<div class="chat-ligne coach"><div class="chat-bulle chat-frappe" aria-label="Votre coach écrit"><i></i><i></i><i></i></div></div>' : ''}
+        ${coachChat.tours.length ? '' : `<div class="chat-suggestions">${QUESTIONS_COACH.map((q) => `<button class="chip" data-a="chat-question" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+      </div>
+      ${coachChat.message ? `<p class="small muted" style="margin:0">${esc(coachChat.message)}</p>` : ''}
+      <div class="row chat-actions" style="gap:6px">${S.plan ? '<button class="chip" data-a="chat-ameliorer">✨ Améliorer ma semaine</button><button class="chip" data-a="chat-bilan">📊 Mon bilan</button>' : ''}<button class="chip" data-a="coach-voir" data-k="${c.k || 'minceur'}">${c.k ? 'Changer de coach' : 'Choisir un coach'}</button></div>
+      <form class="chat-saisie" data-form="coach-chat"><label class="visuellement-cache" for="coach-chat-texte">Votre message</label><input id="coach-chat-texte" type="text" maxlength="500" placeholder="Écrivez à votre coach…" autocomplete="off" ${coachChat.attente ? 'disabled' : ''}><button class="btn btn-plein chat-envoyer" type="submit" aria-label="Envoyer" ${coachChat.attente ? 'disabled' : ''}>➤</button></form>
+      <p class="small muted" style="margin:0">Des conseils de bon sens, pas un avis médical.</p>
     </div></div>`;
   }
 
@@ -4625,7 +4703,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -5332,7 +5410,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         toast(`Budget : ${euros(x.semaine)} par semaine`);
         break;
       }
-      case 'coach-voir': S.coachVoir = el.dataset.k; break;
+      case 'coach-voir': coachChat.ouvert = false; S.coachVoir = el.dataset.k; break;
+      case 'chat-ouvrir': S.coachVoir = null; coachChat.ouvert = true; defilerChat(); setTimeout(() => { const c = document.getElementById('coach-chat-texte'); if (c && window.matchMedia('(min-width: 700px)').matches) c.focus(); }, 60); break;
+      case 'chat-fermer': coachChat.ouvert = false; break;
+      case 'chat-fond': if (ev.target !== el) return; coachChat.ouvert = false; break;
+      case 'chat-question': envoyerCoachChat(el.dataset.q); return;
+      case 'chat-ameliorer': coachChat.ouvert = false; lancerAmeliorations(); break;
+      case 'chat-bilan': coachChat.ouvert = false; S.bilanOuvert = true; break;
       case 'coach-fermer': case 'coach-fond': S.coachVoir = null; break;
       case 'coach-semaine': {
         p.coach = el.dataset.k;
@@ -5593,7 +5677,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   window.addEventListener('resize', () => ajusterAffiche());
   window.addEventListener('hashchange', () => { traiterRetourCompte(); rendre(); });
-  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'prix') { const id = f.dataset.id, c = document.getElementById('prix-' + id); const v = parseFloat(String(c ? c.value : '').replace(',', '.').replace(/[^0-9.]/g, '')); if (!(v > 0 && v < 1000)) { toast('Indiquez un prix en euros, par exemple 2,49'); if (c) c.focus(); return; } S.prixPerso = { ...(S.prixPerso || {}), [id]: Math.round(v * 100) / 100 }; editionPrix = null; appliquerPrixMagasin(); sauver(); rendre(); toast('Prix enregistré'); return; }
+  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'coach-chat') { const c = document.getElementById('coach-chat-texte'); const v = c ? c.value : ''; if (c) c.value = ''; envoyerCoachChat(v); return; }
+    if (f.dataset.form === 'prix') { const id = f.dataset.id, c = document.getElementById('prix-' + id); const v = parseFloat(String(c ? c.value : '').replace(',', '.').replace(/[^0-9.]/g, '')); if (!(v > 0 && v < 1000)) { toast('Indiquez un prix en euros, par exemple 2,49'); if (c) c.focus(); return; } S.prixPerso = { ...(S.prixPerso || {}), [id]: Math.round(v * 100) / 100 }; editionPrix = null; appliquerPrixMagasin(); sauver(); rendre(); toast('Prix enregistré'); return; }
     if (f.dataset.form === 'alerte') { const c = document.getElementById('alerte-mot'); ajouterAlerte(c ? c.value : ''); rendre(); const c2 = document.getElementById('alerte-mot'); if (c2) c2.focus(); return; } soumettreCompte(f); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
   document.addEventListener('input', (ev) => {
