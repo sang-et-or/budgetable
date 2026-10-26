@@ -6,7 +6,10 @@ with sync_playwright() as p:
     page.add_init_script("Object.defineProperty(navigator, 'webdriver', { get: () => false })")
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
-    page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()
+    page.route("https://wrcxlvdyegfjawmwtozk.supabase.co/**", lambda r: r.fulfill(status=200, headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*"}, content_type="application/json", body="[]"))
+    page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()")
+    page.evaluate("localStorage.setItem('budgetable.attente', '1')")   # comme une inscription en cours : les données sont gardées
+    page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     clic("Préparer ma semaine")
     for _ in range(30):

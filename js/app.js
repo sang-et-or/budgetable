@@ -93,6 +93,10 @@
 
   /* ---------- stockage local (consentement pour les données sensibles) ---------- */
   let dernierEnregistre = null;
+  // Sans compte, rien n'est gardé : tout s'efface à la fermeture. Exceptions : une inscription en attente de
+  // confirmation par e-mail (pour retrouver sa semaine après avoir cliqué sur le lien) et les tests automatiques.
+  const inscriptionEnAttente = () => { try { return !!localStorage.getItem('budgetable.attente'); } catch (e) { return false; } };
+  const garderSurAppareil = () => !!((window.Compte && window.Compte.connecte && window.Compte.connecte()) || navigator.webdriver || inscriptionEnAttente());
   function sauver() {
     const p = JSON.parse(JSON.stringify(S.profil));
     let marque = false;
@@ -110,6 +114,7 @@
       if (dernierEnregistre !== null) { try { localStorage.setItem('budgetable.maj', String(Date.now())); } catch (e) { /* */ } if (typeof planifierSync === 'function') planifierSync(); }
       dernierEnregistre = texte;
     }
+    if (!garderSurAppareil()) return;
     try { localStorage.setItem(CLE, texte); } catch (e) {
       // mémoire pleine (souvent à cause des photos) : on prévient, l'appli marche quand même
       if (e && /quota/i.test(e.name + e.message) && typeof toast === 'function') toast('Mémoire du navigateur pleine : retirez quelques photos de vos recettes pour que tout soit gardé');
@@ -638,6 +643,8 @@
         S.vue = 'app'; S.onglet = 'profil';
       } else if (local) { await envoyerSync(); toast('Vos données sont enregistrées dans votre compte'); }
       compte.sync = { t: Date.now(), ok: true };
+      try { localStorage.removeItem('budgetable.attente'); } catch (e) { /* */ }
+      sauver();
     } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
     rendre();
     chargerAbonnement(true);
@@ -723,9 +730,9 @@
       if (v === 'inscription') {
         const r = await C.inscrire(email, mdp, val('prenom').trim());
         if (C.compter) C.compter('compte');
-        if (r.connecte) { compte.vue = null; toast('Compte créé, bienvenue !'); await synchroniserConnexion(); }
-        else compte = { ...compte, vue: 'envoye', msg: `Un e-mail de confirmation est parti à ${email}. Cliquez sur le lien qu’il contient pour activer votre compte.` };
-      } else if (v === 'connexion') { await C.connecter(email, mdp); compte.vue = null; toast('Connecté'); await synchroniserConnexion(); }
+        if (r.connecte) { sauver(); compte.vue = null; toast('Compte créé, bienvenue !'); await synchroniserConnexion(); }
+        else { try { localStorage.setItem('budgetable.attente', String(Date.now())); } catch (e) { /* */ } sauver(); compte = { ...compte, vue: 'envoye', msg: `Un e-mail de confirmation est parti à ${email}. Cliquez sur le lien qu’il contient pour activer votre compte.` }; }
+      } else if (v === 'connexion') { await C.connecter(email, mdp); sauver(); compte.vue = null; toast('Connecté'); await synchroniserConnexion(); }
       else if (v === 'oubli') { await C.motDePasseOublie(email); compte = { ...compte, vue: 'envoye', msg: `Si un compte existe pour ${email}, un lien pour changer le mot de passe vient d’y être envoyé.` }; }
       else if (v === 'nouveau-mdp') { await C.changerMotDePasse(mdp); compte.vue = null; toast('Mot de passe changé'); }
     } catch (e) { compte.erreur = e.message; }
@@ -771,6 +778,10 @@
   function etiquetteAbo() {
     const d = droitsAbo();
     return d.mode === 'abonne' ? '<span class="tag tag-ok">Abonné</span>' : d.mode === 'essai' ? `<button class="tag tag-simu btn-tag" data-a="abo-ouvrir">Essai gratuit · ${pluriel(d.reste, 'jour')}</button>` : d.mode === 'expire' ? '<button class="tag tag-alerte btn-tag" data-a="abo-ouvrir">Essai terminé</button>' : '';
+  }
+  function bandeauSansCompte() {
+    if (garderSurAppareil() || !S.plan) return '';
+    return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>⚠️ Sans compte, votre semaine n’est pas enregistrée : elle s’effacera quand vous fermerez Budgétable. Créez votre compte gratuit pour la garder.</span><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button></div>`;
   }
   function bandeauAbo() {
     const d = droitsAbo();
@@ -854,7 +865,7 @@
     { e: '🥐', t: 'Le coin gourmand', p: 'Petits-déjeuners, desserts, goûters et entrées à ajouter à la semaine, et vos propres recettes.', o: 'gourmand' },
     { e: '🥗', t: 'Votre coach nutritionnel', p: 'Minceur, sportif, famille ou femme de 40 ans et plus : le coach adapte vos menus à votre objectif, vous donne un bilan de la semaine et répond à vos questions. Le programme minceur vous suit semaine après semaine, en douceur.', o: 'minceur' },
     { e: '🏃', t: 'Votre coach sportif', p: 'Un programme de séances à votre niveau, à la maison ou en salle, avec le suivi de vos séances et des repas qui vont avec vos jours d’entraînement.', o: 'sport' },
-    { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Profil ». Créez votre compte gratuit pour retrouver votre semaine sur tous vos appareils.', o: 'profil' }
+    { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Profil ». Sans compte, rien n’est gardé : créez votre compte gratuit pour garder votre semaine et la retrouver sur tous vos appareils.', o: 'profil' }
   ];
   function vueTuto() {
     if (tuto.i < 0 || !S.plan || S.vue !== 'app') return '';
@@ -1036,7 +1047,7 @@
           <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
           <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
           ${S.plan ? '' : '<p class="small" style="margin:6px 0 0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
-          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · à installer sur votre téléphone en un geste</p>
+          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · créez votre compte pour garder vos menus · à installer sur votre téléphone en un geste</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
       </section>
@@ -1325,7 +1336,7 @@
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
     ].concat(C.connecte() ? [] : [['sauvegarde', '💾', 'Sauvegarde', resumeSauvegarde(), blocSauvegarde]]);
     const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
-    return `${bandeauSensible()}${bandeauAbo()}
+    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${bandeauCoachs()}
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
@@ -1347,7 +1358,7 @@
     if (mqMobile.matches) return semaineMobile();
     const t = aujourdhui();
     const restants = 'Changez vos plats autant que vous voulez';
-    return `${bandeauSensible()}${bandeauAbo()}
+    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       ${boutonDemarrer()}${carteMinceurSemaine()}
       ${bandeauRefaire()}
@@ -5120,7 +5131,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'compte-reprendre': S.vue = S.plan ? 'app' : 'questionnaire'; if (!S.plan) S.etape = 0; break;
       case 'compte-sync': compte.sync = null; rendre(); synchroniserConnexion(); return;
       case 'compte-vue-mdp': compte = { ...compte, vue: 'nouveau-mdp', msg: '', erreur: '' }; break;
-      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); stats.admin = false; stats.verifie = false; toast('Déconnecté : vos données restent sur cet appareil'); chargerAbonnement(true); break;
+      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); stats.admin = false; stats.verifie = false; toast('Déconnecté'); chargerAbonnement(true); break;
       case 'compte-supprimer': S.confirmerSupprCompte = true; break;
       case 'compte-supprimer-non': S.confirmerSupprCompte = false; break;
       case 'compte-supprimer-ok': try { await C.supprimerCompte(); S.confirmerSupprCompte = false; toast('Compte supprimé'); } catch (e) { toast(e.message); } break;
