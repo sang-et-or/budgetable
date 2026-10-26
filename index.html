@@ -198,6 +198,11 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 .coach-carte p { margin: 0; }
 .coach-carte ul { margin: 4px 0 0; padding-left: 1.1em; display: grid; gap: 3px; }
 .coach-emoji { font-size: 2rem; line-height: 1; }
+.prix-modif { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: 6px; font: inherit; color: inherit; cursor: pointer; display: inline-flex; gap: 4px; align-items: baseline; }
+.prix-modif:hover, .prix-modif:focus-visible { background: var(--poireau-pale); }
+.prix-crayon { font-size: .8em; opacity: .45; }
+.prix-perso { font-size: .8em; color: var(--poireau); }
+.edition-prix { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; background: var(--poireau-pale); border-radius: 12px; padding: 10px 12px; margin-top: 4px; }
 .voile-tuto { z-index: 60; }
 .fenetre-tuto { max-width: 440px; gap: 12px; text-align: left; }
 .tuto-emoji { font-size: 3.2rem; line-height: 1; animation: tuto-saut .5s ease; }

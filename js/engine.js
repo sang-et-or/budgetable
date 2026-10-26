@@ -1033,7 +1033,7 @@
     let n = 0;
     if (prix) for (const [id, p] of Object.entries(prix)) if (ING[id] && !ING[id].perso && p > 0) { ING[id].prixBase = ING[id].prixDemo; ING[id].prixDemo = p; n++; }
     cacheCout.clear();
-    SOURCE_MAGASIN = prix && n ? { type: 'magasin', libelle: `Prix ${infos && infos.nom ? 'de ' + infos.nom : 'de votre magasin'}`, detail: `${n} prix relevés sur vos tickets${infos && infos.nom ? ' chez ' + infos.nom : ''}${infos && infos.date ? ' (dernier le ' + infos.date + ')' : ''} ; les autres produits gardent un prix de démonstration.`, date: infos && infos.date } : null;
+    SOURCE_MAGASIN = prix && n ? { type: 'magasin', libelle: infos && infos.libelle ? infos.libelle : `Prix ${infos && infos.nom ? 'de ' + infos.nom : 'de votre magasin'}`, detail: infos && infos.detail ? infos.detail : `${n} prix relevés sur vos tickets${infos && infos.nom ? ' chez ' + infos.nom : ''}${infos && infos.date ? ' (dernier le ' + infos.date + ')' : ''} ; les autres produits gardent un prix moyen estimé.`, date: infos && infos.date } : null;
     return n;
   }
   /** Prix habituel d'un produit (sans les prix de magasin). */

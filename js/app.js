@@ -31,6 +31,7 @@
     tourEnfant: 0,         // à quel enfant le tour de choisir le dîner « choix des enfants »
     rituelsVus: false,     // la suggestion de rituels a été vue
     tutoVu: false,         // la visite guidée de la première utilisation a été vue
+    prixPerso: {},         // prix saisis à la main dans la liste de courses (id → prix du conditionnement), prioritaires
     modeCourses: null,     // courses guidées sur le drive : { ouvert, i, absents, prix }
     bibliotheque: [],      // « Mes recettes » : recettes perso (nom, lien, ingrédients cochés)
     ranges: {},            // achats de la semaine déjà rangés dans le placard { ingrédient: true }
@@ -102,7 +103,7 @@
       delete p.programme;
       delete p.sport;
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, prixPerso: S.prixPerso || {}, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -146,7 +147,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, prixPerso: a.prixPerso && typeof a.prixPerso === 'object' ? a.prixPerso : {}, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
@@ -2640,6 +2641,16 @@
     return Object.entries(par).map(([r, as]) => `${r.toUpperCase()}\n` + as.map((a) => a.libre ? `- ${a.nom}${a.manuel > 1 ? ' × ' + a.manuel : ''}` : `- ${a.nom} : ${quantite(a.quantite, a.unite)} (${a.conditionnements} × ${a.condLabel})`).join('\n')).join('\n\n');
   }
 
+  // prix d'un produit changé à la main dans la liste (prix du conditionnement acheté)
+  let editionPrix = null;
+  function blocEditionPrix(a) {
+    const i = E.ING[a.id], actuel = i.prixDemo || 0, perso = (S.prixPerso || {})[a.id];
+    return `<form class="edition-prix" data-form="prix" data-id="${a.id}">
+      <label class="champ champ-euros" for="prix-${a.id}"><span>Prix pour ${esc(i.condLabel)}</span><span class="saisie-euros"><input type="text" inputmode="decimal" id="prix-${a.id}" value="${actuel.toFixed(2).replace('.', ',')}" autocomplete="off"><span aria-hidden="true">€</span></span></label>
+      <div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" type="submit">Enregistrer</button>${perso ? `<button class="btn btn-petit" type="button" data-a="prix-reset" data-id="${a.id}">Prix estimé (${euros(E.prixReference(a.id))})</button>` : ''}<button class="btn btn-petit" type="button" data-a="prix-annuler">Annuler</button></div>
+      <p class="small muted" style="margin:0">Ce prix sert pour toute la liste, le budget et le coût des plats.</p>
+    </form>`;
+  }
   // une ligne de la liste : ce qu'on met dans le panier en gros, le besoin réel en petit
   function ligneArticle(a) {
     const piece = a.unite === 'pièce';
@@ -2653,7 +2664,8 @@
     return `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock || a.couvertParPlacard ? 'stock' : ''}">
       <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
       <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
-      <span class="prix num">${a.couvertParPlacard || a.enStock ? '' : a.sansPrix || (E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo) ? 'prix ?' : euros(a.cout)}</span>
+      ${a.couvertParPlacard || a.enStock || a.libre || a.sansPrix ? `<span class="prix num">${a.couvertParPlacard || a.enStock ? '' : 'prix ?'}</span>` : `<button class="prix num prix-modif" data-a="prix-editer" data-id="${a.id}" title="Changer le prix" aria-label="Changer le prix : ${esc(a.nom)}">${E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo ? 'prix ?' : euros(a.cout)}${(S.prixPerso || {})[a.id] ? ' <span class="prix-perso" title="Votre prix">✎</span>' : ' <span class="prix-crayon" aria-hidden="true">✎</span>'}</button>`}
+      ${editionPrix === a.id ? blocEditionPrix(a) : ''}
       <div class="qte-achat">${pastille}${a.manuel ? `<span class="tag-main small">✍️ ${a.seulManuel ? 'ajouté à la main' : `dont ${a.manuel} ajouté${a.manuel > 1 ? 's' : ''} à la main`}</span>` : ''}${a.sansPrix || a.enStock || a.seulManuel ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
       <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock || a.couvertParPlacard ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
@@ -2665,7 +2677,12 @@
   const nomMagasin = (enseigne, type) => { const e = ENSEIGNES_TICKET.find(([k]) => k === enseigne); return `${e ? e[1] : 'Autre magasin'}${type === 'drive' ? ' Drive' : ''}`; };
   function appliquerPrixMagasin() {
     const m = S.magasinActif && (S.prixMagasins || {})[S.magasinActif];
-    E.definirPrixMagasin(m ? Object.fromEntries(Object.entries(m.prix || {}).map(([id, x]) => [id, x.p])) : null, m ? { nom: m.nom, date: m.maj ? new Date(m.maj + 'T12:00:00').toLocaleDateString('fr-FR') : '' } : null);
+    const duMagasin = m ? Object.fromEntries(Object.entries(m.prix || {}).map(([id, x]) => [id, x.p])) : {};
+    const perso = Object.fromEntries(Object.entries(S.prixPerso || {}).filter(([id, p]) => E.ING[id] && p > 0));
+    const nPerso = Object.keys(perso).length;
+    const infos = m ? { nom: m.nom, date: m.maj ? new Date(m.maj + 'T12:00:00').toLocaleDateString('fr-FR') : '' } : {};
+    if (nPerso) { infos.libelle = m ? `Prix de ${m.nom} et vos prix` : 'Vos prix'; infos.detail = `${nPerso} prix saisis par vous${m ? `, les autres relevés sur vos tickets chez ${m.nom}` : ''} ; les autres produits gardent un prix moyen estimé.`; }
+    E.definirPrixMagasin(m || nPerso ? { ...duMagasin, ...perso } : null, m || nPerso ? infos : null);
   }
   const NON_ALIMENTAIRE_TICKET = /lessive|papier|essuie|mouchoir|shampo|gel douche|savon|dentifrice|brosse|sac\b|sacs\b|nettoy|eponge|javel|piles?\b|couche|lingette|deodorant|rasoir|litiere|croquette|patee|bougie|ampoule|serviette|coton|vaisselle|adoucissant|desodor|insecticide|journal|magazine|carte cadeau/;
   const MOTS_VAGUES = new Set(['liquide', 'entier', 'demi', 'ecreme', 'nature', 'bio', 'frais', 'fraiche', 'extra', 'maxi', 'mini', 'lot', 'sachet', 'boite', 'pack', 'classique', 'tranches', 'tranche', 'barquette', 'filet', 'filets', 'plein', 'air', 'gros', 'petit', 'petits', 'grand', 'format', 'familial', 'eco', 'premium', 'gourmand', 'origine', 'france', 'cat', 'calibre', 'piece', 'pieces', 'unite', 'promo', 'offre', 'marque', 'repere', 'pouce', 'bouteille', 'brique', 'pot', 'kg', 'les', 'des', 'aux', 'avec', 'sans', 'pour']);
@@ -4971,6 +4988,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'cocher': S.coches[el.dataset.id] = el.checked; break;
       case 'tout-decocher': S.coches = {}; break;
       case 'masquer-coches': S.masquerCoches = el.checked; break;
+      case 'prix-editer': editionPrix = editionPrix === el.dataset.id ? null : el.dataset.id; rendre(); setTimeout(() => { const c = document.getElementById('prix-' + editionPrix); if (c) { c.focus(); c.select(); } }, 30); return;
+      case 'prix-annuler': editionPrix = null; break;
+      case 'prix-reset': { const id = el.dataset.id; delete S.prixPerso[id]; editionPrix = null; appliquerPrixMagasin(); toast('Prix estimé remis'); break; }
       case 'stock': {
         const id = el.dataset.id;
         if (E.ING[id] && !E.ING[id].perso && Array.isArray(p.provisionsRangees)) { basculerPlacardDepuisListe(id); break; }
@@ -5500,7 +5520,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   window.addEventListener('resize', () => ajusterAffiche());
   window.addEventListener('hashchange', () => { traiterRetourCompte(); rendre(); });
-  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'alerte') { const c = document.getElementById('alerte-mot'); ajouterAlerte(c ? c.value : ''); rendre(); const c2 = document.getElementById('alerte-mot'); if (c2) c2.focus(); return; } soumettreCompte(f); });
+  document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'prix') { const id = f.dataset.id, c = document.getElementById('prix-' + id); const v = parseFloat(String(c ? c.value : '').replace(',', '.').replace(/[^0-9.]/g, '')); if (!(v > 0 && v < 1000)) { toast('Indiquez un prix en euros, par exemple 2,49'); if (c) c.focus(); return; } S.prixPerso = { ...(S.prixPerso || {}), [id]: Math.round(v * 100) / 100 }; editionPrix = null; appliquerPrixMagasin(); sauver(); rendre(); toast('Prix enregistré'); return; }
+    if (f.dataset.form === 'alerte') { const c = document.getElementById('alerte-mot'); ajouterAlerte(c ? c.value : ''); rendre(); const c2 = document.getElementById('alerte-mot'); if (c2) c2.focus(); return; } soumettreCompte(f); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
   document.addEventListener('input', (ev) => {
     if (ev.target.id === 'plat-cherche') { S.chercheIngPlat = ev.target.value; const pos = ev.target.selectionStart; rendre(); const c = document.getElementById('plat-cherche'); if (c) { c.focus(); try { c.setSelectionRange(pos, pos); } catch (e) { /* */ } } return; }
