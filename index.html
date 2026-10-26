@@ -312,6 +312,17 @@ input[type=text], input[type=number], select { border: 1px solid var(--trait); b
 .vignette { width: 64px; height: 64px; border-radius: 50%; background: var(--moutarde-pale); display: grid; place-items: center; overflow: hidden; }
 .fiche-illu { margin: 0; display: grid; justify-items: center; gap: 4px; padding: 12px; border-radius: var(--r); background: var(--moutarde-pale);
   background-image: linear-gradient(90deg, rgb(47 107 71 / .1) 50%, transparent 50%), linear-gradient(rgb(47 107 71 / .1) 50%, transparent 50%); background-size: 22px 22px; }
+.carte-swipe { position: relative; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; transition: transform .25s ease; --oui: 0; --non: 0; animation: carte-arrive .3s cubic-bezier(.2,.8,.2,1); }
+.carte-swipe.en-main { transition: none; cursor: grabbing; }
+.carte-swipe.envol { transition: transform .3s ease-in; }
+.carte-swipe img, .carte-swipe svg { pointer-events: none; -webkit-user-drag: none; }
+@keyframes carte-arrive { from { transform: scale(.92) translateY(14px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .carte-swipe { animation: none; } }
+.tampon { position: absolute; top: 22px; z-index: 2; font: 800 1.35rem/1 var(--f-titre, inherit); letter-spacing: .06em; text-transform: uppercase; padding: 6px 12px; border: 4px solid; border-radius: 10px; pointer-events: none; }
+.tampon-oui { left: 18px; color: var(--poireau); transform: rotate(-14deg); opacity: var(--oui); }
+.tampon-non { right: 18px; color: var(--tomate); transform: rotate(14deg); opacity: var(--non); }
+.aide-swipe { text-align: center; margin: 4px 0 0; }
+html:has(.carte-swipe), body:has(.carte-swipe) { overflow-x: hidden; }
 .carte-test { background: var(--surface); border: 1px solid var(--trait); border-radius: 22px; padding: 22px 18px; display: grid; gap: 14px; justify-items: center; box-shadow: var(--ombre); }
 .carte-test-illu { border-radius: 50%; padding: 10px;
   background-color: var(--moutarde-pale); background-image: linear-gradient(90deg, rgb(47 107 71 / .12) 50%, transparent 50%), linear-gradient(rgb(47 107 71 / .12) 50%, transparent 50%); background-size: 20px 20px; }

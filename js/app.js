@@ -496,7 +496,8 @@
       <div class="spread"><div class="marque">${LOGO}Budgétable</div><span class="small muted num">${t.i + 1} / ${t.ids.length}</span></div>
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement du test de goût"><i style="width:${pct}%"></i></div>
       <p class="eyebrow">Test de goût · étape 3 sur 3 : ces plats vous tentent ?</p>
-      <article class="carte-test">
+      <article class="carte-test ${t.pourquoi ? '' : 'carte-swipe'}" ${t.pourquoi ? '' : 'data-swipe="1"'} aria-describedby="aide-swipe">
+        ${t.pourquoi ? '' : '<b class="tampon tampon-non" aria-hidden="true">Non merci</b><b class="tampon tampon-oui" aria-hidden="true">J’adore</b>'}
         <div class="carte-test-illu">${V(rec, t.pourquoi ? 110 : 220)}</div>
         <div class="stack" style="gap:6px;text-align:center">
           <h1 style="font-size:1.45rem">${esc(rec.nom)}</h1>
@@ -508,6 +509,7 @@
         <button class="btn" data-a="test-rep" data-k="pourquoi">Pourquoi pas</button>
         <button class="btn btn-plein" data-a="test-rep" data-k="adore">J’adore</button>
       </div>
+      <p class="small muted aide-swipe" id="aide-swipe">Glissez la carte : ← pas pour moi · j’adore →</p>
       <div class="row" style="justify-content:center"><button class="btn-lien btn small" data-a="test-rep" data-k="passer">Je ne sais pas, passer</button></div>`}
     </div></div>`;
   }
@@ -5740,6 +5742,41 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   }
   document.addEventListener('pointerover', bulle);
   document.addEventListener('pointerdown', bulle);
+  /* ---------- test de goût : glisser la carte (à droite j'adore, à gauche pas pour moi) ---------- */
+  (function swipeTest() {
+    let g = null;
+    const SEUIL = 100;
+    document.addEventListener('pointerdown', (ev) => {
+      const c = ev.target.closest && ev.target.closest('[data-swipe]');
+      if (!c || ev.button > 0 || S.vue !== 'test') return;
+      g = { c, x: ev.clientX, y: ev.clientY, dx: 0, id: ev.pointerId, parti: false };
+      try { c.setPointerCapture(ev.pointerId); } catch (e) { /* */ }
+      c.classList.add('en-main');
+    });
+    document.addEventListener('pointermove', (ev) => {
+      if (!g || ev.pointerId !== g.id) return;
+      g.dx = ev.clientX - g.x;
+      const dy = ev.clientY - g.y;
+      if (!g.parti && Math.abs(dy) > Math.abs(g.dx) + 8) return;   // on fait défiler la page
+      g.parti = g.parti || Math.abs(g.dx) > 6;
+      g.c.style.transform = `translateX(${g.dx}px) rotate(${g.dx / 18}deg)`;
+      const f = Math.min(1, Math.abs(g.dx) / SEUIL);
+      g.c.style.setProperty('--oui', g.dx > 0 ? f : 0);
+      g.c.style.setProperty('--non', g.dx < 0 ? f : 0);
+    });
+    const fin = (ev) => {
+      if (!g || (ev && ev.pointerId !== g.id)) return;
+      const { c, dx } = g; g = null;
+      c.classList.remove('en-main');
+      if (Math.abs(dx) < SEUIL) { c.style.transform = ''; c.style.setProperty('--oui', 0); c.style.setProperty('--non', 0); return; }
+      const k = dx > 0 ? 'adore' : 'non';
+      c.classList.add('envol'); c.style.transform = `translateX(${dx > 0 ? 140 : -140}vw) rotate(${dx > 0 ? 30 : -30}deg)`;
+      if (k === 'adore') toast('❤️ C’est un match !');
+      setTimeout(() => { const b = document.querySelector(`[data-a="test-rep"][data-k="${k}"]`); if (b) b.click(); }, 220);
+    };
+    document.addEventListener('pointerup', fin);
+    document.addEventListener('pointercancel', (ev) => { if (g && ev.pointerId === g.id) { g.c.classList.remove('en-main'); g.c.style.transform = ''; g = null; } });
+  })();
   document.addEventListener('change', (ev) => {
     const el = ev.target;
     if (el.dataset.a === 'drive-champ' && el.type === 'number') rendre();
