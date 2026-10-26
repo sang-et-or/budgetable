@@ -86,6 +86,9 @@ const MARQUE = '<a class="marque" href="/"><svg viewBox="0 0 32 32" aria-hidden=
 const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
 const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. 7 jours gratuits, sans carte bancaire.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
 
+const CONF = (() => { try { const t = fs.readFileSync(path.join(__dirname, '..', 'js', 'config.js'), 'utf8'); return { url: (t.match(/url:\s*'([^']+)'/) || [])[1], cle: (t.match(/cle:\s*'([^']+)'/) || [])[1] }; } catch (e) { return {}; } })();
+// compteur anonyme (aucun cookie, aucune donnée personnelle) : une ligne « page » par affichage
+const COMPTEUR = (url) => CONF.url && CONF.cle ? `<script>(function(){try{if(navigator.webdriver||/^(localhost|127\\.)/.test(location.hostname))return;var r=document.referrer?new URL(document.referrer).hostname:'';var s=new URLSearchParams(location.search).get('source')||(!r?'direct':/google/.test(r)?'google':/facebook|fb\\./.test(r)?'facebook':/instagram/.test(r)?'instagram':/pinterest/.test(r)?'pinterest':/tiktok/.test(r)?'tiktok':/bing/.test(r)?'bing':/qwant/.test(r)?'qwant':/budgetable/.test(r)?'site':'autre site');fetch(${JSON.stringify(CONF.url + '/rest/v1/visites')},{method:'POST',keepalive:true,headers:{apikey:${JSON.stringify(CONF.cle)},'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({evenement:'page',page:${JSON.stringify(url)},source:String(s).slice(0,30),appareil:/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'mobile':'ordinateur'})}).catch(function(){});}catch(e){}})();</script>` : '';
 function page({ url, titre, description, h1, corps, ld = [], image = null }) {
   const lds = ld.map((o) => `<script type="application/ld+json">${JSON.stringify(o).replace(/</g, '\\u003c')}</script>`).join('\n');
   return `<!doctype html>
@@ -111,6 +114,7 @@ ${MARQUE}
 ${corps}
 ${PIED}
 </main>
+${COMPTEUR(url)}
 </body>
 </html>
 `;

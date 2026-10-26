@@ -722,6 +722,7 @@
     try {
       if (v === 'inscription') {
         const r = await C.inscrire(email, mdp, val('prenom').trim());
+        if (C.compter) C.compter('compte');
         if (r.connecte) { compte.vue = null; toast('Compte créé, bienvenue !'); await synchroniserConnexion(); }
         else compte = { ...compte, vue: 'envoye', msg: `Un e-mail de confirmation est parti à ${email}. Cliquez sur le lien qu’il contient pour activer votre compte.` };
       } else if (v === 'connexion') { await C.connecter(email, mdp); compte.vue = null; toast('Connecté'); await synchroniserConnexion(); }
@@ -790,6 +791,58 @@
       ${C.connecte() ? `<div><button class="btn btn-plein btn-grand" data-a="abo-payer" ${abo.attente ? 'disabled' : ''}>${abo.attente ? 'Ouverture du paiement…' : `M’abonner — ${PRIX_ABO} par mois`}</button></div>` : '<p class="small">Pour vous abonner, créez d’abord votre compte gratuit : l’abonnement vous suit sur tous vos appareils.</p><div class="row" style="gap:8px"><button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">Se connecter</button></div>'}`;
     return `<section class="stack bloc-abonnement" style="gap:10px"><div class="spread"><h2>Mon abonnement</h2>${etiquetteAbo()}</div>${abo.erreur ? `<p class="bandeau bandeau-alerte small" role="alert">${esc(abo.erreur)}</p>` : ''}${corps}</section>`;
   }
+  /* ---------- d'où vient la visite (pour le compteur anonyme) ---------- */
+  const SOURCE_DEPART = (() => {
+    try {
+      const q = new URLSearchParams(location.search);
+      const s = (q.get('source') || q.get('utm_source') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30);
+      if (s) return s;
+      const r = document.referrer ? new URL(document.referrer).hostname : '';
+      if (!r || r === location.hostname) return 'direct';
+      const connus = [['google', 'google'], ['bing', 'bing'], ['qwant', 'qwant'], ['ecosia', 'ecosia'], ['duckduckgo', 'duckduckgo'], ['facebook', 'facebook'], ['fb.', 'facebook'], ['instagram', 'instagram'], ['tiktok', 'tiktok'], ['pinterest', 'pinterest'], ['t.co', 'x'], ['twitter', 'x'], ['youtube', 'youtube'], ['whatsapp', 'whatsapp'], ['linkedin', 'linkedin'], ['budgetable', 'site']];
+      const t = connus.find(([k]) => r.includes(k));
+      return t ? t[1] : 'autre site';
+    } catch (e) { return 'direct'; }
+  })();
+  const sourceVisite = () => SOURCE_DEPART;
+
+  /* ---------- statistiques du site (comptes administrateurs seulement) ---------- */
+  const stats = { admin: false, verifie: false, ouvert: false, jours: 30, charge: false, erreur: '', donnees: null };
+  async function verifierAdmin() {
+    if (stats.verifie || !C.connecte || !C.connecte() || !C.estAdmin) return;
+    stats.verifie = true; stats.admin = await C.estAdmin(); if (stats.admin) rendre();
+  }
+  async function chargerStats() {
+    stats.charge = true; stats.erreur = ''; rendre();
+    try { stats.donnees = await C.statistiques(stats.jours); } catch (e) { stats.erreur = e.message || 'Statistiques indisponibles pour le moment.'; }
+    stats.charge = false; rendre();
+  }
+  const NOMS_SOURCES = { direct: 'Accès direct', google: 'Google', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', pinterest: 'Pinterest', flyer: 'Flyer', seo: 'Pages recettes', site: 'Pages du site', x: 'X (Twitter)', youtube: 'YouTube', whatsapp: 'WhatsApp', bing: 'Bing', qwant: 'Qwant', ecosia: 'Ecosia', duckduckgo: 'DuckDuckGo', linkedin: 'LinkedIn', 'autre site': 'Autres sites', '': 'Inconnue' };
+  function vueStats() {
+    if (!stats.ouvert) return '';
+    const d = stats.donnees, L = d ? d.lignes : [];
+    const total = (ev) => L.filter((x) => x.evenement === ev).reduce((t, x) => t + Number(x.nombre), 0);
+    const ouv = total('ouverture'), pag = total('page'), sem = total('semaine'), cpt = total('compte'), abt = total('abonnement');
+    const jours = []; for (let k = stats.jours - 1; k >= 0; k--) { const j = new Date(Date.now() - k * 86400000); jours.push(ISO(j)); }
+    const parJour = Object.fromEntries(jours.map((j) => [j, 0])); L.filter((x) => x.evenement === 'ouverture' || x.evenement === 'page').forEach((x) => { if (x.jour in parJour) parJour[x.jour] += Number(x.nombre); });
+    const max = Math.max(1, ...Object.values(parJour));
+    const sources = {}; L.filter((x) => x.evenement === 'ouverture' || x.evenement === 'page').forEach((x) => { sources[x.source] = (sources[x.source] || 0) + Number(x.nombre); });
+    const appareils = {}; L.filter((x) => x.evenement === 'ouverture').forEach((x) => { appareils[x.appareil || 'inconnu'] = (appareils[x.appareil || 'inconnu'] || 0) + Number(x.nombre); });
+    const pct = (a, b) => (b ? Math.round((a / b) * 100) + ' %' : '–');
+    const tuile = (n, t, sous) => `<div class="stat-tuile"><strong class="num">${n.toLocaleString('fr-FR')}</strong><span>${t}</span>${sous ? `<small class="muted">${sous}</small>` : ''}</div>`;
+    const corps = stats.charge && !d ? '<p class="small muted">Chargement…</p>' : stats.erreur ? `<p class="bandeau bandeau-alerte small" role="alert">${esc(stats.erreur)}</p>` : !d ? '' : `
+      <div class="stat-tuiles">${tuile(ouv + pag, 'visites', `${ouv} sur l’appli · ${pag} sur les pages recettes`)}${tuile(sem, 'semaines créées', pct(sem, ouv) + ' des ouvertures')}${tuile(cpt, 'comptes créés', pct(cpt, sem) + ' des semaines créées')}${tuile(abt, 'clics « M’abonner »')}</div>
+      <div class="stack" style="gap:6px"><h3 style="margin:0">Visites par jour</h3><div class="stat-barres" role="img" aria-label="Visites par jour">${jours.map((j) => `<span style="height:${Math.round((parJour[j] / max) * 100)}%" title="${new Date(j + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : ${parJour[j]}"></span>`).join('')}</div><div class="spread small muted"><span>${new Date(jours[0] + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span><span>aujourd’hui</span></div></div>
+      <div class="stack" style="gap:6px"><h3 style="margin:0">D’où viennent les visiteurs</h3>${Object.keys(sources).length ? `<table class="stat-table"><tbody>${Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td>${esc(NOMS_SOURCES[k] || k)}</td><td class="num">${n}</td><td class="num muted">${pct(n, ouv + pag)}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Pas encore de visite enregistrée.</p>'}</div>
+      ${Object.keys(appareils).length ? `<p class="small">📱 Téléphone : <strong>${appareils.mobile || 0}</strong> · 💻 Ordinateur : <strong>${appareils.ordinateur || 0}</strong></p>` : ''}
+      ${d.pages.length ? `<div class="stack" style="gap:6px"><h3 style="margin:0">Pages recettes les plus vues</h3><table class="stat-table"><tbody>${d.pages.map((x) => `<tr><td>${esc(x.page)}</td><td class="num">${x.nombre}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      <p class="small muted" style="margin:0">Compteur anonyme : ni cookie, ni adresse IP, ni identifiant. Les ouvertures comptent chaque chargement du site.</p>`;
+    return `<div class="voile" data-a="stats-fermer"><div class="fiche fenetre-stats" role="dialog" aria-modal="true" aria-label="Statistiques du site">
+      <div class="spread"><h2 style="margin:0">📊 Statistiques</h2><button class="btn btn-petit" data-a="stats-fermer-btn">Fermer</button></div>
+      <div class="row" style="gap:6px">${[7, 30, 90].map((n) => `<button class="chip" data-a="stats-jours" data-k="${n}" aria-pressed="${stats.jours === n}">${n} jours</button>`).join('')}</div>
+      ${corps}</div></div>`;
+  }
+
   /* ---------- visite guidée (première utilisation, puis depuis « Profil ») ---------- */
   const tuto = { i: -1 };
   const ETAPES_TUTO = [
@@ -821,6 +874,7 @@
     return `<div class="voile" data-a="abo-fermer"><div class="fiche fenetre-abo" role="dialog" aria-modal="true" aria-label="Abonnement"><div class="spread"><span class="eyebrow">Budgétable</span><button class="btn btn-petit" data-a="abo-fermer-btn">Fermer</button></div>${blocAbonnement()}</div></div>`;
   }
   async function ouvrirPaiement(gerer) {
+    if (!gerer && C.compter) C.compter('abonnement');
     abo.erreur = ''; abo.attente = true; rendre();
     try {
       const jeton = C.jetonValide ? await C.jetonValide() : null;
@@ -3222,6 +3276,7 @@
   }
 
   function ongletProfil() {
+    verifierAdmin();
     return `<div><p class="eyebrow">Profil</p><h1>Votre foyer et vos données</h1></div>
       <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
@@ -3234,6 +3289,7 @@
         <ul class="credits">${window.Photos.credits().map((ph) => `<li><a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(decodeURIComponent(ph.page.split('File:')[1]).replace(/_/g, ' '))}</a> — ${esc(ph.auteur)} — ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}</li>`).join('')}</ul></details>` : ''}
       ${blocAbonnement()}
       ${blocConflit()}${blocCompte()}${blocSauvegarde()}
+      ${stats.admin ? '<section class="carte stack" style="gap:8px"><div class="spread"><h2>Statistiques du site</h2><span class="tag tag-ok">Admin</span></div><p class="small muted" style="margin:0">Visites, sources, semaines et comptes créés.</p><div><button class="btn btn-petit btn-plein" data-a="stats-ouvrir">📊 Voir les statistiques</button></div></section>' : ''}
       <section class="stack"><h2>L’application</h2><div><button class="btn btn-petit" data-a="tuto-ouvrir">🎬 Revoir la visite guidée</button></div>${estInstallee() ? '<p class="pourquoi">Budgétable est installé sur cet appareil.</p>' : `<p>Installez Budgétable sur votre écran d’accueil : une icône, plein écran, et vos menus même sans connexion.</p><div>${boutonInstaller('btn-plein')}</div>`}</section>
       <section class="stack"><h2>Mes données</h2>
         <label class="case"><input type="checkbox" id="consent-profil" data-a="consent" ${S.profil.consentementSante ? 'checked' : ''}><span>Enregistrer mes allergies et objectifs de santé sur cet appareil</span></label>
@@ -4556,7 +4612,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -4697,7 +4753,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'consent': p.consentementSante = el.checked; if (el.checked) S.sensibleNonEnregistre = false; toast(el.checked ? 'Données de santé enregistrées sur cet appareil' : 'Données de santé non enregistrées'); break;
       case 'placard': p.placardBase = el.checked; break;
       case 'modifier': allerQuestion(el.dataset.q); break;
-      case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois(); break;
+      case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois(); if (C.compter) C.compter('semaine', { source: sourceVisite() }); break;
       case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; window.scrollTo(0, 0); break;
       case 'm-libre': { const m = S.plan.jours[+el.dataset.j][el.dataset.s]; if (!m) return; m.libre = !m.libre; toast(m.libre ? 'Repas libre : part normale pour vous, sans le coach' : 'Le coach minceur s’applique à nouveau à ce repas'); break; }
       case 'm-semaine-case': if (p.programme) { p.programme.dansSemaine = el.checked; toast(el.checked ? 'Coach appliqué à vos plats de la semaine' : 'Coach retiré de vos plats de la semaine'); } break;
@@ -4978,7 +5034,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'test-fin':
         if (S.sensibleNonEnregistre) { S.test = null; allerQuestion('allergies'); break; }
-        S.compteLocal = true; nouvellePlanification(); S.test = null; S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois();
+        S.compteLocal = true; nouvellePlanification(); S.test = null; S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois(); if (C.compter) C.compter('semaine', { source: sourceVisite() });
         toast('Semaine créée avec vos goûts'); break;
       case 'gouts-effacer': p.gouts = E.goutsVides(); toast('Goûts effacés'); break;
       case 'ia-envoyer': envoyerIA(); return;
@@ -5064,7 +5120,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'compte-reprendre': S.vue = S.plan ? 'app' : 'questionnaire'; if (!S.plan) S.etape = 0; break;
       case 'compte-sync': compte.sync = null; rendre(); synchroniserConnexion(); return;
       case 'compte-vue-mdp': compte = { ...compte, vue: 'nouveau-mdp', msg: '', erreur: '' }; break;
-      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); toast('Déconnecté : vos données restent sur cet appareil'); chargerAbonnement(true); break;
+      case 'compte-deconnecter': await envoyerSync(); await C.deconnecter(); stats.admin = false; stats.verifie = false; toast('Déconnecté : vos données restent sur cet appareil'); chargerAbonnement(true); break;
       case 'compte-supprimer': S.confirmerSupprCompte = true; break;
       case 'compte-supprimer-non': S.confirmerSupprCompte = false; break;
       case 'compte-supprimer-ok': try { await C.supprimerCompte(); S.confirmerSupprCompte = false; toast('Compte supprimé'); } catch (e) { toast(e.message); } break;
@@ -5501,6 +5557,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'tuto-suiv': tuto.i = Math.min(ETAPES_TUTO.length - 1, tuto.i + 1); S.onglet = ETAPES_TUTO[tuto.i].o; window.scrollTo(0, 0); break;
       case 'tuto-prec': tuto.i = Math.max(0, tuto.i - 1); S.onglet = ETAPES_TUTO[tuto.i].o; window.scrollTo(0, 0); break;
       case 'tuto-fin': tuto.i = -1; S.tutoVu = true; S.onglet = 'semaine'; break;
+      case 'stats-ouvrir': stats.ouvert = true; chargerStats(); return;
+      case 'stats-fermer': if (ev.target !== el) return; stats.ouvert = false; break;
+      case 'stats-fermer-btn': stats.ouvert = false; break;
+      case 'stats-jours': stats.jours = Number(el.dataset.k) || 30; chargerStats(); return;
       case 'tuto-ouvrir': tuto.i = 0; S.vue = 'app'; S.onglet = 'semaine'; window.scrollTo(0, 0); break;
       case 'abo-payer': ouvrirPaiement(false); return;
       case 'abo-gerer': ouvrirPaiement(true); return;
@@ -5887,6 +5947,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   // essai gratuit : à partir du premier jour d'utilisation (puis de la création du compte, tenue par le serveur)
   if (!S.essaiDebut) { S.essaiDebut = ISO(new Date()); sauver(); }
   if (S.vue === 'app') lancerTutoSiPremiereFois();   // personnes qui avaient déjà une semaine avant la visite guidée
+  if (C.compter) C.compter('ouverture', { source: sourceVisite() });
   (() => {
     const q = new URLSearchParams(location.search), r = q.get('abonnement');
     if (!r) return;

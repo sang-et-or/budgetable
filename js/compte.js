@@ -101,5 +101,19 @@
     garder(null);
   }
 
-  root.Compte = { jetonValide, actif, connecte: () => !!session, utilisateur: () => (session && session.user) || null, inscrire, connecter, lienMagique, motDePasseOublie, changerMotDePasse, deconnecter, lireRetour, moi, lireDonnees, ecrireDonnees, supprimerCompte, traduire };
+  /* ---------- compteur de visites anonyme (aucune donnée personnelle, aucun cookie) ---------- */
+  function compter(evenement, { page = null, source = null } = {}) {
+    try {
+      if (!actif() || (typeof navigator !== 'undefined' && navigator.webdriver) || /^(localhost|127\.)/.test(location.hostname)) return;
+      const appareil = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'ordinateur';
+      fetch(URL_BASE + '/rest/v1/visites', { method: 'POST', keepalive: true, headers: { apikey: CLE, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ evenement, page: page ? String(page).slice(0, 80) : null, source: source ? String(source).slice(0, 30) : null, appareil }) }).catch(() => {});
+    } catch (e) { /* le compteur ne doit jamais gêner l'appli */ }
+  }
+  async function estAdmin() { const j = await jetonValide(); if (!j) return false; try { return (await appel('/rest/v1/rpc/est_admin', { jeton: j, corps: {} })) === true; } catch (e) { return false; } }
+  async function statistiques(jours) {
+    const j = await jetonValide(); if (!j) throw new Error('Session expirée : reconnectez-vous.');
+    const [lignes, pages] = await Promise.all([appel('/rest/v1/rpc/stats_visites', { jeton: j, corps: { jours } }), appel('/rest/v1/rpc/stats_pages', { jeton: j, corps: { jours } }).catch(() => [])]);
+    return { lignes: Array.isArray(lignes) ? lignes : [], pages: Array.isArray(pages) ? pages : [] };
+  }
+  root.Compte = { compter, estAdmin, statistiques, jetonValide, actif, connecte: () => !!session, utilisateur: () => (session && session.user) || null, inscrire, connecter, lienMagique, motDePasseOublie, changerMotDePasse, deconnecter, lireRetour, moi, lireDonnees, ecrireDonnees, supprimerCompte, traduire };
 })(typeof window !== 'undefined' ? window : globalThis);

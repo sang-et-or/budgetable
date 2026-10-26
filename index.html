@@ -203,6 +203,16 @@ label.case input { width: 22px; height: 22px; accent-color: var(--poireau); flex
 .prix-crayon { font-size: .8em; opacity: .45; }
 .prix-perso { font-size: .8em; color: var(--poireau); }
 .edition-prix { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; background: var(--poireau-pale); border-radius: 12px; padding: 10px 12px; margin-top: 4px; }
+.fenetre-stats { max-width: 560px; }
+.stat-tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.stat-tuile { background: var(--poireau-pale); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat-tuile strong { font: 800 1.6rem/1.1 var(--f-titre, inherit); }
+.stat-tuile small { font-size: .78rem; }
+.stat-barres { display: flex; align-items: flex-end; gap: 2px; height: 110px; border-bottom: 1px solid var(--trait); }
+.stat-barres span { flex: 1; min-height: 2px; background: var(--poireau); border-radius: 3px 3px 0 0; }
+.stat-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.stat-table td { padding: 6px 4px; border-bottom: 1px solid var(--trait); }
+.stat-table td.num { text-align: right; font-variant-numeric: tabular-nums; width: 4.5em; }
 .voile-tuto { z-index: 60; }
 .fenetre-tuto { max-width: 440px; gap: 12px; text-align: left; }
 .tuto-emoji { font-size: 3.2rem; line-height: 1; animation: tuto-saut .5s ease; }
