@@ -41,7 +41,7 @@ for (const f of ['js/data.js', 'js/modeles.js', 'js/engine.js', 'js/saisie.js', 
 }
 for (const base of versionnes) fs.copyFileSync(path.join(__dirname, base + '.js'), path.join(dist, `${base}.${version}.js`));
 // appli installable : icônes, captures d'écran, et service worker qui garde hors ligne les bons fichiers (versionnés)
-for (const dossier of ['icons', 'captures']) {
+for (const dossier of ['icons', 'captures', 'kit']) {
   if (!fs.existsSync(path.join(__dirname, dossier))) continue;
   fs.mkdirSync(path.join(dist, dossier), { recursive: true });
   for (const f of fs.readdirSync(path.join(__dirname, dossier))) fs.copyFileSync(path.join(__dirname, dossier, f), path.join(dist, dossier, f));

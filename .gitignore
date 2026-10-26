@@ -4,3 +4,4 @@ node_modules/
 !icon*.png
 .DS_Store
 affiche.pdf
+!kit/*.png
