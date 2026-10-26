@@ -34,7 +34,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
     fs.writeFileSync(index, html);
     // toutes les autres pages, y compris les pages recettes (adresse absolue)
     const pages = fs.readdirSync(dist).filter((f) => f.endsWith('.html') && f !== 'index.html').map((f) => path.join(dist, f));
-    if (fs.existsSync(path.join(dist, 'recettes'))) pages.push(...fs.readdirSync(path.join(dist, 'recettes')).filter((f) => f.endsWith('.html')).map((f) => path.join(dist, 'recettes', f)));
+    for (const sous of ['recettes', 'conseils']) if (fs.existsSync(path.join(dist, sous))) pages.push(...fs.readdirSync(path.join(dist, sous)).filter((f) => f.endsWith('.html')).map((f) => path.join(dist, sous, f)));
     for (const p of pages) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="/fonts/polices.css">'));
     console.log(`Polices servies par le site : ${n} fichiers`);
   } catch (e) {

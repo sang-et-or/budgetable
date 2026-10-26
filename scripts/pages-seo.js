@@ -80,10 +80,15 @@ p,li{max-width:70ch}a{color:var(--poireau);text-underline-offset:3px}
 figure{margin:16px 0}figure img{width:100%;max-height:380px;object-fit:cover;border-radius:16px;background:var(--trait)}figcaption{font-size:.78rem;color:var(--doux)}
 ol li{margin-bottom:6px}.liste{columns:2 260px;padding-left:18px}.liste li{break-inside:avoid}
 nav.fil{font-size:.88rem;color:var(--doux);margin-top:14px}nav.pied{margin-top:44px;padding-top:16px;border-top:1px solid var(--trait);font-size:.92rem;display:flex;flex-wrap:wrap;gap:6px 16px}
-.petit{font-size:.88rem;color:var(--doux)}`;
+.petit{font-size:.88rem;color:var(--doux)}
+.encadre{background:var(--carte);border:1px solid var(--trait);border-left:5px solid var(--poireau);border-radius:12px;padding:14px 18px;margin:22px 0}
+.colonnes{columns:2 220px;padding-left:18px}.colonnes li{break-inside:avoid}
+.liste-num li{margin-bottom:8px}
+.meta{font-size:.9rem;color:var(--doux);margin:0 0 6px}
+.cartes-articles{list-style:none;padding:0;display:grid;gap:14px}.cartes-articles li{background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:14px 18px}.cartes-articles a{font-weight:700;font-size:1.1rem}`;
 
 const MARQUE = '<a class="marque" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>';
-const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
+const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/conseils/">Conseils</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
 const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. 7 jours gratuits, sans carte bancaire.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
 
 const CONF = (() => { try { const t = fs.readFileSync(path.join(__dirname, '..', 'js', 'config.js'), 'utf8'); return { url: (t.match(/url:\s*'([^']+)'/) || [])[1], cle: (t.match(/cle:\s*'([^']+)'/) || [])[1] }; } catch (e) { return {}; } })();
@@ -255,11 +260,37 @@ ${APPEL('Des menus de saison chaque semaine')}`, ld: []
     fs.writeFileSync(path.join(dist, t.fichier), page({ url: '/' + t.fichier, titre: t.titre, description: t.description, h1: t.h1, corps: `<h1>${esc(t.h1)}</h1>\n${t.corps}`, ld: t.ld }));
     urls.push('/' + t.fichier);
   }
+  // articles de conseils
+  {
+    let CAL = {};
+    try { CAL = require(path.join(racine, 'js', 'engine.js')).CALENDRIER || {}; } catch (e) { CAL = {}; }
+    const arts = require('./articles.js')({ plats: groupes[0].recettes, saison: groupes[1].recettes, ING, CALENDRIER: CAL, cout: (r) => cout(r, ING), lien, esc });
+    fs.mkdirSync(path.join(dist, 'conseils'), { recursive: true });
+    const dateFr = (d) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    for (const a of arts) {
+      const url = `/conseils/${a.slug}.html`;
+      const ld = { '@context': 'https://schema.org', '@type': 'Article', headline: a.titre, description: a.description, datePublished: a.date, dateModified: a.date, inLanguage: 'fr-FR', author: { '@type': 'Organization', name: 'Budgétable', url: SITE }, publisher: { '@type': 'Organization', name: 'Budgétable', url: SITE }, mainEntityOfPage: SITE + url };
+      const autres = arts.filter((x) => x !== a).slice(0, 4);
+      const corps = `<nav class="fil"><a href="/conseils/">Conseils</a></nav>
+<h1>${esc(a.titre)}</h1><p class="meta">Publié le ${dateFr(a.date)} · par l’équipe Budgétable</p>
+${a.corps}
+${APPEL('Vos menus de la semaine, prêts en 2 minutes')}
+<h2>À lire aussi</h2><ul>${autres.map((x) => `<li><a href="/conseils/${x.slug}.html">${esc(x.titre)}</a></li>`).join('')}</ul>`;
+      fs.writeFileSync(path.join(dist, 'conseils', a.slug + '.html'), page({ url, titre: `${a.titre} | Budgétable`, description: a.description, h1: a.titre, corps, ld: [ld] }));
+      urls.push(url);
+    }
+    const corps = `<h1>Conseils pour bien manger sans se ruiner</h1>
+<p class="chapo">Menus de la semaine, courses moins chères, produits de saison, équilibre en famille : nos conseils simples et concrets.</p>
+<ul class="cartes-articles">${arts.map((a) => `<li><a href="/conseils/${a.slug}.html">${esc(a.titre)}</a><p class="petit" style="margin:6px 0 0">${esc(a.description)}</p></li>`).join('')}</ul>
+${APPEL('Passez de la théorie à votre semaine')}`;
+    fs.writeFileSync(path.join(dist, 'conseils', 'index.html'), page({ url: '/conseils/', titre: 'Conseils : menus, courses et équilibre à petit budget | Budgétable', description: 'Nos conseils pour faire ses menus de la semaine, dépenser moins aux courses, cuisiner de saison et manger équilibré en famille.', h1: 'Conseils', corps, ld: [{ '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Conseils Budgétable', url: SITE + '/conseils/' }] }));
+    urls.push('/conseils/');
+  }
   // plan du site complet
   const jour = new Date().toISOString().slice(0, 10);
   const tout = ['/', ...urls, '/mentions-legales.html', '/confidentialite.html', '/conditions.html', '/extension.html'];
   fs.writeFileSync(path.join(dist, 'sitemap.xml'), '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + tout.map((u) => `  <url><loc>${SITE}${u}</loc><lastmod>${jour}</lastmod></url>`).join('\n') + '\n</urlset>\n');
-  return { recettes: toutes.length, pages: urls.length };
+  return { recettes: toutes.length, pages: urls.length, conseils: urls.filter((u) => u.startsWith('/conseils/')).length };
 }
 
 module.exports = generer;
