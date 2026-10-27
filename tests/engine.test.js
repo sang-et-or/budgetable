@@ -419,3 +419,33 @@ test('ajuster au budget : les repas verrouillés (mangés, choisis) ne changent 
   assert.equal(r.plan.jours[0].diner.recette, plan.jours[0].diner.recette);
   assert.equal(r.plan.jours[1].dejeuner.recette, plan.jours[1].dejeuner.recette);
 });
+
+// ---------- bibliothèque et notes dans les propositions ----------
+test('bibliothèque : ses recettes entrent dans les semaines, tournent d’une semaine à l’autre, et une idée de « Changer » en vient', () => {
+  E.definirPerso([
+    { id: 'p-t-lasagnes', nom: 'Lasagnes de mamie', ing: [['pates', 100], ['boeuf_hache', 80], ['tomates_concassees', 120], ['emmental', 30]] },
+    { id: 'p-t-couscous', nom: 'Couscous de Nadia', ing: [['semoule', 80], ['pois_chiches', 80], ['carotte', 80], ['courgette', 80]] },
+    { id: 'p-t-curry', nom: 'Curry de Léa', ing: [['poulet_filet', 110], ['lait_coco', 70], ['riz', 70]] },
+    { id: 'p-t-soupe', nom: 'Soupe maison', ing: [['poireau', 150], ['pomme_de_terre', 120]] }
+  ]);
+  const p = profil({ foyer: { adultes: 2, enfants: [] } });
+  const notes = { 'p-t-soupe': 1 };
+  const ids = (plan) => plan.jours.flatMap((jp) => E.SLOTS.map((s) => jp[s] && jp[s].recette)).filter(Boolean);
+  let prec = [], vus = new Set();
+  for (let w = 1; w <= 3; w++) {
+    E.definirRecents(prec);
+    const plan = E.genererSemaine(p, { seed: 200 + w, notes });
+    const l = ids(plan);
+    const perso = l.filter((id) => id.startsWith('p-t-'));
+    assert.ok(perso.length >= 1, 'au moins un plat de la bibliothèque');
+    assert.ok(!l.includes('p-t-soupe'), 'un plat « pas aimé » n’est plus proposé');
+    assert.deepEqual(E.joursMonotones(plan), []);
+    perso.forEach((id) => vus.add(id));
+    const props = E.propositions(plan, 2, 'diner', p, { notes, n: 2 });
+    const libres = ['p-t-lasagnes', 'p-t-couscous', 'p-t-curry'].filter((id) => !l.includes(id));
+    if (libres.length) assert.ok(props.some((id) => id.startsWith('p-t-')), 'une idée de la bibliothèque dans « Changer ce plat »');
+    prec = l;
+  }
+  assert.ok(vus.size >= 3, 'les recettes de la bibliothèque tournent : ' + [...vus]);
+  E.definirRecents([]); E.definirPerso([]);
+});

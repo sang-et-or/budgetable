@@ -634,7 +634,7 @@
   function score(rec, p, ctx, r) {
     let s = r() * 3;
     s += bonusCoach(rec, p) * 1.6;
-    s += bonusSaison(rec) + bonusStyleSaison(rec);
+    s += rec.perso ? Math.max(0, bonusSaison(rec)) : bonusSaison(rec) + bonusStyleSaison(rec);
     if (p.cuisines.includes(rec.cuisine)) s += 1.5;
     if (p.foyer.enfants.length && p.enfantsMode === 'simple' && rec.tags.includes('enfants')) s += 2;
     if ((p.objectifs.includes('muscle') || p.seancesSport >= 2) && rec.tags.includes('proteines')) s += 2;
@@ -656,7 +656,7 @@
     if (ctx.sigs[rec.sig || rec.id]) s -= 8; // même plat avec une autre épice ou un autre féculent
     s -= (ctx.utilisations[rec.id] || 0) * 6;
     // variété de la semaine : familles de plats, protéines, légumes, féculents et cuisines qui tournent
-    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' || rec.modele === 'perso' ? 0.6 : 3);
+    s -= (ctx.modeles[rec.modele] || 0) * (rec.modele === 'maison' ? 0.6 : rec.modele === 'perso' ? 1.3 : 3);
     s -= (ctx.prots[rec.prot] || 0) * 1.2 + Math.max(0, (ctx.prots[rec.prot] || 0) - 1) * 2;
     for (const id of legumesPrincipaux(rec)) { const n = ctx.legs[id] || 0; s -= n * 0.9 + Math.max(0, n - 1) * 1.6; }
     const fec = feculentDe(rec); if (fec) { const n = ctx.fecs[fec] || 0; s -= Math.max(0, n - 1) * 1.8 + Math.max(0, n - 2) * 2; }
@@ -671,18 +671,25 @@
       if (dispo >= q * 0.5 && ING[id].groupe !== 'A') duPlacard += PERISSABLES.has(ING[id].rayon) ? 1.5 : 1;
     }
     s += Math.min(duPlacard, 4) * 1.2;
-    if (rec.perso) s += 3; // recettes de la bibliothèque : l'utilisateur les a choisies
+    // recettes de la bibliothèque : l'utilisateur les a choisies ; elles tournent d'une semaine à l'autre
+    if (rec.perso) s += RECENTS.has(rec.id) ? 1.5 : 4.5;
+    // variété d'une semaine à l'autre : un plat mangé ou prévu récemment attend un peu (moins pour les favoris)
+    else if (RECENTS.has(rec.id)) s -= ctx.classiques.includes(rec.id) ? 1 : 3;
     // « nos classiques » : 2 par semaine environ (valeurs sûres), sans les répéter
     if (ctx.classiques.includes(rec.id) && !ctx.utilisations[rec.id] && ctx.nbClassiques < ctx.cibleClassiques) s += 6;
     return s;
   }
 
+  // plats des deux dernières semaines (journal, semaine précédente) : pour varier d'une semaine à l'autre
+  let RECENTS = new Set();
+  function definirRecents(ids) { RECENTS = new Set((ids || []).filter(Boolean)); }
   function candidats(p, jour, slot, ctx, exclure = []) {
-    let base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && ctx.notes[r.id] !== 1 && r.proposer !== false);
+    let base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && !(ctx.notes[r.id] > 0 && ctx.notes[r.id] <= 2) && r.proposer !== false);
     const sansDeteste = base.filter((r) => !contientDeteste(r, p.gouts));
     if (sansDeteste.length >= 8) base = sansDeteste;
     // fruits et légumes frais hors saison : écartés tant qu'il reste assez de plats de saison
-    const deSaison = base.filter((r) => !saisonRecette(r).hors.length);
+    // (les recettes de la bibliothèque restent : la personne les a choisies)
+    const deSaison = base.filter((r) => r.perso || !saisonRecette(r).hors.length);
     if (deSaison.length >= 12) base = deSaison;
     const flexi = p.regime === 'flexitarien' && ctx.repasViande >= 3;
     let liste = base.filter((r) => r.temps <= tempsMax(p, jour) && !(flexi && contientViande(r)));
@@ -933,6 +940,13 @@
     for (const rec of classes) {
       if (choix.length >= n) break;
       if (!choix.includes(rec) && !sigs.has(rec.sig || rec.id)) { choix.push(rec); sigs.add(rec.sig || rec.id); }
+    }
+    // une des idées vient de la bibliothèque de la personne, s'il y en a une qui convient (pas déjà dans la semaine, pas mal notée)
+    if (!filtre && choix.length && !choix.some((x) => x.perso)) {
+      const dansSemaine = new Set(plan.jours.flatMap((jp) => SLOTS.map((sl) => jp[sl] && jp[sl].recette)).filter(Boolean));
+      const autreRec = memeJour.map((id) => REC[id]).filter(Boolean);
+      const perso = classes.find((x) => x.perso && !dansSemaine.has(x.id) && !autreRec.some((y) => tropProches(y, x)));
+      if (perso) choix[choix.length - 1] = perso;
     }
     return choix.map((rec) => rec.id);
   }
@@ -1579,7 +1593,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

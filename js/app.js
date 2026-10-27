@@ -2395,7 +2395,7 @@
       return `<article class="choix-carte ${actuel ? 'actuel' : ''} ${enf ? 'enfant' : ''}">
         ${V(r, enf ? 220 : 160, 'rect')}
         <div class="stack" style="gap:6px;padding:12px 14px 14px">
-          ${actuel ? '<span class="tag tag-ok">Prévu</span>' : ''}
+          ${actuel || r.perso || S.notes[id] >= 4 ? `<span class="row" style="gap:4px">${actuel ? '<span class="tag tag-ok">Prévu</span>' : ''}${r.perso ? '<span class="tag tag-ok">📚 Ma bibliothèque</span>' : ''}${S.notes[id] >= 4 ? `<span class="tag tag-simu" aria-label="Votre note : ${S.notes[id]} sur 5">${'★'.repeat(S.notes[id])}</span>` : ''}</span>` : ''}
           <h3>${esc(r.nom)}</h3>
           <div class="meta"><span>${r.temps} min</span><span class="part num" title="Prix estimé : ${esc(originePrixPlat(r))}">≈ ${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
           ${raisons.length ? `<ul class="raisons">${raisons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
@@ -4869,11 +4869,20 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     sauver();
   }
 
+  /** Plats mangés ces deux dernières semaines (journal) et, si on refait la semaine, ceux de la semaine actuelle : ils attendent un peu. */
+  function majRecents(avecSemaine) {
+    const depuis = ISO(new Date(Date.now() - 14 * 86400000));
+    const ids = (S.journal || []).filter((x) => x.d >= depuis && !x.c).map((x) => x.r);
+    if (avecSemaine && S.plan) S.plan.jours.forEach((jp) => E.SLOTS.forEach((sl) => { if (jp[sl] && jp[sl].recette) ids.push(jp[sl].recette); }));
+    E.definirRecents(ids);
+  }
   function nouvellePlanification() {
+    majRecents(true);
     if (S.plan) S.tourEnfant++;
     const gardees = S.plan ? S.plan.jours.map((jp) => jp.gourmand || []) : null;
     const manuelsGardes = S.plan && S.plan.manuels ? S.plan.manuels : null;
     S.plan = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
+    majRecents(false);
     if (gardees) S.plan.jours.forEach((jp, j) => { if (gardees[j] && gardees[j].length) jp.gourmand = gardees[j].filter((g) => E.REC[g.recette]); });
     if (manuelsGardes && manuelsGardes.length) S.plan.manuels = manuelsGardes;
     S.coches = {};
@@ -4905,7 +4914,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   function refairePlats() {
     if (!S.plan) return 0;
     const avant = JSON.parse(JSON.stringify(S.plan));
+    majRecents(true);
     const neuf = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
+    majRecents(false);
     const t = aujourdhui(), h = new Date().getHours();
     const garde = [];
     let n = 0;
@@ -6257,6 +6268,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     return !!r;
   }
   if (!traiterRetourCompte() && C.connecte()) synchroniserConnexion();
+  try { majRecents(false); } catch (e) { /* pas de journal */ }
   // alertes promos : on vérifie les offres de la semaine en arrière-plan
   if ((S.alertesPromos || []).length) { if (promos && promos.etat === 'ok') setTimeout(notifierAlertes, 800); else setTimeout(() => chargerPromos(false), 1500); }
   // une semaine déjà enregistrée peut contenir deux fois le même plat : on remplace le second
