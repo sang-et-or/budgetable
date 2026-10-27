@@ -1,6 +1,13 @@
 # Placard : ce que j'ai déjà, idées de plats, ranger les courses, repas cuisinés, liste qui déduit le placard.
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
@@ -19,7 +26,7 @@ with sync_playwright() as p:
     assert page.locator("nav button", has_text="Drives").count() == 0
 
     # 1. placard vide puis « ce que j'ai déjà »
-    page.locator("nav button", has_text="Placard").click()
+    aller(page, 'placard')
     main = page.locator("main")
     assert "Votre placard est vide" in main.inner_text()
     for nom in ["+ Pâtes", "+ Courgettes", "+ Œufs"]:
@@ -61,14 +68,14 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     assert "Qu’est-ce qu’on mange" not in page.inner_text("main") and nomv in page.inner_text("main")
     assert page.locator("nav button[aria-current=page], nav button[aria-current=true]", has_text="Ce soir").count() or True
-    page.locator("nav button", has_text="Placard").click()
+    aller(page, 'placard')
     # idées avec ce que j'ai
     assert "Que cuisiner avec ce que j’ai" in main.inner_text()
     idee = main.locator("[data-a=placard-ce-soir]").first
     nom = main.locator(".jour").first.locator(".titre-repas").inner_text()
     page.screenshot(path=f"{OUT}/p1-placard.png", full_page=True)
     idee.click()
-    page.locator("nav button", has_text="Ce soir").click()
+    aller(page, 'soir')
     if page.get_by_role("button", name="Soulever la cloche").count(): clic("Soulever la cloche")
     assert nom in page.inner_text("main"), (nom, page.inner_text("main")[:600])
     assert "Avec ce que vous avez à la maison" in page.inner_text("main")
@@ -82,7 +89,7 @@ with sync_playwright() as p:
     cases = page.locator("main input[type=checkbox][data-a=cocher]:not([disabled])")
     n = cases.count(); assert n > 3
     cases.nth(0).click(); page.locator("main input[type=checkbox][data-a=cocher]:not([disabled])").nth(1).click()
-    page.locator("nav button", has_text="Placard").click()
+    aller(page, 'placard')
     assert "2 articles achetés à ranger" in main.inner_text(), main.inner_text()[:400]
     avant = main.locator(".ligne-stock").count()
     clic("Ranger mes courses dans le placard")
@@ -91,7 +98,7 @@ with sync_playwright() as p:
 
     # 4. j'ai cuisiné ce plat (fiche du dîner de ce soir)
     page.locator("nav button", has_text="Semaine").click()
-    page.locator("nav button", has_text="Ce soir").click()
+    aller(page, 'soir')
     if page.get_by_role("button", name="Soulever la cloche").count(): clic("Soulever la cloche")
     page.locator("main [data-a=fiche][data-s=diner]").first.click()
     b = page.get_by_role("button", name=re.compile("J’ai cuisiné ce plat"))
@@ -102,7 +109,7 @@ with sync_playwright() as p:
 
     # 5. persistance
     page.reload()
-    page.locator("nav button", has_text="Placard").click()
+    aller(page, 'placard')
     assert main.locator(".ligne-stock").count() >= 3
     page.screenshot(path=f"{OUT}/p2-placard.png", full_page=True)
     print("Erreurs JS :", erreurs or "aucune")

@@ -1,6 +1,13 @@
 # Bilan nutritionnel de la semaine : repères, points à améliorer, mise à jour quand on change un plat.
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
@@ -28,7 +35,7 @@ with sync_playwright() as p:
     # un dessert ajouté fait monter les sucres
     sucres = lambda: int(re.search(r"Sucres (\d+) g", b.locator("details").inner_text()).group(1))
     s0 = sucres()
-    page.locator("nav button", has_text="Gourmand").click()
+    aller(page, 'gourmand')
     page.locator(".carte-gourmande", has_text="Fondant au chocolat").get_by_role("button", name=re.compile("Ajouter")).click()
     for jn in ["Lun.", "Mar.", "Mer.", "Jeu.", "Ven."]: page.locator(".fenetre-gourmand").get_by_role("button", name=jn).click()
     clic("Ajouter à ma semaine et à mes courses")

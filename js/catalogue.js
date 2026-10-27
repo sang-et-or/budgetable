@@ -41,7 +41,7 @@
     ['sardines', 'Sardines à l’huile', EP, 'g', 115, 'boîte 115 g', 1.6, 'P', P, [220, 3, 0, 0.8, 0, 24, 0], ['sardine', 'sardines']],
     ['maquereau', 'Maquereau', EP, 'g', 170, 'boîte 170 g', 2.0, 'P', P, [200, 3.5, 1, 1, 0, 17, 0], ['maquereau', 'maquereaux']],
     ['saumon_fume', 'Saumon fumé', CR, 'g', 120, '4 tranches (120 g)', 4.2, 'P', P, [180, 2, 0, 3, 0, 22, 0], ['saumon fume', 'truite fumee']],
-    ['surimi', 'Surimi', CR, 'g', 250, 'paquet 250 g', 2.1, 'P', ['poisson', 'oeuf', 'gluten', 'animal'], [110, 0.2, 6, 1.6, 0, 7, 0], ['surimi']],
+    ['surimi', 'Surimi', CR, 'g', 250, 'paquet 250 g', 2.1, 'P', ['poisson', 'crustaces', 'oeuf', 'gluten', 'animal'], [110, 0.2, 6, 1.6, 0, 7, 0], ['surimi']],
     ['steak_vegetal', 'Steaks végétaux', CR, 'g', 200, '2 steaks (200 g)', 3.2, 'P', ['soja', 'gluten'], [200, 1, 2, 1.1, 5, 16, 0], ['steak vegetal', 'galette vegetale', 'nuggets vegetaux', 'proteines vegetales']],
     // légumes, herbes et fruits
     ['echalote', 'Échalotes', FL, 'g', 250, 'filet 250 g', 1.7, 'L', [], [70, 0, 3, 0, 3, 2, 1], ['echalote', 'echalotes']],
@@ -141,7 +141,7 @@
     ['miso', 'Miso', EP, 'g', 200, 'pot 200 g', 3.9, 'A', ['soja'], [200, 1, 6, 12, 5, 12, 0], ['miso', 'pate miso']],
     ['wasabi', 'Wasabi ou raifort', EP, 'g', 40, 'tube 40 g', 2.4, 'A', [], [250, 1, 30, 4, 4, 2, 0], ['wasabi', 'raifort']],
     ['sauce_salade', 'Vinaigrette toute prête', EP, 'ml', 500, 'bouteille 50 cl', 1.9, 'A', ['moutarde'], [350, 3, 4, 2, 0, 0.5, 0], ['vinaigrette', 'sauce salade', 'sauce cesar']],
-    ['sauce_pates', 'Sauce pour pâtes (carbonara, 4 fromages…)', EP, 'g', 200, 'pot 200 g', 2.2, 'D', ['lait', 'animal'], [150, 7, 3, 1.3, 0.5, 4, 0], ['sauce carbonara', 'sauce 4 fromages', 'sauce aux champignons', 'sauce au poivre', 'sauce forestiere']],
+    ['sauce_pates', 'Sauce pour pâtes (carbonara, 4 fromages…)', EP, 'g', 200, 'pot 200 g', 2.2, 'D', ['lait', 'oeuf', 'animal'], [150, 7, 3, 1.3, 0.5, 4, 0], ['sauce carbonara', 'sauce 4 fromages', 'sauce aux champignons', 'sauce au poivre', 'sauce forestiere']],
     ['puree_tomate', 'Purée ou passata de tomate', EP, 'g', 680, 'bouteille 680 g', 1.2, 'L', [], [30, 0, 4, 0.1, 1.5, 1.5, 1], ['passata', 'puree de tomate', 'puree de tomates', 'pulpe de tomates']],
     ['cornichons', 'Cornichons', EP, 'g', 200, 'bocal 200 g', 1.3, 'A', [], [20, 0, 1.5, 2, 1.2, 0.8, 0], ['cornichon', 'cornichons', 'pickles']],
     ['huile_coco', 'Huile de coco', EP, 'ml', 250, 'pot 25 cl', 3.9, 'A', [], [900, 85, 0, 0, 0, 0, 0], ['huile de coco']],
@@ -220,7 +220,7 @@
     ['biscottes', 'Biscottes ou pain grillé', BO, 'g', 300, 'paquet 300 g', 1.6, 'F', ['gluten'], [400, 1.5, 7, 1.1, 4, 11, 0], ['biscotte', 'biscottes', 'pain grille', 'cracottes', 'crackers', 'galettes de riz', 'gressins', 'blinis']],
     ['pain_epices', 'Pain d’épices', BO, 'g', 300, 'pain 300 g', 2.0, 'A', ['gluten'], [320, 0.5, 40, 0.5, 3, 4, 0], ['pain d epices']],
     ['feuilles_brick', 'Feuilles de brick ou filo', CR, 'pièce', 10, '10 feuilles', 1.9, 'F', ['gluten'], [300, 0.3, 1, 1, 2, 9, 0, 20], ['feuilles de brick', 'feuille de brick', 'pate filo', 'pate brick', 'feuilles de riz', 'galettes de riz pour nems']],
-    ['chips', 'Chips ou biscuits apéritif', EP, 'g', 150, 'sachet 150 g', 1.6, 'A', [], [530, 3, 1, 1.3, 4.5, 6, 0], ['chips', 'tortilla chips', 'biscuits aperitif', 'popcorn', 'pop corn', 'crackers sales']],
+    ['chips', 'Chips ou biscuits apéritif', EP, 'g', 150, 'sachet 150 g', 1.6, 'A', ['gluten'], [530, 3, 1, 1.3, 4.5, 6, 0], ['chips', 'tortilla chips', 'biscuits aperitif', 'popcorn', 'pop corn', 'crackers sales']],
     // épicerie sucrée et boissons
     ['sucre_glace', 'Sucre glace', ES, 'g', 500, 'paquet 500 g', 1.6, 'A', [], [400, 0, 100, 0, 0, 0, 0], ['sucre glace']],
     ['poudre_amande', 'Poudre d’amande ou de noisette', ES, 'g', 125, 'sachet 125 g', 2.9, 'A', ['fruits_coque'], [610, 4, 4, 0, 11, 21, 0], ['poudre d amande', 'poudre d amandes', 'amandes en poudre', 'poudre de noisette']],

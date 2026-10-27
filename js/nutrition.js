@@ -84,7 +84,7 @@
     const pour100 = { kcal: s.kcal / total * 100, ags: s.ags / total * 100, sucres: s.sucres / total * 100, sel: s.sel / total * 100, fibres: s.fibres / total * 100, prot: s.prot / total * 100, fl: s.fl / total * 100 };
     const couverture = poidsConnu / poids;
     const ns = couverture >= 0.7 ? nutriscore(pour100) : null;
-    const r = { kcal: Math.round(s.kcal / 10) * 10, lettre: ns ? ns.lettre : null, points: ns ? ns.points : null, pour100, couverture, parPortion: s };
+    const r = { kcal: Math.round(s.kcal / 10) * 10, lettre: ns ? ns.lettre : null, points: ns ? ns.points : null, pour100, couverture, parPortion: s, poids, poidsConnu };
     cache.set(cle, r);
     return r;
   }
@@ -105,12 +105,13 @@
     const t = { kcal: 0, prot: 0, fibres: 0, sucres: 0, ags: 0, sel: 0 };
     const g = { rouge: 0, charcuterie: 0, volaille: 0, poisson: 0, legumes: 0 };
     const n = { poisson: 0, gras: 0, legumineuses: 0, laitages: 0, repas: 0, gourmand: 0 };
-    let sucresGourmand = 0;
+    let sucresGourmand = 0, poids = 0, poidsConnu = 0, dehors = 0;
     const jours = plan.jours.filter((jp) => jp.dejeuner || jp.diner || (jp.gourmand || []).length).length || 7;
     const ajouter = (rec, gourmand) => {
       const r = de(rec, ING);
       if (!r) return;
       for (const k of Object.keys(t)) t[k] += r.parPortion[k] || 0;
+      poids += r.poids || 0; poidsConnu += r.poidsConnu || 0;
       if (gourmand) { sucresGourmand += r.parPortion.sucres; n.gourmand++; return; }
       n.repas++;
       const ids = rec.ing.map(([id]) => id);
@@ -126,11 +127,12 @@
       if (ids.some((id) => LAITAGES.has(id))) n.laitages++;
     };
     for (const jp of plan.jours) {
-      for (const sl of ['dejeuner', 'diner']) if (jp[sl] && !jp[sl].dehors && REC[jp[sl].recette]) ajouter(REC[jp[sl].recette], false);
+      for (const sl of ['dejeuner', 'diner']) { if (jp[sl] && !jp[sl].dehors && REC[jp[sl].recette]) ajouter(REC[jp[sl].recette], false); else dehors++; }
       for (const x of jp.gourmand || []) if (REC[x.recette]) ajouter(REC[x.recette], true);
     }
     if (!n.repas) return null;
-    const parJour = (v) => v / jours;
+    // ramené à une journée de deux repas (déjeuner + dîner) : un repas pris dehors ou déjà passé ne fait pas baisser la moyenne
+    const parJour = (v) => v / Math.max(1, n.repas / 2);
     const r1 = (v) => Math.round(v * 10) / 10;
     // [clé, libellé, valeur, unité, mini, maxi, repère affiché, conseil si pas assez, conseil si trop]
     const reperes = [
@@ -149,7 +151,8 @@
       const etat = mini != null && valeur < mini ? 'bas' : maxi != null && valeur > maxi ? 'haut' : 'ok';
       return { cle, nom, valeur, unite, repere, etat, mini, maxi, conseil: etat === 'bas' ? conseilBas : etat === 'haut' ? conseilHaut : '' };
     });
-    return { kcal: Math.round(parJour(t.kcal) / 10) * 10, jours, repas: n.repas, gourmand: n.gourmand, poissonGras: n.gras, volaille: Math.round(g.volaille), reperes, atteints: reperes.filter((r) => r.etat === 'ok').length };
+    // couverture : part du poids des ingrédients dont les valeurs nutritionnelles sont connues (le reste compte pour 0 kcal)
+    return { kcal: Math.round(parJour(t.kcal) / 10) * 10, kcalRepas: Math.round(t.kcal / n.repas / 10) * 10, couverture: poids ? poidsConnu / poids : 1, repasHorsMaison: dehors, jours, repas: n.repas, gourmand: n.gourmand, poissonGras: n.gras, volaille: Math.round(g.volaille), reperes, atteints: reperes.filter((r) => r.etat === 'ok').length };
   }
   const api = { de, nutriscore, bilanSemaine, TABLE: T };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Nutrition = api;

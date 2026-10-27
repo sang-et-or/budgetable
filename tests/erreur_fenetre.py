@@ -18,7 +18,7 @@ with sync_playwright() as p:
     page.reload(); page.wait_for_timeout(500)
     assert "remplacé" in page.inner_text("body") or True
     assert "Oups" not in page.inner_text("body"), page.inner_text("body")[:300]
-    page.locator("nav button[data-k=soir]:visible").click(); page.wait_for_timeout(300)
+    page.locator(".nav-plus").click(); page.locator(".fenetre-plus [data-k=soir]").click(); page.wait_for_timeout(300)
     if page.locator("main [data-a=ce-soir]").count(): page.locator("main [data-a=ce-soir]").click(); page.wait_for_timeout(300)
     v = page.locator("main button:has-text('Voir la recette')")
     print("bouton :", v.count(), "| texte :", page.locator("main").inner_text()[:200].replace("\n", " | "))
@@ -28,12 +28,12 @@ with sync_playwright() as p:
         page.locator(".voile [data-a=fermer]").first.click(); page.wait_for_timeout(300)
     # et si une fenêtre plante quand même : message, et l'appli reste utilisable
     page.evaluate("() => { window.Engine.REC_SAUVE = window.Engine.equilibre; window.Engine.equilibre = () => { throw new Error('test'); }; }")
-    page.locator("nav button[data-k=recettes]:visible").click(); page.wait_for_timeout(300)
+    page.locator(".nav-plus").click(); page.locator(".fenetre-plus [data-k=recettes]").click(); page.wait_for_timeout(300)
     page.locator("main [data-a=fiche-r]").first.click(); page.wait_for_timeout(400)
     assert "n’a pas pu s’ouvrir" in page.inner_text("body")
     page.locator("[data-a=fermer-erreur]").click(); page.wait_for_timeout(300)
     page.evaluate("() => { window.Engine.equilibre = window.Engine.REC_SAUVE; }")
-    page.locator("nav button[data-k=recettes]:visible").click(); page.wait_for_timeout(300)
+    page.locator(".nav-plus").click(); page.locator(".fenetre-plus [data-k=recettes]").click(); page.wait_for_timeout(300)
     page.locator("main [data-a=fiche-r]").first.click(); page.wait_for_timeout(400)
     assert page.locator(".voile .fiche h2").count(), "l'appli répond toujours"
     nav.close()

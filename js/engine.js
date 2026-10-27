@@ -459,6 +459,39 @@
   }
 
   /* ---------- filtres de sécurité et de goûts ---------- */
+  // « peut contenir » : produits dont la recette varie selon la marque (traces ou ingrédient caché possible).
+  // Ils ne sont pas écartés, mais signalés : à choisir « sans … » en vérifiant l'étiquette.
+  const PEUT_CONTENIR = {
+    bouillon: ['gluten', 'lait', 'moutarde'], bouillon_volaille: ['gluten', 'lait', 'moutarde'], curry: ['moutarde', 'celeri', 'gluten'], cumin: [], paprika: [],
+    chocolat: ['fruits_coque', 'arachide', 'gluten'], chocolat_lait: ['fruits_coque', 'arachide', 'gluten'], pepites_chocolat: ['fruits_coque', 'arachide'],
+    chocolat_poudre: ['gluten', 'lait', 'fruits_coque'], pate_rillettes: ['gluten', 'oeuf', 'lait'], merguez: ['gluten', 'soja'], saucisse: ['gluten', 'lait', 'soja'],
+    knacki: ['gluten', 'lait'], chair_saucisse: ['gluten', 'lait', 'oeuf'], jambon: ['lait', 'gluten'], des_jambon: ['lait', 'gluten'], lardons: ['lait'],
+    cordon_bleu: ['oeuf', 'moutarde'], poisson_pane: ['oeuf', 'lait'], sauce_pates: ['gluten'], pesto: ['arachide'], coulis_tomate: ['celeri'],
+    tortillas: ['lait', 'soja'], pain_mie: ['soja', 'sesame', 'oeuf'], pain: ['soja', 'sesame'], pain_complet: ['soja', 'sesame'], biscottes: ['lait', 'soja', 'sesame'],
+    flocons_mais: ['fruits_coque', 'lait'], muesli: ['arachide', 'lait', 'soja'], biscuits: ['fruits_coque', 'soja'], glace: ['fruits_coque', 'oeuf', 'gluten'],
+    chips: ['lait', 'moutarde', 'celeri'], ketchup: ['celeri'], sauce_salade: ['oeuf', 'celeri'], worcestershire: ['celeri', 'gluten'], tabasco: [],
+    pate_brisee: ['oeuf', 'soja'], pate_feuilletee: ['oeuf', 'soja'], pate_pizza: ['soja', 'lait'], pates: ['oeuf', 'soja'], semoule: [], flocons_avoine: ['gluten'],
+    nuoc_mam: ['crustaces', 'soja'], pate_curry: ['poisson'], sauce_soja_sucree: ['sesame'], lait_coco: ['fruits_coque'], creme_coco: ['fruits_coque'],
+    yaourt: [], feta: [], tofu: ['gluten'], fromage_frais: [], caramel: ['fruits_coque'], pate_tartiner: ['gluten'], compote: [], confiture: []
+  };
+  /**
+   * Ce qu'il faut vérifier sur l'étiquette pour les allergies du profil, dans une recette déjà compatible :
+   * produits qui « peuvent contenir » un allergène signalé, et ingrédients ajoutés à la main dont la composition est inconnue.
+   * → [{ id, nom, allergenes: [...], inconnu: bool }]
+   */
+  function aVerifier(rec, p) {
+    const al = (p && p.allergies) || [];
+    if (!rec || !al.length) return [];
+    const out = [];
+    for (const [id] of rec.ing) {
+      const i = ING[id]; if (!i) continue;
+      if ((i.perso || i.manuel) && !(i.tags || []).length) { out.push({ id, nom: i.nom, allergenes: [], inconnu: true }); continue; }
+      const t = (PEUT_CONTENIR[id] || []).filter((a) => al.includes(a) || (a === 'lait' && al.includes('lactose')));
+      if (t.length) out.push({ id, nom: i.nom, allergenes: t, inconnu: false });
+    }
+    return out;
+  }
+
   function ingredientInterdit(ing, p) {
     for (const a of p.allergies) if (ing.tags.includes(a)) return 'allergie : ' + a;
     if (p.regime === 'vegetarien' && (ing.tags.includes('viande') || ing.tags.includes('poisson'))) return 'végétarien';
@@ -489,6 +522,11 @@
       cacheCompat.set(cle, PERSO.concat(SAISON_ACTIF, duMois, RECETTES).filter((r) => recetteCompatible(r, p).ok));
     }
     return cacheCompat.get(cle);
+  }
+  /** Nombre de recettes proposables ce mois-ci : le catalogue, plus les idées de saison du mois (et vos recettes). */
+  function nombreRecettes() {
+    const saison = SAISON.filter((r) => SAISON_ACTIF.includes(r) || (r.mois || []).includes(moisCourant())).length;
+    return { base: RECETTES.length, saison, perso: PERSO.length, total: RECETTES.length + saison + PERSO.length };
   }
   const contientViande = (rec) => rec.ing.some(([id]) => ING[id].tags.includes('viande'));
   const cacheCout = new Map();
@@ -654,6 +692,13 @@
     const neufs = liste.filter((r) => !ctx.sigs[r.sig || r.id] && !ctx.utilisations[r.id]);
     return neufs.length >= 3 ? neufs : liste;
   }
+  /** Pas deux plats trop proches le même jour : on écarte ceux qui ressemblent aux autres repas du jour (s'il en reste). */
+  function varierJour(liste, idsDuJour) {
+    const duJour = (idsDuJour || []).map((id) => REC[id]).filter(Boolean);
+    if (!duJour.length) return liste;
+    const varies = liste.filter((r) => !duJour.some((x) => tropProches(x, r)));
+    return varies.length ? varies : liste;
+  }
   /** Même plat (identique, ou seulement le féculent ou l'épice qui change). */
   const memePlat = (a, b) => !!(a && b && (a.id === b.id || (a.sig || a.id) === (b.sig || b.id)));
   /**
@@ -677,7 +722,7 @@
       if (!vus.some((x) => memePlat(x, rec)) || !libre) { vus.push(rec); continue; }
       const ctx = contexteDepuisPlan({ ...plan, jours }, opts.notes, { jour: j, slot: sl }, opts.classiques);
       const autre = SLOTS.map((s2) => s2 !== sl && jours[j][s2] && jours[j][s2].recette).filter(Boolean);
-      const liste = filtreTheme(candidats(p, j, sl, ctx, [m.recette, ...autre]), m.theme, ctx).filter((x) => !vus.some((v) => memePlat(v, x)));
+      const liste = varierJour(filtreTheme(candidats(p, j, sl, ctx, [m.recette, ...autre]), m.theme, ctx).filter((x) => !vus.some((v) => memePlat(v, x))), autre);
       if (!liste.length) { vus.push(rec); continue; }
       let best = null, bestS = -Infinity;
       for (const x of liste) { const sc = score(x, p, ctx, r); if (sc > bestS) { bestS = sc; best = x; } }
@@ -705,6 +750,36 @@
   const LEG_DISCRETS = new Set(['oignon', 'ail', 'citron', 'citron_vert', 'persil', 'echalote', 'tomates_concassees', 'coulis_tomate', 'puree_tomate', 'concentre_tomate']);
   const legumesPrincipaux = (rec) => [...new Set(rec.ing.map(([id]) => id).filter((id) => ING[id] && ING[id].groupe === 'L' && !LEG_DISCRETS.has(id)))];
   const feculentDe = (rec) => (rec.ing.find(([id]) => ING[id] && ING[id].groupe === 'F') || [])[0] || null;
+  // ingrédients qui font le plat (sans l'huile, le beurre, le lait, la farine, les épices ni les aromates)
+  const DE_BASE = new Set(['huile_olive', 'beurre', 'lait', 'farine', 'sucre', 'sel', 'poivre', 'eau']);
+  const cacheCaractere = new WeakMap();
+  const caractere = (rec) => {
+    let c = cacheCaractere.get(rec);
+    if (!c || c.ing !== rec.ing) { c = { ing: rec.ing, set: new Set(rec.ing.map(([id]) => id).filter((id) => ING[id] && ING[id].groupe !== 'A' && !LEG_DISCRETS.has(id) && !DE_BASE.has(id))), legs: legumesPrincipaux(rec) }; cacheCaractere.set(rec, c); }
+    return c;
+  };
+  /**
+   * Ressemblance entre deux plats (0 à 1) : part des ingrédients principaux en commun.
+   * « Poêlée haricots rouges, carottes, courge, semoule » et « poêlée pois chiches, carottes, courge, semoule » : 0,6.
+   */
+  function ressemblance(a, b) {
+    if (!a || !b) return 0;
+    if (memePlat(a, b)) return 1;
+    const ca = caractere(a), cb = caractere(b), A = ca.set, B = cb.set;
+    if (!A.size || !B.size) return 0;
+    let communs = 0;
+    for (const id of A) if (B.has(id)) communs++;
+    let r = communs / (A.size + B.size - communs);
+    // même famille de plat (poêlée, curry, gratin…) avec deux ingrédients principaux en commun : trop proche aussi
+    if (a.modele && a.modele === b.modele && !['maison', 'perso'].includes(a.modele) && communs >= 2) r = Math.max(r, 0.6);
+    // deux légumes principaux en commun (carottes et courge midi et soir), ou la même protéine avec un légume en commun
+    let legCommuns = 0;
+    for (const id of ca.legs) if (B.has(id)) legCommuns++;
+    if (legCommuns >= 2 || (a.prot && a.prot === b.prot && legCommuns >= 1)) r = Math.max(r, 0.55);
+    return r;
+  }
+  const SEUIL_PROCHE = 0.5;
+  const tropProches = (a, b) => ressemblance(a, b) >= SEUIL_PROCHE;
 
   function nouveauContexte(notes, classiques) {
     const cl = classiques || [];
@@ -764,7 +839,7 @@
         const nb = portions(p, j, slot);
         if (nb <= 0) { jourPlan[slot] = null; continue; }
         const theme = themeDuSlot(p, j, slot);
-        const liste = filtreTheme(candidats(p, j, slot, ctx, aujourdHui), theme, ctx);
+        const liste = varierJour(filtreTheme(candidats(p, j, slot, ctx, aujourdHui), theme, ctx), aujourdHui);
         if (!liste.length) { jourPlan[slot] = null; alertes.push(`Aucune recette compatible pour ${JOURS[j]} (${slot}).`); continue; }
         let best = null, bestS = -Infinity;
         for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
@@ -797,7 +872,7 @@
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
     const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
     const r = rng((plan.seed * 31 + jour * 7 + (slot === 'diner' ? 3 : 1) + (plan.remplacements + 1) * 101) >>> 0);
-    let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    let liste = varierJour(filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx), memeJour);
     if (!liste.length) return plan;
     let best = null, bestS = -Infinity;
     for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
@@ -835,6 +910,7 @@
     const modelesDeja = compte((x) => (x.modele !== 'maison' ? x.modele : null)), protDeja = compte((x) => x.prot);
     const legDeja = compte((x) => (x.ing.find(([id]) => ING[id] && ING[id].groupe === 'L' && !['oignon', 'ail', 'citron', 'persil'].includes(id)) || [])[0]);
     let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
+    { const v = varierJour(liste, memeJour); if (v.length > 3) liste = v; }   // idées différentes de l'autre repas du jour
     if (filtre) {
       // un filtre (rapide, petit prix, végétarien…) cherche dans tous les plats compatibles, pas seulement les mieux classés
       liste = recettesCompatibles(p).filter((x) => x.repas.includes(slot) && x.id !== actuel.recette && !memeJour.includes(x.id) && !(opts.exclure || []).includes(x.id) && !contientDeteste(x, p.gouts) && filtre(x));
@@ -899,7 +975,7 @@
         if (nb <= 0) { if (n[slot]) n[mis] = n[slot]; n[slot] = null; continue; }
         if (n[slot]) { n[slot] = { ...n[slot], portions: n[slot].manuel ? n[slot].portions : nb }; continue; }
         if (n[mis] && REC[n[mis].recette]) { n[slot] = { ...n[mis], portions: nb }; delete n[mis]; continue; }
-        const liste = candidats(p, j, slot, ctx, aujourdHui);
+        const liste = varierJour(candidats(p, j, slot, ctx, aujourdHui), aujourdHui);
         if (!liste.length) continue;
         let best = null, bestS = -Infinity;
         for (const rec of liste) { const sc = score(rec, p, ctx, r); if (sc > bestS) { bestS = sc; best = rec; } }
@@ -1027,13 +1103,13 @@
 
   /* ---------- prix d'un magasin (relevés sur les tickets de caisse) ---------- */
   let SOURCE_MAGASIN = null;
-  /** prix : { ingrédient: prix d'un paquet } relevés dans un magasin ; null pour revenir aux prix de démonstration. */
+  /** prix : { ingrédient: prix d'un paquet } relevés dans un magasin ; null pour revenir aux prix estimés (indicatifs). */
   function definirPrixMagasin(prix, infos) {
     for (const i of Object.values(ING)) if (i.prixBase != null) { i.prixDemo = i.prixBase; delete i.prixBase; }
     let n = 0;
     if (prix) for (const [id, p] of Object.entries(prix)) if (ING[id] && !ING[id].perso && p > 0) { ING[id].prixBase = ING[id].prixDemo; ING[id].prixDemo = p; n++; }
     cacheCout.clear();
-    SOURCE_MAGASIN = prix && n ? { type: 'magasin', libelle: infos && infos.libelle ? infos.libelle : `Prix ${infos && infos.nom ? 'de ' + infos.nom : 'de votre magasin'}`, detail: infos && infos.detail ? infos.detail : `${n} prix relevés sur vos tickets${infos && infos.nom ? ' chez ' + infos.nom : ''}${infos && infos.date ? ' (dernier le ' + infos.date + ')' : ''} ; les autres produits gardent un prix moyen estimé.`, date: infos && infos.date } : null;
+    SOURCE_MAGASIN = prix && n ? { type: 'magasin', libelle: infos && infos.libelle ? infos.libelle : `Prix ${infos && infos.nom ? 'de ' + infos.nom : 'de votre magasin'}`, detail: infos && infos.detail ? infos.detail : `${n} prix relevés sur vos tickets${infos && infos.nom ? ' chez ' + infos.nom : ''}${infos && infos.date ? ' (dernier le ' + infos.date + ')' : ''} ; les autres produits gardent un prix estimé (indicatif).`, date: infos && infos.date } : null;
     return n;
   }
   /** Prix habituel d'un produit (sans les prix de magasin). */
@@ -1151,30 +1227,74 @@
     return tri.map((x) => x[1]);
   }
 
-  /** Remplace les repas les plus chers jusqu'à tenir le budget (ou ne plus progresser). */
+  /** Repas du plan qui reviennent trop souvent : ingrédient principal (protéine, légume, féculent) et famille de plat. */
+  function repetitions(plan) {
+    const c = { prot: {}, leg: {}, fec: {}, modele: {} };
+    plan.jours.forEach((jp) => SLOTS.forEach((sl) => {
+      const m = jp[sl]; if (!m || m.deRestes || !REC[m.recette]) return;
+      const r = REC[m.recette];
+      if (r.prot) c.prot[r.prot] = (c.prot[r.prot] || 0) + 1;
+      for (const id of legumesPrincipaux(r)) c.leg[id] = (c.leg[id] || 0) + 1;
+      const f = feculentDe(r); if (f) c.fec[f] = (c.fec[f] || 0) + 1;
+      if (r.modele && !['maison', 'perso'].includes(r.modele)) c.modele[r.modele] = (c.modele[r.modele] || 0) + 1;
+    }));
+    return c;
+  }
+  /** Pénalité de monotonie (en euros « ressentis ») : au-delà de 2 fois la même protéine, de 3 fois le même légume ou féculent… */
+  function penaliteVariete(plan) {
+    const c = repetitions(plan);
+    let p = 0;
+    for (const n of Object.values(c.prot)) p += Math.max(0, n - 2) * 2.5;
+    for (const n of Object.values(c.leg)) p += Math.max(0, n - 3) * 2;
+    for (const n of Object.values(c.fec)) p += Math.max(0, n - 4) * 1;
+    for (const n of Object.values(c.modele)) p += Math.max(0, n - 2) * 2;
+    return p;
+  }
+  /** Deux plats trop proches un même jour → liste des jours concernés. */
+  function joursMonotones(plan) {
+    const out = [];
+    plan.jours.forEach((jp, j) => { const a = jp.dejeuner && REC[jp.dejeuner.recette], b = jp.diner && REC[jp.diner.recette]; if (a && b && !jp.diner.deRestes && tropProches(a, b)) out.push(j); });
+    return out;
+  }
+  /**
+   * Remplace les repas les plus chers jusqu'à tenir le budget (ou ne plus progresser).
+   * opts.mode : 'varie' (par défaut) garde des menus variés — jamais deux plats proches le même jour, peu de répétitions —
+   *             'max' cherche l'économie maximale (seuls les plats proches le même jour restent interdits).
+   * opts.verrous : repas « jour-slot » à ne pas toucher (déjà mangés, choisis, passés).
+   */
   function ajusterAuBudget(plan, p, opts = {}) {
+    const mode = opts.mode === 'max' ? 'max' : 'varie';
+    const verrous = new Set(opts.verrous || []);
     let courant = plan;
     const changements = [];
+    const cout = (pl) => { const t = listeCourses(pl, p).total; return { total: t, note: t + (mode === 'varie' ? penaliteVariete(pl) : 0) }; };
     for (let iter = 0; iter < 14; iter++) {
-      const total = listeCourses(courant, p).total;
+      const { total } = cout(courant);
       if (total <= p.budget) break;
       const repas = [];
-      courant.jours.forEach((jp, j) => SLOTS.forEach((slot) => { if (jp[slot]) repas.push({ j, slot, cout: coutRepas(jp[slot]) }); }));
+      courant.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
+        const m = jp[slot];
+        if (!m || m.deRestes || m.dehors || m.choisi || m.choisiPar || m.aChoisir || verrous.has(j + '-' + slot)) return;
+        repas.push({ j, slot, cout: coutRepas(m) });
+      }));
       repas.sort((a, b) => b.cout - a.cout);
       let progres = false;
       for (const { j, slot } of repas) {
         const actuel = courant.jours[j][slot];
         const ctx = contexteDepuisPlan(courant, opts.notes, { jour: j, slot });
         const autre = courant.jours[j][slot === 'dejeuner' ? 'diner' : 'dejeuner'];
+        const autreRec = autre && REC[autre.recette];
+        const maxUtil = mode === 'max' ? 2 : 1, maxModele = mode === 'max' ? 3 : 2;
         const liste = moinsCheres(candidats(p, j, slot, ctx, [actuel.recette, ...(autre ? [autre.recette] : [])])
-          .filter((rec) => (ctx.utilisations[rec.id] || 0) < 2 && (ctx.modeles[rec.modele] || 0) < 3), 12);
+          .filter((rec) => (ctx.utilisations[rec.id] || 0) < maxUtil && (ctx.modeles[rec.modele] || 0) < maxModele && !(autreRec && tropProches(autreRec, rec))), mode === 'max' ? 12 : 20);
         const options = liste.map((rec) => {
           const essai = { ...courant, jours: courant.jours.map((jp, i) => (i === j ? { ...jp, [slot]: { ...actuel, recette: rec.id } } : jp)) };
-          return { rec, essai, total: listeCourses(essai, p).total };
-        }).sort((a, b) => a.total - b.total);
-        if (options.length && options[0].total < total - 0.01) {
-          changements.push({ jour: JOURS[j], slot, avant: REC[actuel.recette].nom, apres: options[0].rec.nom, gain: round2(total - options[0].total) });
-          courant = options[0].essai;
+          return { rec, essai, ...cout(essai) };
+        }).filter((o) => o.total < total - 0.01).sort((a, b) => a.note - b.note || a.total - b.total);
+        if (options.length) {
+          const o = options[0];
+          changements.push({ jour: JOURS[j], slot, avant: REC[actuel.recette].nom, apres: o.rec.nom, gain: round2(total - o.total) });
+          courant = o.essai;
           progres = true;
           break;
         }
@@ -1182,7 +1302,7 @@
       if (!progres) break;
     }
     const estimation = listeCourses(courant, p).total;
-    return { plan: courant, estimation, atteint: estimation <= p.budget, changements };
+    return { plan: courant, estimation, atteint: estimation <= p.budget, changements, mode, monotones: joursMonotones(courant) };
   }
 
   /* ---------- « Qu'est-ce qu'on mange ce soir ? » ---------- */
@@ -1459,7 +1579,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    definirPrixMagasin, prixReference, sourcePrix, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

@@ -89,7 +89,7 @@ with sync_playwright() as p:
     page.locator("[data-a=ticket-fermer]").last.click()
     # comparaison des magasins sur la liste
     t = page.locator(".bloc-tickets").inner_text()
-    assert "Lidl" in t and "Aldi Drive" in t and "Prix de démonstration" in t, t
+    assert "Lidl" in t and "Aldi Drive" in t and "Prix estimés Budgétable" in t, t
     page.locator(".bloc-tickets").screenshot(path=f"{OUT}/tickets-comparaison.png")
     # rechargement : les prix restent appliqués
     page.reload()

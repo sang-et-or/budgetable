@@ -1,6 +1,13 @@
 # Coach minceur fusionné dans la semaine : assiette sous chaque plat, total du jour, repas libre, retrait de la semaine
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -15,7 +22,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
     page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); d.profil.foyer = { adultes: 2, enfants: ['6-10'] }; localStorage.setItem('budgetable.v1', JSON.stringify(d)); }"""); page.reload()
-    page.locator("nav button[data-k=minceur]").click()
+    aller(page, 'minceur')
     choix = lambda cle, k: page.locator(f"[data-a=prog-choix][data-cle={cle}][data-k='{k}']").click()
     champ = lambda k, v: page.locator(f"[data-a=prog-champ][data-k={k}]").fill(v)
     choix("sexe", "h"); champ("age", "45"); champ("taille", "178"); champ("poids", "92"); champ("objectif", "82")

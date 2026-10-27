@@ -2,6 +2,13 @@
 # Usage : python3 -m http.server 8765 -d dist &  puis  python3 tests/bibliotheque.py [dossier_captures] [url]
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
@@ -20,7 +27,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
 
     # 1. bibliothèque : ajouter une recette Marmiton
-    page.locator("nav button", has_text="Recettes").click()
+    aller(page, 'recettes')
     assert "Votre bibliothèque est vide" in page.inner_text("main")
     clic("Ajouter ma première recette")
     assert "Écrivez le nom du plat" in page.inner_text("#liens-recherche")
@@ -106,7 +113,7 @@ with sync_playwright() as p:
 
     # 8. la bibliothèque survit au rechargement
     page.reload()
-    page.locator("nav button", has_text="Recettes").click()
+    aller(page, 'recettes')
     assert page.locator(".carte-recette:not(.carte-saison)").count() == 2
     print("Erreurs JS :", erreurs or "aucune")
     assert not erreurs

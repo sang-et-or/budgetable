@@ -62,7 +62,7 @@ with sync_playwright() as p:
     page.locator("main .complement [data-a=complement-suppr]").first.click(); page.wait_for_timeout(200)
     assert "+ Entrée" in page.locator("main .complements").first.inner_text()
     # depuis la page Gourmand : filtre Entrées, ajouter au dîner de 2 jours
-    page.locator("nav button[data-k=gourmand]:visible").click(); page.wait_for_timeout(300)
+    page.locator(".nav-plus").click(); page.locator(".fenetre-plus [data-k=gourmand]").click(); page.wait_for_timeout(300)
     page.locator("[data-a=gourmand-filtre][data-k=entree]").click(); page.wait_for_timeout(200)
     page.locator("main [data-a=gourmand-ajouter]").first.click(); page.wait_for_timeout(200)
     assert page.locator("[data-a=gourmand-moment][data-k=entree-diner][aria-checked=true]").count()

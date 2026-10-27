@@ -11,6 +11,10 @@ with sync_playwright() as p:
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     clic("Préparer ma semaine")
     for _ in range(25):
+        if page.get_by_role("button", name="Voir mon profil").count(): break
+        clic("Continuer")
+    clic("Voir mon profil"); page.locator("[data-a=affiner]").first.click()   # provisions : dans les questions facultatives
+    for _ in range(25):
         if page.get_by_text("Qu’avez-vous déjà en réserve ?").count(): break
         clic("Continuer")
     assert "rangés dans votre placard" in page.inner_text("body")
@@ -24,7 +28,7 @@ with sync_playwright() as p:
     st = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).profil.stock")
     print("placard :", st)
     assert any(k.startswith("pates") for k in st) and any(k.startswith("riz") for k in st) and "huile_olive" in st, st
-    page.locator("nav button[data-k=placard]").click(); page.wait_for_timeout(300)
+    page.locator(".nav-plus").click(); page.locator(".fenetre-plus [data-k=placard]").click(); page.wait_for_timeout(300)
     page.screenshot(path=f"{OUT}/placard-provisions.png")
     # ancien compte : provisions sans placard → rangées au chargement
     d = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")

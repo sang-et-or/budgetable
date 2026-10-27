@@ -1,6 +1,13 @@
 # Ajouter au placard en photo : code-barres → Open Food Facts (simulé), photo du placard → reconnaissance (simulée).
 import sys, re, json, os
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 ICI = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +39,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button", has_text="Placard").click()
+    aller(page, 'placard')
     stock = lambda: page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).profil.stock")
     # 1. photo d'un produit : le code-barres est lu dans l'image, le produit trouvé, ajouté
     page.locator("input[data-a=photo-produit]").set_input_files(os.path.join(ICI, "codebarre-pates.png"))

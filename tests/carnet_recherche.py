@@ -1,6 +1,13 @@
 # Recherche d'aliments dans le carnet : liste intégrée (rhum…), ingrédients au poids, produits du commerce (simulés).
 import sys, re, json
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs, appels = [], []
 RECH = {"products": [{"code": "3245412345678", "product_name_fr": "Rhum ambré", "brands": "Marque A", "nutriments": {"energy-kcal_100g": 231}}, {"code": "123", "product_name": "Baba au rhum", "brands": "", "nutriments": {"energy-kcal_100g": 195}}]}
@@ -23,7 +30,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button", has_text="Apports").click()
+    aller(page, 'apports')
     page.locator("#carnet-cherche").press_sequentially("rhum", delay=40)
     z = page.locator("#carnet-resultats")
     assert "Rhum" in z.inner_text() and "1 verre (4 cl)" in z.inner_text(), z.inner_text()

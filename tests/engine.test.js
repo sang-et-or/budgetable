@@ -158,7 +158,7 @@ test('liste de courses : conditionnements arrondis au supérieur, provisions dé
   const premier = l1.articles.find((a) => !a.enStock);
   const l2 = E.listeCourses(plan, { ...p, provisions: [premier.id] });
   assert.ok(Math.abs(l1.total - premier.cout - l2.total) < 0.011);
-  assert.equal(l1.source.type, 'demo');
+  assert.equal(l1.source.type, 'estimation');
 });
 
 test('budget insuffisant : alerte, conseils, et l’ajustement fait baisser le coût', () => {
@@ -380,4 +380,42 @@ test('coach nutrition : les changements proposés améliorent la semaine sans ri
   assert.ok(r.propositions.length >= 1);
   assert.ok(r.apres.atteints > r.avant.atteints, `${r.avant.atteints} → ${r.apres.atteints}`);
   for (const x of r.propositions) assert.ok(E.recetteCompatible(E.REC[x.apres], p).ok);
+});
+
+// ---------- variété des menus économiques (retour de test : deux poêlées presque identiques le même jour) ----------
+test('ressemblance : les deux poêlées du test sont jugées trop proches', () => {
+  const a = E.REC['g-poelee-haricots_rouges-carotte-courge-semoule-prov'], b = E.REC['g-poelee-pois_chiches-carotte-courge-semoule-pap'];
+  assert.ok(a && b);
+  assert.ok(E.tropProches(a, b), 'même famille, mêmes légumes, même féculent');
+  assert.ok(!E.tropProches(E.REC.bolognaise, E.REC.dahl), 'des plats différents ne le sont pas');
+});
+
+test('ajuster au budget (menus variés) : jamais deux plats proches le même jour, et le total baisse', () => {
+  const p = profil({ foyer: { adultes: 2, enfants: [] }, budget: 60 });
+  for (const seed of [1, 3, 5]) {
+    const plan = E.genererSemaine(p, { seed });
+    const avant = E.listeCourses(plan, p).total;
+    const r = E.ajusterAuBudget(plan, p, { mode: 'varie' });
+    assert.ok(r.estimation < avant);
+    assert.deepEqual(r.monotones, [], 'aucun jour avec deux plats proches');
+    for (const jp of r.plan.jours) if (jp.dejeuner && jp.diner) assert.ok(!E.tropProches(E.REC[jp.dejeuner.recette], E.REC[jp.diner.recette]));
+  }
+});
+
+test('ajuster au budget : « économies maximales » baisse au moins autant que « menus variés »', () => {
+  const p = profil({ foyer: { adultes: 2, enfants: ['6-10', '3-5'] }, budget: 60 });
+  const plan = E.genererSemaine(p, { seed: 2 });
+  const v = E.ajusterAuBudget(plan, p, { mode: 'varie' }), m = E.ajusterAuBudget(plan, p, { mode: 'max' });
+  assert.ok(m.estimation <= v.estimation + 0.01);
+  assert.ok(E.penaliteVariete(v.plan) <= E.penaliteVariete(m.plan), 'menus variés : moins de répétitions');
+  assert.deepEqual(m.monotones, []);
+});
+
+test('ajuster au budget : les repas verrouillés (mangés, choisis) ne changent pas', () => {
+  const p = profil({ foyer: { adultes: 2, enfants: [] }, budget: 40 });
+  const plan = E.genererSemaine(p, { seed: 4 });
+  const r = E.ajusterAuBudget(plan, p, { verrous: ['0-dejeuner', '0-diner', '1-dejeuner'] });
+  assert.equal(r.plan.jours[0].dejeuner.recette, plan.jours[0].dejeuner.recette);
+  assert.equal(r.plan.jours[0].diner.recette, plan.jours[0].diner.recette);
+  assert.equal(r.plan.jours[1].dejeuner.recette, plan.jours[1].dejeuner.recette);
 });

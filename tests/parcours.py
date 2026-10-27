@@ -29,23 +29,27 @@ with sync_playwright() as p:
     page.get_by_role("button", name="3–5 ans").nth(1).click()
     page.screenshot(path=f"{OUT}/1-ages.png")
     cliquer(page, "Continuer")
-    cliquer(page, "Ils préfèrent les plats simples"); cliquer(page, "Continuer")
-    cliquer(page, "Faire des économies"); cliquer(page, "Continuer")
+    # premier menu : seulement l'essentiel (régime, allergies, consentement, temps, déjeuners, budget)
     cliquer(page, "Sans porc"); cliquer(page, "Continuer")
     cliquer(page, "Arachide"); cliquer(page, "Lactose"); cliquer(page, "Continuer")
     assert "Garder ces informations" in page.inner_text("h1"), "consentement non demandé"
     page.screenshot(path=f"{OUT}/2-consentement.png")
     cliquer(page, "Continuer")  # pas de consentement
     cliquer(page, "Continuer")  # temps
-    cliquer(page, "Continuer")  # niveau
-    cliquer(page, "Continuer")  # équipement
-    cliquer(page, "Continuer")  # cuisines
-    cliquer(page, "Champignons"); cliquer(page, "Continuer")
     cliquer(page, "Certains mangent dehors (travail, cantine)")
     page.get_by_role("button", name="Retirer").click()  # l'adulte déjeune au travail
     page.screenshot(path=f"{OUT}/3-dejeuners.png")
     cliquer(page, "Le mercredi"); cliquer(page, "Continuer")
-    cliquer(page, "Continuer")  # budget 60
+    cliquer(page, "Voir mon profil")  # budget 60, dernière question essentielle
+    # puis les questions facultatives (« Affiner »), ici tout de suite depuis la vérification du profil
+    page.locator("[data-a=affiner]").first.click()
+    assert "Affiner" in page.inner_text(".q-shell")
+    cliquer(page, "Ils préfèrent les plats simples"); cliquer(page, "Continuer")
+    cliquer(page, "Faire des économies"); cliquer(page, "Continuer")
+    cliquer(page, "Continuer")  # niveau
+    cliquer(page, "Continuer")  # équipement
+    cliquer(page, "Continuer")  # cuisines
+    cliquer(page, "Champignons"); cliquer(page, "Continuer")
     cliquer(page, "Voir mon profil")
     texte = page.inner_text("body")
     assert "Lactose" in texte and "Sans porc" in texte, "profil incomplet"
@@ -66,7 +70,7 @@ with sync_playwright() as p:
     cliquer(page, "Créer ma semaine avec ces goûts")
     texte = page.inner_text("body")
     assert "Pris dehors" in texte, "déjeuners dehors non pris en compte"
-    assert "prix démo" in texte.lower(), "étiquette démo absente"
+    assert "prix estimé" in texte.lower(), "étiquette « prix estimé » absente"
     page.screenshot(path=f"{OUT}/5-semaine.png", full_page=True)
     # aucune recette avec lardons/jambon/saucisse/champignons/crème/lait
     for interdit in ["lardons", "jambon", "Saucisses", "champignons", "Crêpes", "Croque"]:
@@ -84,7 +88,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/6-fiche.png")
     cliquer(page, "Fermer")
     # ce soir
-    page.get_by_role("button", name="Ce soir").click()
+    page.locator(".nav-plus").click(); page.get_by_role("button", name="Ce soir").click()
     cliquer(page, "Soulever la cloche")
     page.screenshot(path=f"{OUT}/7-ce-soir.png", full_page=True)
     # courses

@@ -1,6 +1,13 @@
 # Catalogue élargi : « parmesan » se trouve dans l'édition d'une recette et part dans la liste de courses
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -16,7 +23,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button", has_text="Recettes").click()
+    aller(page, 'recettes')
     page.get_by_role("button", name="+ Ajouter une recette").first.click()
     ed = page.locator(".fenetre-edition")
     ed.locator("input").first.fill("Pâtes bolognaise au parmesan")

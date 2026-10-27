@@ -108,6 +108,25 @@ a.btn { text-decoration: none; color: var(--poireau); }
 .tag-ok { color: var(--poireau); background: var(--poireau-pale); }
 .tag-non { color: var(--tomate); background: var(--tomate-pale); }
 .tag-simu { color: var(--encre-douce); background: var(--trait); }
+/* semaine : le budget en bref en haut, les réglages ensuite */
+.resume-budget { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--trait); background: var(--surface); }
+.resume-budget.ok { border-color: color-mix(in srgb, var(--poireau) 40%, var(--trait)); }
+.resume-budget.manque { border-color: color-mix(in srgb, var(--tomate) 45%, var(--trait)); background: color-mix(in srgb, var(--tomate) 5%, var(--surface)); }
+.resume-budget .resume-ic { font-size: 1.4rem; }
+@media (max-width: 699px) { .resume-budget { padding: 10px 12px; gap: 8px; } .resume-budget .resume-ic { display: none; } }
+.resume-budget > .stack { flex: 1 1 220px; }
+.titre-reglages { margin: 18px 0 0; padding-top: 14px; border-top: 2px dashed var(--trait); }
+.carte-affiner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--poireau-pale); border: 1px solid color-mix(in srgb, var(--poireau) 30%, transparent); }
+.carte-affiner > span:first-child { font-size: 1.4rem; }
+.carte-affiner > .stack { flex: 1 1 220px; }
+.aide-chiffre { display: block; font-size: .78em; }
+.kcal-portee .portee-kcal { display: block; color: var(--encre); background: var(--moutarde-pale); border-radius: 6px; padding: 1px 6px; margin-top: 2px; }
+.table-ecarts { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .88rem; }
+.table-ecarts th, .table-ecarts td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+.table-ecarts td.num, .table-ecarts th:not(:first-child) { text-align: right; white-space: nowrap; }
+.tag-alt { color: #8a5a00; background: #fff1d6; border: 1px solid #f0c674; }
+.promo-a-venir { opacity: .85; }
+.article-promos + .article-promos { border-top: 1px solid var(--trait); padding-top: 10px; }
 
 .carte { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--r); padding: 18px; }
 .bandeau { border-radius: var(--r); padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
@@ -898,7 +917,21 @@ html:has(.carte-swipe), body:has(.carte-swipe) { overflow-x: hidden; }
 .avis-rapide button.on { border-color: var(--poireau); background: var(--poireau); color: #fff; }
 
 /* ---------- mes apports ---------- */
-@media (max-width: 899px) { .nav button[data-k="apports"], .nav button[data-k="journal"], .nav button[data-k="promos"], .nav button[data-k="petitdej"], .nav button[data-k="minceur"], .nav button[data-k="sport"] { display: none; } }
+/* navigation : sur téléphone, l'essentiel (semaine, courses, profil) et « Plus » pour le reste */
+@media (max-width: 899px) { .nav { grid-template-columns: repeat(4, 1fr); } .nav button.nav-sec { display: none; } .nav button span { font-size: .72rem; } }
+.nav .nav-plus { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: .72rem; font-weight: 600; color: var(--encre-douce); border-radius: 10px; min-height: 52px; font-family: inherit; cursor: pointer; }
+.nav .nav-plus svg { width: 22px; height: 22px; }
+.nav .nav-plus[aria-current="page"], .nav .nav-plus[aria-expanded="true"] { color: var(--poireau); background: var(--poireau-pale); }
+.nav .nav-plus span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fenetre-plus { display: grid; gap: 16px; }
+.grille-plus { display: grid; grid-template-columns: 1fr; gap: 6px; }
+@media (min-width: 520px) { .grille-plus { grid-template-columns: 1fr 1fr; } }
+.tuile-plus { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--trait); border-radius: 14px; background: var(--surface); color: var(--encre); font: inherit; text-align: left; cursor: pointer; min-height: 56px; position: relative; }
+.tuile-plus .nav-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.tuile-plus .nav-ic svg { width: 20px; height: 20px; }
+.tuile-plus[aria-current="page"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 8%, var(--surface)); }
+@media (min-width: 900px) { .nav .nav-plus { display: none; } .nav button.nav-ess { padding-top: 9px; padding-bottom: 9px; } .nav button.nav-ess > span:not(.nav-ic) { font-size: 1rem; font-weight: 700; } .nav button.nav-ess .nav-ic { width: 38px; height: 38px; } }
+.tuile-plus .nav-badge { display: inline-block; margin-left: auto; font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--tomate-pale); color: var(--tomate); }
 .tuiles-apports { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .tuile-apport { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .tuile-apport strong { font: 800 1.5rem var(--f-titre); }
@@ -1283,6 +1316,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/commis.js"></script>
 <script src="js/aliments.js"></script>
 <script src="js/saisie.js"></script>
+<script src="js/promos-match.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>
 <script src="js/magasins.js"></script>

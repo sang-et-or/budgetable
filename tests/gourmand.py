@@ -1,6 +1,13 @@
 # Grignotages gourmands : catalogue de desserts et goûters, ajout à la semaine et aux courses, recette perso.
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 URL = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8766/index.html"
 erreurs = []
@@ -18,7 +25,7 @@ with sync_playwright() as p:
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
     assert page.locator("nav button").count() >= 7
-    page.locator("nav button", has_text="Gourmand").click()
+    aller(page, 'gourmand')
     main = page.locator("main")
     assert "Grignotages gourmands" in main.inner_text()
     n = main.locator(".carte-gourmande").count(); assert n >= 25, n
@@ -30,7 +37,7 @@ with sync_playwright() as p:
     total_avant = None
     page.locator("nav button", has_text="Courses").click()
     total_avant = page.locator(".ticket-total .num").inner_text()
-    page.locator("nav button", has_text="Gourmand").click()
+    aller(page, 'gourmand')
     main.locator(".carte-gourmande", has_text="Gâteau au yaourt").get_by_role("button", name=re.compile("Ajouter à ma semaine")).click()
     f = page.locator(".fenetre-gourmand")
     assert f.get_by_role("button", name="Ajouter à ma semaine et à mes courses").is_disabled()
@@ -48,7 +55,7 @@ with sync_playwright() as p:
     assert "Sucre en poudre" in ct and "Levure chimique" in ct, ct[:400]
     assert page.locator(".ticket-total .num").inner_text() != total_avant
     # fiche de la gourmandise
-    page.locator("nav button", has_text="Gourmand").click()
+    aller(page, 'gourmand')
     main.locator(".carte-gourmande", has_text="Crêpes").locator(".titre-repas").click()
     fiche = page.locator(".fiche").last
     assert "Préparation" in fiche.inner_text() and "8 parts" in fiche.inner_text(), fiche.inner_text()[:300]
@@ -69,7 +76,7 @@ with sync_playwright() as p:
     assert "Gâteau au chocolat de mamie" in main.inner_text()
     assert main.get_by_role("button", name="Les miennes").count() == 1
     # persistance
-    page.reload(); page.locator("nav button", has_text="Gourmand").click()
+    page.reload(); aller(page, 'gourmand')
     assert "Gâteau au chocolat de mamie" in main.inner_text() and main.locator(".liste-gourmande li").count() == 1
     page.screenshot(path=f"{OUT}/g3-perso.png", full_page=True)
     print("Erreurs JS :", erreurs or "aucune")

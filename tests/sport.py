@@ -1,6 +1,13 @@
 # Coach sportif : bilan avec questions de santé, séances, séance guidée (minuteur), ressenti, bilan de semaine, coach
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -14,7 +21,7 @@ with sync_playwright() as p:
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button[data-k=sport]").click()
+    aller(page, 'sport')
     page.locator("[data-a=sp-champ][data-k=age]").fill("38")
     page.locator("[data-a=sp-choix][data-cle=objectif][data-k=perte]").click()
     page.locator("[data-a=sp-choix][data-cle=niveau][data-k=debutant]").click()
@@ -55,7 +62,7 @@ with sync_playwright() as p:
     assert len(h) == 1 and h[0]["ressenti"] == "facile"
     # bilan de semaine (forcé) → semaine 2
     page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); d.profil.sport.semaineDu = '2020-01-06'; localStorage.setItem('budgetable.v1', JSON.stringify(d)); }"""); page.reload()
-    page.locator("nav button[data-k=sport]").click()
+    aller(page, 'sport')
     page.locator("[data-a=sp-bilan]").click()
     assert "Semaine 2" in page.inner_text("main") and "facile" in page.inner_text(".message-coach")
     # petits-déj sportifs

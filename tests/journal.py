@@ -1,6 +1,13 @@
 # Page « Mon journal » : jours, smileys, filtres, recherche, suppression, export.
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -16,7 +23,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button", has_text="Journal").click()
+    aller(page, 'journal')
     assert "Rien à afficher" in page.inner_text("main")
     page.evaluate("""() => { const a = JSON.parse(localStorage.getItem('budgetable.v1'));
       const recs = a.plan.jours.flatMap(j => [j.dejeuner, j.diner]).filter(Boolean).map(m => m.recette);
@@ -27,7 +34,7 @@ with sync_playwright() as p:
         a.ajouts.push({ d: di, a: 'croissant', n: 1, m: 'petitdej' }, { d: di, a: 'cafe_lait', n: 1, m: 'boisson' });
         if (k % 3 === 0) a.ajouts.push({ d: di, a: 'soda', n: 3, m: 'boisson' }); }
       localStorage.setItem('budgetable.v1', JSON.stringify(a)); }""")
-    page.reload(); page.locator("nav button", has_text="Journal").click()
+    page.reload(); aller(page, 'journal')
     main = page.locator("main")
     assert main.locator(".jour-journal").count() == 10
     t = main.inner_text()

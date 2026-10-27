@@ -170,7 +170,7 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const euros = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   const nb = (n) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
-  const pluriel = (n, s, p) => `${Number.isInteger(n) ? n : nb(n)} ${n >= 2 ? (p || s + 's') : s}`;
+  const pluriel = (n, s, p) => `${Number.isInteger(n) ? n.toLocaleString('fr-FR') : nb(n)} ${n >= 2 ? (p || s.split(' ').map((w, i) => (i === 0 || /é$|ée$/.test(w) ? w + (/[sx]$/.test(w) ? '' : 's') : w)).join(' ')) : s}`;
   const aujourdhui = () => (new Date().getDay() + 6) % 7;
   /** Jour (0 = lundi) par lequel commence la semaine du planning : le jour de sa création. */
   const debutSemaine = () => (S.planDu ? (new Date(S.planDu + 'T12:00:00').getDay() + 6) % 7 : aujourdhui());
@@ -250,24 +250,39 @@
   /* ---------- questionnaire adaptatif ---------- */
   const kids = (p) => p.foyer.enfants.length > 0;
   const QUESTIONS = [
-    { id: 'foyer', titre: 'Qui mange à la maison ?', aide: 'On calcule les portions à partir de là.', type: 'foyer' },
-    { id: 'ages', quand: kids, titre: (p) => p.foyer.enfants.length > 1 ? 'Quel âge ont les enfants ?' : 'Quel âge a l’enfant ?', aide: 'Une tranche d’âge suffit, pas besoin de date de naissance.', type: 'ages' },
+    { id: 'foyer', essentiel: true, titre: 'Qui mange à la maison ?', aide: 'On calcule les portions à partir de là.', type: 'foyer' },
+    { id: 'ages', essentiel: true, quand: kids, titre: (p) => p.foyer.enfants.length > 1 ? 'Quel âge ont les enfants ?' : 'Quel âge a l’enfant ?', aide: 'Une tranche d’âge suffit, pas besoin de date de naissance.', type: 'ages' },
     { id: 'enfantsMode', quand: kids, titre: 'Les enfants mangent-ils la même chose que vous ?', type: 'unique', champ: 'enfantsMode', options: { pareil: 'Oui, le même plat', simple: 'Ils préfèrent les plats simples' } },
     { id: 'objectifs', titre: 'Qu’est-ce qui compte le plus pour vous ?', aide: 'Plusieurs choix possibles.', type: 'multi', champ: 'objectifs', options: L.objectifs, sensibles: ['perte'] },
     { id: 'sport', quand: (p) => p.objectifs.includes('muscle'), titre: 'Combien de séances de sport par semaine ?', aide: 'On privilégiera les plats riches en protéines et des portions plus généreuses.', type: 'unique', champ: 'seancesSport', nombre: true, options: { 1: '1 séance', 2: '2 ou 3', 4: '4 ou plus' } },
-    { id: 'regime', titre: 'Suivez-vous un régime alimentaire ?', type: 'unique', champ: 'regime', options: L.regime },
-    { id: 'allergies', titre: 'Des allergies ou intolérances dans le foyer ?', aide: 'Facultatif. Sert uniquement à écarter des recettes. Vérifiez toujours les étiquettes : une recette ne garantit pas l’absence de traces.', type: 'multi', champ: 'allergies', options: L.allergies, aucune: 'Aucune', passer: true, sensible: true },
-    { id: 'consentement', quand: (p) => p.allergies.length > 0 || p.objectifs.includes('perte'), type: 'consentement', titre: 'Garder ces informations sur cet appareil ?' },
-    { id: 'temps', titre: 'Combien de temps pour cuisiner un repas ?', type: 'temps' },
+    { id: 'regime', essentiel: true, titre: 'Suivez-vous un régime alimentaire ?', type: 'unique', champ: 'regime', options: L.regime },
+    { id: 'allergies', essentiel: true, titre: 'Des allergies ou intolérances dans le foyer ?', aide: 'Facultatif. Sert uniquement à écarter des recettes. Vérifiez toujours les étiquettes : une recette ne garantit pas l’absence de traces.', type: 'multi', champ: 'allergies', options: L.allergies, aucune: 'Aucune', passer: true, sensible: true },
+    { id: 'consentement', essentiel: true, quand: (p) => p.allergies.length > 0 || p.objectifs.includes('perte'), type: 'consentement', titre: 'Garder ces informations sur cet appareil ?' },
+    { id: 'temps', essentiel: true, titre: 'Combien de temps pour cuisiner un repas ?', type: 'temps' },
     { id: 'niveau', titre: 'En cuisine, vous êtes plutôt…', type: 'unique', champ: 'niveau', options: L.niveau },
     { id: 'equipement', titre: 'Qu’avez-vous dans la cuisine ?', type: 'multi', champ: 'equipement', options: L.equipement },
     { id: 'cuisines', titre: 'Quelles cuisines vous font envie ?', aide: 'On les proposera plus souvent.', type: 'multi', champ: 'cuisines', options: L.cuisines, aucune: 'Pas de préférence' },
     { id: 'refus', titre: (p) => kids(p) ? 'Ce que quelqu’un refuse de manger' : 'Ce que vous ne mangez pas', aide: 'Ces aliments seront écartés.', type: 'multi', champ: 'refus', options: L.refus, aucune: 'Rien de particulier' },
-    { id: 'dejeuners', titre: 'Et les déjeuners en semaine ?', type: 'dejeuners' },
-    { id: 'budget', titre: 'Quel budget pour les courses de la semaine ?', type: 'budget' },
+    { id: 'dejeuners', essentiel: true, titre: 'Et les déjeuners en semaine ?', type: 'dejeuners' },
+    { id: 'budget', essentiel: true, titre: 'Quel budget pour les courses de la semaine ?', type: 'budget' },
     { id: 'provisions', titre: 'Qu’avez-vous déjà en réserve ?', aide: 'Ils seront rangés dans votre placard et ne seront pas ajoutés à la liste de courses.', type: 'provisions' }
   ];
   const questionsActives = (p) => QUESTIONS.filter((q) => !q.quand || q.quand(p));
+  /**
+   * Questions du parcours en cours :
+   *   - premier menu : l'essentiel seulement (foyer, régime, allergies, temps, déjeuners, budget) ;
+   *   - « Affiner mes menus » : le reste (objectifs, niveau, équipement, cuisines, aliments refusés, provisions…) ;
+   *   - modification d'une réponse depuis le profil : toutes.
+   * Le consentement reste dans le parcours tant qu'il y a des données de santé (allergies ou perte de poids).
+   */
+  function questionsParcours(p) {
+    const qs = questionsActives(p);
+    if (S.edition) return qs;
+    if (S.qMode === 'complement') return qs.filter((q) => !q.essentiel || (q.id === 'consentement' && !p.consentementSante && p.objectifs.includes('perte')));   // « perte de poids » choisie ici : on redemande l'accord
+    if (S.qMode === 'essentiel') return qs.filter((q) => q.essentiel);
+    return qs;
+  }
+  const NB_COMPLEMENT = () => questionsActives(S.profil).filter((q) => !q.essentiel).length;
 
   function reaction(q, p) {
     const n = p.foyer.adultes, e = p.foyer.enfants.length;
@@ -276,7 +291,7 @@
       case 'objectifs': return e ? 'Bien noté pour les enfants.' : `Parfait, ${n > 1 ? 'des menus pour ' + n + ' adultes' : 'des menus pour une personne'}.`;
       case 'sport': return 'D’accord, on visera des repas qui soutiennent l’effort.';
       case 'regime': return p.objectifs.includes('perte') ? 'Pour la perte de poids, on proposera des plats plus légers. Pour un vrai suivi, parlez-en à un professionnel de santé.' : p.objectifs.includes('economies') ? 'Les économies seront prioritaires : moins de gaspillage, ingrédients partagés.' : null;
-      case 'temps': return p.allergies.length ? `${pluriel(p.allergies.length, 'allergie')} prise${p.allergies.length > 1 ? 's' : ''} en compte. Aucune recette ne les contiendra.` : null;
+      case 'temps': return p.allergies.length ? `${pluriel(p.allergies.length, 'allergie')} prise${p.allergies.length > 1 ? 's' : ''} en compte : les recettes avec ces ingrédients seront écartées. Vérifiez quand même les étiquettes (traces).` : null;
       case 'equipement': return p.niveau === 'debutant' ? 'On restera sur des recettes faciles, étape par étape.' : null;
       case 'budget': return p.dejeuners.mode === 'dehors' ? 'Les déjeuners pris dehors ne seront pas comptés.' : null;
       default: return null;
@@ -285,14 +300,14 @@
 
   function vueQuestionnaire() {
     const p = S.profil;
-    const qs = questionsActives(p);
+    const qs = questionsParcours(p);
     S.etape = Math.min(S.etape, qs.length - 1);
     const q = qs[S.etape];
     const titre = typeof q.titre === 'function' ? q.titre(p) : q.titre;
     const re = reaction(q, p);
     const pct = Math.round((S.etape / qs.length) * 100);
     return `<div class="wrap"><div class="store" aria-hidden="true"></div><div class="q-shell">
-      <div class="spread"><div class="marque">${LOGO}Budgétable</div><span class="small muted num">${S.etape + 1} / ${qs.length}</span></div>
+      <div class="spread"><div class="marque">${LOGO}Budgétable</div><span class="small muted num">${S.qMode === 'complement' && !S.edition ? 'Affiner · ' : ''}${S.etape + 1} / ${qs.length}</span></div>
       <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement du questionnaire"><i style="width:${pct}%"></i></div>
       ${re ? `<p class="bulle">${esc(re)}</p>` : ''}
       <h1 id="q-titre">${esc(titre)}</h1>
@@ -302,7 +317,7 @@
         <button class="btn" data-a="q-prec" ${S.etape === 0 && !S.edition ? 'disabled' : ''}>Retour</button>
         <div class="row">
           ${q.passer ? '<button class="btn btn-lien" data-a="q-passer">Je préfère ne pas répondre</button>' : ''}
-          <button class="btn btn-plein" data-a="q-suiv">${S.edition ? 'Enregistrer' : S.etape === qs.length - 1 ? 'Voir mon profil' : 'Continuer'}</button>
+          <button class="btn btn-plein" data-a="q-suiv">${S.edition ? 'Enregistrer' : S.etape === qs.length - 1 ? (S.qMode === 'complement' && S.plan ? 'Terminer' : 'Voir mon profil') : 'Continuer'}</button>
         </div>
       </div>
     </div></div>`;
@@ -390,7 +405,7 @@
     const nCompat = E.recettesCompatibles(p).length;
     return `<div class="profil-grille">${lignesProfil(p).map(([id, t, v]) => `
       <div class="profil-item"><div class="spread"><span class="eyebrow">${t}</span><button class="btn-lien btn small" data-a="modifier" data-q="${id}" aria-label="Modifier : ${t}">Modifier</button></div><span>${esc(v)}</span></div>`).join('')}</div>
-      <p class="small muted">${pluriel(nCompat, 'recette compatible')} avec ce profil dans la base actuelle.${nCompat < 10 ? ' C’est peu : certaines reviendront dans la semaine.' : ''}</p>
+      <p class="small muted">${pluriel(nCompat, 'recette compatible', 'recettes compatibles')} avec ce profil${nCompat < E.nombreRecettes().total ? `, sur ${E.nombreRecettes().total.toLocaleString('fr-FR')} recettes ce mois-ci` : ', soit toutes les recettes du mois'} (dont ${E.nombreRecettes().saison.toLocaleString('fr-FR')} idées de saison).${nCompat < 10 ? ' C’est peu : certaines reviendront dans la semaine.' : ''}</p>
       ${avecConsent && (p.allergies.length || p.objectifs.includes('perte')) ? `<p class="small">${p.consentementSante ? '<span class="tag tag-ok">Données de santé enregistrées avec votre accord</span>' : '<span class="tag tag-simu">Données de santé non enregistrées</span>'}</p>` : ''}`;
   }
 
@@ -399,9 +414,9 @@
       <div class="marque">${LOGO}Budgétable</div>
       <p class="eyebrow">Votre profil alimentaire</p>
       <h1>Vérifiez avant de créer la semaine</h1>
-      <p class="muted">Tout reste modifiable ensuite dans l’onglet « Profil ».</p>
+      <p class="muted">Tout reste modifiable ensuite dans « Mon profil ».${S.profil.parcours === 'essentiel' ? ` Les autres réglages ont une valeur par défaut : vous pourrez les affiner après votre premier menu (${NB_COMPLEMENT()} questions facultatives), ou <button class="btn-lien" data-a="affiner">maintenant</button>.` : ''}</p>
       ${blocProfil(S.profil, true)}
-      <section class="carte stack" style="gap:10px"><div class="spread"><h2>Le test de goût</h2><span class="tag tag-ok">2 minutes</span></div>
+      <section class="carte stack" style="gap:10px"><div class="spread"><h2>Le test de goût</h2><span class="tag tag-ok">facultatif · 2 minutes</span></div>
         <p>En 3 étapes : les aliments que vous aimez ou refusez, vos cuisines et types de plats préférés, puis une dizaine de plats choisis selon vos réponses. Budgétable vous propose ensuite ce que vous aimez, et plus jamais ce que vous refusez.</p>
         <div><button class="btn btn-plein" data-a="test-go" data-depuis="profil">Faire le test de goût</button></div></section>
       <div class="q-nav"><button class="btn" data-a="q-reprendre">Revenir aux questions</button><button class="btn" data-a="valider">Passer et créer ma semaine</button></div>
@@ -501,7 +516,7 @@
         <div class="carte-test-illu">${V(rec, t.pourquoi ? 110 : 220)}</div>
         <div class="stack" style="gap:6px;text-align:center">
           <h1 style="font-size:1.45rem">${esc(rec.nom)}</h1>
-          <p class="meta" style="justify-content:center"><span>${esc(L.cuisines[rec.cuisine] || 'Maison')}</span><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</p>
+          <p class="meta" style="justify-content:center"><span>${esc(L.cuisines[rec.cuisine] || 'Maison')}</span><span>${rec.temps} min</span><span class="part num" title="Prix estimé">≈ ${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</p>
         </div>
       </article>
       ${t.pourquoi ? questionPourquoi(rec) : `<div class="reponses" role="group" aria-label="Votre avis sur ce plat">
@@ -859,7 +874,7 @@
   /* ---------- visite guidée (première utilisation, puis depuis « Profil ») ---------- */
   const tuto = { i: -1 };
   const ETAPES_TUTO = [
-    { e: '🎉', t: 'Votre semaine est prête !', p: 'Midi et soir, 7 jours, selon vos goûts, la saison et votre budget. Touchez un plat pour voir sa recette ; « Changer » en propose un autre.', o: 'semaine' },
+    { e: '🎉', t: 'Votre semaine est prête !', p: 'Midi et soir, 7 jours, selon vos goûts, la saison et votre budget. Touchez un plat pour voir sa recette ; « Changer » en propose un autre. Le budget est juste en dessous du titre, les réglages en bas de la page.', o: 'semaine' },
     { e: '🔀', t: 'Tout s’ajuste', p: 'Déplacez un plat d’un jour à l’autre, indiquez qui mange à la maison, ajoutez une entrée ou un dessert. Les restes deviennent les gamelles du lendemain.', o: 'semaine' },
     { e: '🛒', t: 'La liste de courses se fait toute seule', p: 'Triée par rayon, avec les bons conditionnements. Cochez en magasin, ou envoyez-la vers votre drive. Ce qui est au placard n’est pas racheté.', o: 'courses' },
     { e: '🍽', t: 'Ce soir, on soulève la cloche', p: 'Le plat du soir, la recette pas à pas et les quantités pour le bon nombre de personnes, sans chercher.', o: 'soir' },
@@ -867,7 +882,7 @@
     { e: '🥐', t: 'Le coin gourmand', p: 'Petits-déjeuners, desserts, goûters et entrées à ajouter à la semaine, et vos propres recettes.', o: 'gourmand' },
     { e: '🥗', t: 'Votre coach nutritionnel', p: 'Minceur, sportif, famille ou femme de 40 ans et plus : le coach adapte vos menus à votre objectif, vous donne un bilan de la semaine et répond à vos questions : écrivez-lui avec le bouton 💬 Mon coach. Le programme minceur vous suit semaine après semaine, en douceur.', o: 'minceur' },
     { e: '🏃', t: 'Votre coach sportif', p: 'Un programme de séances à votre niveau, à la maison ou en salle, avec le suivi de vos séances et des repas qui vont avec vos jours d’entraînement.', o: 'sport' },
-    { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Profil ». Sans compte, rien n’est gardé : créez votre compte gratuit pour garder votre semaine et la retrouver sur tous vos appareils.', o: 'profil' }
+    { e: '👤', t: 'Votre profil, vos données', p: 'Goûts, allergies, budget : tout se change dans « Mon profil ». Sur téléphone, les autres fonctions (Ce soir, Placard, Promos, coachs…) sont dans « Plus ». Sans compte, rien n’est gardé : créez votre compte gratuit pour garder votre semaine et la retrouver sur tous vos appareils.', o: 'profil' }
   ];
   function vueTuto() {
     if (tuto.i < 0 || !S.plan || S.vue !== 'app') return '';
@@ -1028,7 +1043,7 @@
   }
 
   function vueAccueil() {
-    const nbRec = E.RECETTES.length.toLocaleString('fr-FR');
+    const nbRec = E.nombreRecettes().total.toLocaleString('fr-FR');
     const nbIng = E.DATA.ingredients.filter((i) => !i.perso).length;
     const connecte = C.connecte();
     const FONCTIONS = [
@@ -1046,7 +1061,7 @@
         <div class="stack" style="gap:16px">
           <p class="eyebrow">Bien manger, petit budget</p>
           <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
-          <p class="accueil-sous">Deux minutes de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
+          <p class="accueil-sous">Environ une minute de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
           <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
           ${S.plan ? '' : '<p class="small" style="margin:6px 0 0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
           <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · créez votre compte pour garder vos menus · à installer sur votre téléphone en un geste</p>
@@ -1055,8 +1070,8 @@
       </section>
       <section class="chiffres" aria-label="Budgétable en chiffres">
         <div><strong class="num">${nbRec}</strong><span>recettes adaptées à votre foyer</span></div>
-        <div><strong class="num">${nbIng}</strong><span>produits suivis, avec leur prix</span></div>
-        <div><strong class="num">≈ 2 €</strong><span>l’assiette en moyenne, fait maison</span></div>
+        <div><strong class="num">${nbIng}</strong><span>produits avec un prix estimé, à ajuster avec vos tickets</span></div>
+        <div><strong class="num">&lt; 2 €</strong><span>l’assiette en moyenne dans nos menus types, fait maison (estimation)</span></div>
       </section>
       <section class="stack" style="gap:16px"><div class="titre-section"><p class="eyebrow">Tout au même endroit</p><h2>De l’idée du menu au panier</h2></div>
         <div class="fonctions">${FONCTIONS.map(([ic, c, t, d]) => `<article class="fonction" style="--c:${c}"><span class="fonction-ic">${ICONES[ic]}</span><h3>${t}</h3><p class="small muted">${d}</p></article>`).join('')}</div>
@@ -1070,21 +1085,21 @@
       </section>
       <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Trois étapes, et c’est prêt</h2></div>
         <ol class="etapes">
-          <li><span class="num-etape">1</span><div><strong>Vous répondez à quelques questions</strong><p class="small muted">Qui mange à la maison, votre budget, vos goûts, vos allergies, le temps que vous avez.</p></div></li>
+          <li><span class="num-etape">1</span><div><strong>Vous répondez à l’essentiel</strong><p class="small muted">Qui mange à la maison, votre régime, vos allergies, le temps que vous avez, les déjeuners et votre budget. Le reste (goûts, équipement, provisions) peut attendre.</p></div></li>
           <li><span class="num-etape">2</span><div><strong>Budgétable prépare la semaine</strong><p class="small muted">Menus variés, recettes pas à pas, quantités pour votre foyer. Changez un plat en un geste.</p></div></li>
           <li><span class="num-etape">3</span><div><strong>Vous faites les courses</strong><p class="small muted">Liste par rayon, promos du moment, drive guidé, placard mis à jour. Et bon appétit !</p></div></li>
         </ol>
       </section>
       <section class="carte stack compte-accueil" style="gap:12px"><h2>${connecte ? 'Vous êtes connecté' : 'Un compte pour vous suivre partout'}</h2>
-        <p class="muted" style="margin:0">${connecte ? 'Vos menus, votre liste et vos recettes sont enregistrés dans votre compte et vous suivent sur tous vos appareils.' : 'Avec un compte gratuit, vos menus, votre liste et vos recettes vous suivent sur votre téléphone et votre ordinateur. Sans compte, tout fonctionne aussi : vos données restent sur cet appareil.'}</p>
+        <p class="muted" style="margin:0">${connecte ? 'Vos menus, votre liste et vos recettes sont enregistrés dans votre compte et vous suivent sur tous vos appareils.' : 'Avec un compte gratuit, vos menus, votre liste et vos recettes sont enregistrés et vous suivent sur votre téléphone et votre ordinateur. Sans compte, vous pouvez tout essayer, mais rien n’est gardé quand vous fermez Budgétable.'}</p>
         <div class="row" style="gap:8px">${connecte ? '<button class="btn btn-plein" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">J’ai déjà un compte</button>'}</div>
       </section>
       <section class="stack" style="gap:10px"><div class="titre-section"><p class="eyebrow">Questions fréquentes</p><h2>Bon à savoir</h2></div>
         <div class="faq">
           <details><summary>Combien ça coûte ?</summary><p>La première semaine est gratuite, sans carte bancaire. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement : vous pouvez résilier à tout moment depuis votre profil. Si vous ne vous abonnez pas, vos menus, votre liste et votre placard restent consultables.</p></details>
-          <details><summary>Faut-il créer un compte ?</summary><p>Non. Le compte sert seulement à retrouver vos données sur plusieurs appareils. Sans compte, tout reste sur votre appareil.</p></details>
-          <details><summary>Les prix sont-ils ceux de mon magasin ?</summary><p>Ce sont des prix moyens estimés, pour comparer et tenir un budget. Les promotions du moment viennent des enseignes et sont à vérifier en magasin.</p></details>
-          <details><summary>Et mes allergies ?</summary><p>Budgétable ne propose jamais un plat qui contient un aliment que vous avez signalé. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
+          <details><summary>Faut-il créer un compte ?</summary><p>Pas pour essayer : sans compte, tout fonctionne, mais rien n’est enregistré et votre semaine s’efface quand vous fermez Budgétable. Le compte gratuit garde vos menus, votre liste et vos recettes, sur tous vos appareils.</p></details>
+          <details><summary>Les prix sont-ils ceux de mon magasin ?</summary><p>Pas au départ : ce sont des prix indicatifs estimés par Budgétable, pas des prix relevés en magasin. Ils servent à préparer un budget. Scannez un ticket de caisse ou collez le récapitulatif de votre panier drive : l’appli compare ses estimations aux prix payés et peut utiliser vos vrais prix. Vous pouvez aussi corriger un prix dans la liste. Les promotions viennent des sites des enseignes, avec leurs dates, et restent à vérifier en magasin.</p></details>
+          <details><summary>Et mes allergies ?</summary><p>Budgétable écarte des menus les recettes dont un ingrédient contient un allergène que vous avez signalé, et signale les produits qui peuvent en contenir selon la marque (bouillon, épices, charcuterie…). Il ne connaît pas la composition exacte de chaque produit ni les risques de traces : vérifiez toujours la liste des ingrédients et les mentions « peut contenir » sur l’étiquette. En cas d’allergie sévère, suivez l’avis de votre médecin. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
         </div>
       </section>
       <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button></section>
@@ -1093,12 +1108,26 @@
   }
 
   /* ---------- application ---------- */
-  const GROUPES_NAV = [['Planifier', ['semaine', 'soir', 'recettes', 'petitdej', 'gourmand']], ['Faire les courses', ['courses', 'promos', 'placard']], ['Suivre', ['sport', 'minceur', 'apports', 'journal']], ['', ['profil']]];
+  // l'essentiel d'abord (semaine, courses, profil), puis les autres fonctions regroupées par usage
+  const ESSENTIEL_NAV = ['semaine', 'courses', 'profil'];
+  const GROUPES_NAV = [['Cuisiner', ['soir', 'recettes', 'petitdej', 'gourmand']], ['Économiser', ['promos', 'placard']], ['Santé et forme', ['apports', 'minceur', 'sport', 'journal']]];
+  const DESCR_NAV = { soir: 'Le plat du soir, pas à pas', recettes: 'Chercher et garder des recettes', petitdej: 'Idées de petits-déjeuners', gourmand: 'Desserts, goûters, entrées', promos: 'Promotions comparées à la liste', placard: 'Ce qui reste, tickets de caisse', apports: 'Calories et repères de la semaine', minceur: 'Programme minceur', sport: 'Séances et suivi', journal: 'Ce que j’ai mangé' };
   const COULEURS_NAV = { semaine: '#2f7a4f', soir: '#c08a12', recettes: '#b8492f', gourmand: '#c2577a', petitdej: '#d98a1f', courses: '#2f6fa3', promos: '#d0502e', placard: '#a8743f', apports: '#2b8a7e', minceur: '#3f8f5a', sport: '#2c6fb5', journal: '#6b5ea8', profil: '#5b6b62' };
-  const ONGLETS = [['semaine', 'Semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Courses'], ['promos', 'Promos'], ['sport', 'Sport'], ['minceur', 'Minceur'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Profil']];
+  const ONGLETS = [['semaine', 'Ma semaine'], ['soir', 'Ce soir'], ['recettes', 'Recettes'], ['petitdej', 'Petit-déj'], ['gourmand', 'Gourmand'], ['placard', 'Placard'], ['courses', 'Mes courses'], ['promos', 'Promos'], ['sport', 'Sport'], ['minceur', 'Minceur'], ['apports', 'Apports'], ['journal', 'Journal'], ['profil', 'Mon profil']];
+  /** Téléphone : les autres fonctions, regroupées, dans une fenêtre « Plus ». */
+  function vuePlus() {
+    if (!S.menuPlus || S.vue !== 'app') return '';
+    return `<div class="voile" data-a="menu-plus-fond"><div class="fiche fenetre-plus" role="dialog" aria-modal="true" aria-labelledby="plus-titre">
+      <div class="spread" style="flex-wrap:nowrap"><h2 id="plus-titre">Toutes les fonctions</h2><button class="btn btn-petit" data-a="menu-plus">Fermer</button></div>
+      ${GROUPES_NAV.map(([titre, ks]) => `<section class="stack" style="gap:6px"><span class="eyebrow">${titre}</span><div class="grille-plus">${ks.map((k) => `<button class="tuile-plus" data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k]}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${(ONGLETS.find((x) => x[0] === k) || [k, k])[1]}</strong><span class="small muted">${DESCR_NAV[k] || ''}</span></span>${k === 'promos' && promos && promos.offres && offresActuelles().length ? `<em class="nav-badge">${offresActuelles().length}</em>` : ''}</button>`).join('')}</div></section>`).join('')}
+      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="accueil">Page d’accueil</button></div>
+    </div></div>`;
+  }
   function vueApp() {
-    const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && promos.offres.length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${promos.offres.length}</em>`) : ''}</button>`; };
-    const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button>${GROUPES_NAV.map(([titre, ks]) => `${titre ? `<span class="nav-groupe" aria-hidden="true">${titre}</span>` : '<span class="nav-sep" aria-hidden="true"></span>'}${ks.map(bouton).join('')}`).join('')}</nav>`;
+    const bouton = (k) => { const v = (ONGLETS.find((x) => x[0] === k) || [k, k])[1]; return `<button class="${ESSENTIEL_NAV.includes(k) ? 'nav-ess' : 'nav-sec'}" data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k] || 'var(--poireau)'}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span>${v}</span>${k === 'promos' && promos && promos.offres && offresActuelles().length ? (nouvellesAlertes().length ? `<em class="nav-badge alerte">🔔 ${nouvellesAlertes().length}</em>` : `<em class="nav-badge">${offresActuelles().length}</em>`) : ''}</button>`; };
+    const dansPlus = !ESSENTIEL_NAV.includes(S.onglet);
+    const plus = `<button class="nav-plus" data-a="menu-plus" aria-expanded="${!!S.menuPlus}" ${dansPlus ? 'aria-current="page"' : ''} style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span><span>${dansPlus ? esc((ONGLETS.find((x) => x[0] === S.onglet) || ['', 'Plus'])[1]) : 'Plus'}</span></button>`;
+    const nav = `<nav class="nav" aria-label="Navigation principale"><button class="nav-accueil" data-a="accueil" style="--c:#5b6b62"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span><span>Accueil</span></button><span class="nav-groupe" aria-hidden="true">L’essentiel</span>${ESSENTIEL_NAV.map(bouton).join('')}${plus}${GROUPES_NAV.map(([titre, ks]) => `<span class="nav-groupe" aria-hidden="true">${titre}</span>${ks.map(bouton).join('')}`).join('')}</nav>`;
     if (S.onglet === 'drives') { S.onglet = 'courses'; S.drivesOuverts = true; }
     const contenu = { semaine: ongletSemaine, soir: ongletSoir, recettes: ongletRecettes, gourmand: ongletGourmand, petitdej: ongletPetitDej, apports: ongletApports, minceur: ongletMinceur, sport: ongletSport, journal: ongletJournal, placard: ongletPlacard, courses: ongletCourses, promos: ongletPromos, profil: ongletProfil }[S.onglet]();
     return `<div class="wrap"><div class="store" aria-hidden="true"></div>${S.plan && !S.afficheOuverte ? `<button class="fab-coach ecran-seul" data-a="chat-ouvrir" aria-label="Parler à mon coach"><span aria-hidden="true">💬</span><span>Mon coach</span></button>` : ''}<div class="app"><aside class="cote">${nav}${bandeauNutri()}</aside><main class="stack" style="min-width:0">
@@ -1191,21 +1220,26 @@
 
   function blocBudget() {
     const a = E.analyseBudget(S.plan, S.profil);
+    const liste = E.listeCourses(S.plan, S.profil);
+    const rp = resumePrix(liste);
+    const toutEstime = rp.total && rp.c.estimation === rp.total;
     const max = Math.max(a.estimation, a.budget) * 1.1;
     return `<section class="carte budget" aria-label="Budget de la semaine">
-      <div class="spread"><h2>Budget de la semaine</h2><div class="row" style="gap:6px;align-items:center">${tagDemo}<button class="btn btn-petit" data-a="budget-ouvrir">Modifier ou calculer</button></div></div>
+      <div class="spread"><h2>Budget de la semaine</h2><div class="row" style="gap:6px;align-items:center">${toutEstime || !rp.total ? tagDemo : rp.c.estimation ? '<span class="tag tag-demo" title="Une partie des prix vient de vos tickets ou de vos saisies">Prix en partie estimés</span>' : '<span class="tag tag-ok">Vos prix relevés</span>'}<button class="btn btn-petit" data-a="budget-ouvrir">Modifier ou calculer</button></div></div>
       <div class="tirelire-bloc">${tirelire(a.ok ? Math.max(0.08, -a.ecart / a.budget) : 0, a.ok)}
-        <p class="message-eco ${a.ok ? '' : 'manque'}">${a.ok ? `Il reste <b class="num">${euros(-a.ecart)}</b> dans la tirelire cette semaine` : `Il manque <b class="num">${euros(a.ecart)}</b> pour tenir le budget`}</p></div>
-      <div class="chiffres"><div><span class="small muted">Courses à faire</span><br><strong class="num">${euros(a.estimation)}</strong></div>
+        <p class="message-eco ${a.ok ? '' : 'manque'}">${a.ok ? `Il resterait environ <b class="num">${euros(-a.ecart)}</b> dans la tirelire cette semaine` : `Il manque environ <b class="num">${euros(a.ecart)}</b> pour tenir le budget`}</p></div>
+      <div class="chiffres"><div><span class="small muted">Courses à payer <span class="aide-chiffre">(paquets entiers)</span></span><br><strong class="num">≈ ${euros(a.estimation)}</strong></div>
         <div><span class="small muted">Budget</span><br><strong class="num">${euros(a.budget)}</strong></div>
-        <div><span class="small muted">Réellement consommé</span><br><span class="num" style="font-weight:700;font-size:1.15rem">${euros(a.consomme)}</span></div></div>
+        <div><span class="small muted">Mangé cette semaine <span class="aide-chiffre">(quantités des recettes)</span></span><br><span class="num" style="font-weight:700;font-size:1.15rem">≈ ${euros(a.consomme)}</span></div></div>
       <div class="jauge ${a.ok ? '' : 'depasse'}" role="img" aria-label="Estimation ${euros(a.estimation)} pour un budget de ${euros(a.budget)}"><i style="width:${(a.estimation / max) * 100}%"></i><b style="left:${(a.budget / max) * 100}%"></b></div>
-      ${a.ok ? `<p class="small">Dans le budget, avec ${euros(-a.ecart)} de marge. Les paquets entamés serviront les semaines suivantes.</p>`
+      <p class="small" style="margin:0">On paie des paquets entiers (${euros(a.estimation)}), mais la semaine n’en utilise qu’une partie (${euros(a.consomme)}) : la différence (${euros(Math.max(0, a.estimation - a.consomme))}) reste au placard pour les semaines suivantes.</p>
+      ${a.ok ? `<p class="small">Dans le budget, avec environ ${euros(-a.ecart)} de marge.</p>`
         : `<div class="bandeau bandeau-alerte small"><div class="stack" style="gap:8px"><strong>Comment remplir la tirelire :</strong>
-          <span>L’écart entre « courses à faire » et « réellement consommé » vient des paquets entiers : un sac de 2,5 kg de pommes de terre ne se finit pas en une semaine.</span>
           <ul style="margin:0;padding-left:1.1em">${a.conseils.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
-          <div><button class="btn btn-petit btn-plein" data-a="ajuster">Ajuster au budget</button></div></div></div>`}
-      <p class="small muted">${esc(a.source.detail)}</p></section>`;
+          <div class="stack" style="gap:6px"><span><strong>Ajuster au budget</strong> : choisissez comment.</span>
+            <div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="ajuster" data-k="varie" title="Change le moins de plats possible, en gardant des repas variés et appétissants">Menus variés</button><button class="btn btn-petit" data-a="ajuster" data-k="max" title="Les plats les moins chers, quitte à répéter davantage les mêmes ingrédients">Économies maximales</button></div>
+            <span class="muted">« Menus variés » évite deux plats proches le même jour et limite les répétitions ; « Économies maximales » baisse le plus possible le total.</span></div></div></div>`}
+      <p class="small muted" style="margin:0">${rp.texte || esc(a.source.detail)} Ce sont des estimations, pas un ticket de caisse. <button class="btn-lien small" data-a="onglet" data-k="courses" data-ancre="mes-tickets">Comparer avec un vrai ticket ou un panier drive</button></p></section>`;
   }
 
   /** Étoile des favoris : un plat favori revient environ trois fois par semaine, sans se répéter. */
@@ -1227,7 +1261,7 @@
     const classique = S.classiques.includes(r.id);
     return `<div class="repas repas-illu ${m.dehors ? 'repas-dehors' : ''}"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">${lab}${th ? ` · <span class="theme">${esc(th.libelle)}</span>` : ''}${m.choisiPar ? ` · choisi par ${esc(m.choisiPar)}` : ''}${r.variante ? ' · <span class="theme">✏️ ma version</span>' : ''}</span>
       <div class="titre-fav"><button class="titre-repas" data-a="fiche" data-j="${j}" data-s="${slot}">${esc(r.nom)}</button>${etoileFav(r.id)}</div>
-      <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
+      <div class="meta">${m.deRestes ? '<span>♻ restes d’hier soir</span>' : `<span>${r.temps} min</span>`}<span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''}${m.plus ? ` <strong class="plus-restes">+${nb(m.plus)}</strong>` : ''}</span><span class="part num" title="Prix estimé : ${esc(originePrixPlat(r))}">≈ ${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}${note ? `<span aria-label="Votre note : ${note} sur 5">${'★'.repeat(note)}</span>` : ''}</div>
       ${m.extra ? `<span class="pourquoi small">Cuisinez ${pluriel(E.aCuisiner(m), 'portion')} : ${esc([m.extra.gamelles ? 'gamelles de demain' : '', m.extra.demain ? 'déjeuner de demain' : '', m.extra.congel ? 'congélateur' : ''].filter(Boolean).join(', '))}</span>` : raison && !m.deRestes && S.deduits[j + '-' + slot] !== 'cuisine' ? `<span class="pourquoi small">${esc(raison)}</span>` : ''}
       ${m.dehors ? '' : blocComplements(m, j, slot)}
       ${ligneMinceur(m, j, slot)}
@@ -1307,7 +1341,7 @@
     S.plan.jours.forEach((jp) => E.SLOTS.forEach((s) => { if (jp[s]) parts += jp[s].portions; }));
     if (!parts) return '';
     const l = E.listeCourses(S.plan, S.profil);
-    return `<div class="moyenne"><span>Une assiette vous revient en moyenne à</span><strong class="num">${euros(l.consomme / parts)}</strong><span class="small muted">sur ${nb(parts)} parts adultes cette semaine · prix démo</span></div>`;
+    return `<div class="moyenne"><span>Une assiette vous revient en moyenne à</span><strong class="num">${euros(l.consomme / parts)}</strong><span class="small muted">sur ${nb(parts)} parts adultes cette semaine · prix estimés, ce qui est réellement mangé</span></div>`;
   }
 
   // téléphone : un jour à la fois, outils repliés
@@ -1344,10 +1378,12 @@
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
+      ${resumeBudgetSemaine()}
       ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
       <div class="jours jours-m">${liste ? joursOrdonnes().map(([jp, x]) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
+      ${blocAffiner()}
       ${suggestionRituels()}
-      <section class="outils-m" aria-label="Réglages de la semaine"><h2 class="titre-outils">Ma semaine en un coup d’œil</h2>
+      <section class="outils-m" id="reglages-semaine" aria-label="Réglages de la semaine"><h2 class="titre-outils">Budget et réglages de la semaine</h2>
         ${outils.map(([k, ic, titre, resume, f]) => `<div class="outil-m ${ouvert === k ? 'ouvert' : ''}"><button class="outil-tete" data-a="outil-mobile" data-k="${k}" aria-expanded="${ouvert === k}"><span class="outil-ic" aria-hidden="true">${ic}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${titre}</strong><span class="small muted">${esc(resume)}</span></span><span class="chevron" aria-hidden="true">›</span></button>${ouvert === k ? `<div class="outil-corps">${f()}</div>` : ''}</div>`).join('')}
       </section>
       ${boutonDemarrer()}${carteMinceurSemaine()}
@@ -1355,30 +1391,51 @@
       ${bandeauRefaire()}
       ${carteRituels()}`;
   }
+  /** Après le premier menu : les questions facultatives, pour affiner (objectifs, niveau, équipement, goûts, provisions). */
+  function blocAffiner() {
+    const p = S.profil;
+    if (S.complementFini) return `<div class="bandeau bandeau-ok small ecran-seul"><div class="stack" style="gap:6px"><strong>Profil complété</strong><span>Vos nouvelles réponses serviront pour les prochains plats. Pour les appliquer tout de suite à cette semaine :</span><div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="refaire-plats">🔄 Refaire les plats</button><button class="btn btn-petit" data-a="affiner-ok">Garder ma semaine</button></div></div></div>`;
+    if (p.parcours !== 'essentiel' || p.affinerMasque) return '';
+    return `<section class="carte-affiner ecran-seul"><span aria-hidden="true">✨</span><span class="stack" style="gap:2px;min-width:0"><strong>Affinez vos menus</strong><span class="small">${NB_COMPLEMENT()} questions facultatives (objectifs, niveau en cuisine, équipement, cuisines préférées, aliments refusés, provisions), environ une minute.</span></span><span class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="affiner">Répondre</button><button class="btn btn-petit" data-a="affiner-plus-tard">Plus tard</button></span></section>`;
+  }
+  /** En haut de la semaine : le budget en une ligne (le détail est plus bas, avec les réglages). */
+  function resumeBudgetSemaine() {
+    const a = E.analyseBudget(S.plan, S.profil);
+    return `<section class="resume-budget ${a.ok ? 'ok' : 'manque'}" aria-label="Budget de la semaine en bref">
+      <span class="resume-ic" aria-hidden="true">💶</span>
+      <span class="stack" style="gap:1px;min-width:0"><strong>Courses ≈ <span class="num">${euros(a.estimation)}</span> · budget <span class="num">${euros(a.budget)}</span></strong>
+        <span class="small">${a.ok ? `Il resterait environ ${euros(-a.ecart)}` : `Il manque environ ${euros(a.ecart)}`} <span class="muted">· prix estimés, pas un ticket</span></span></span>
+      <span class="row" style="gap:6px">${a.ok ? '' : '<button class="btn btn-petit btn-plein" data-a="ajuster" data-k="varie">Ajuster au budget</button>'}<button class="btn btn-petit" data-a="voir-reglages" data-k="budget">Détails</button></span>
+    </section>`;
+  }
   function ongletSemaine() {
     if (!S.plan) return '<p>Aucune semaine.</p>';
     if (mqMobile.matches) return semaineMobile();
     const t = aujourdhui();
     const restants = 'Changez vos plats autant que vous voulez';
+    // d'abord les repas et le budget ; les réglages détaillés (présences, gamelles, coach, bilan, budget détaillé) ensuite
     return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
+      ${resumeBudgetSemaine()}
       ${boutonDemarrer()}${carteMinceurSemaine()}
       ${bandeauRefaire()}
       <div class="row ecran-seul"><button class="btn btn-plein" data-a="refaire-plats" title="Nouveaux plats sur les mêmes jours ; les repas déjà mangés ou choisis restent">🔄 Refaire les plats</button><button class="btn" data-a="nouvelle" title="Recommence une semaine à partir d’aujourd’hui">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
       ${S.plan.alertes.map((a) => `<div class="bandeau bandeau-demo small">${esc(a)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
+      ${blocAffiner()}
+      ${suggestionRituels()}
+      <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « Changer ce plat » pour choisir autre chose.</p>
+      <div class="jours">${joursOrdonnes().map(([jp, j]) => carteJour(jp, j, t)).join('')}</div>
+      <p class="small muted">${restants}.</p>
+      <h2 class="titre-reglages" id="reglages-semaine">Budget et réglages de la semaine</h2>
+      <div id="reglage-budget">${blocBudget()}</div>
+      ${moyenneAssiette()}
       ${blocPresences()}
       ${blocGamelles()}
       ${blocCoach()}
       <div class="nutri-mobile">${blocNutritionSemaine()}</div>
-      ${blocBudget()}
-      ${moyenneAssiette()}
-      ${suggestionRituels()}
-      <p class="small muted">Touchez un plat pour la recette et pour le noter, ou « 3 idées » pour choisir autre chose.</p>
-      <div class="jours">${joursOrdonnes().map(([jp, j]) => carteJour(jp, j, t)).join('')}</div>
-      ${carteRituels()}
-      <p class="small muted">${restants}.</p>`;
+      ${carteRituels()}`;
   }
 
   /* ---------- gamelles du midi et restes ---------- */
@@ -1625,8 +1682,8 @@
     const t = (choix.recherche || '').trim();
     if (t.length < 2) return '<p class="small muted">Tapez quelques lettres : vos recettes et les 12 000 plats de Budgétable. Rien ne correspond ? Créez le plat, les ingrédients vous seront proposés.</p>';
     const r = E.rechercherPlats(S.profil, t, { slot: choix.slot, n: 6 });
-    const lignes = r.resultats.map((id) => { const rec = E.REC[id]; return `<li><button class="resultat" data-a="choisir" data-r="${id}"><span class="vignette">${V(rec, 40)}</span><span><strong>${esc(rec.nom)}</strong><span class="small muted">${rec.perso ? 'Mes recettes · ' : ''}${rec.temps} min · ${euros(E.coutPortion(rec))} la part</span></span></button></li>`; }).join('');
-    return `${lignes ? `<ul class="resultats">${lignes}</ul>` : `<p class="small">Aucun plat « ${esc(t)} » dans Budgétable${r.masques ? ` compatible avec votre profil (${pluriel(r.masques, 'plat écarté')} pour vos allergies, régime ou goûts)` : ''}.</p>`}
+    const lignes = r.resultats.map((id) => { const rec = E.REC[id]; return `<li><button class="resultat" data-a="choisir" data-r="${id}"><span class="vignette">${V(rec, 40)}</span><span><strong>${esc(rec.nom)}</strong><span class="small muted">${rec.perso ? 'Mes recettes · ' : ''}${rec.temps} min · ≈ ${euros(E.coutPortion(rec))} la part</span></span></button></li>`; }).join('');
+    return `${lignes ? `<ul class="resultats">${lignes}</ul>` : `<p class="small">Aucun plat « ${esc(t)} » dans Budgétable${r.masques ? ` compatible avec votre profil (${pluriel(r.masques, 'plat écarté', 'plats écartés')} pour vos allergies, régime ou goûts)` : ''}.</p>`}
       <button class="btn btn-petit btn-plein" data-a="saisir-plat">+ Créer « ${esc(t)} » : je coche les ingrédients</button>`;
   }
 
@@ -1760,6 +1817,15 @@
     if (l.etat === 'encours') return `<p class="lecture small" role="status"><span class="rond-attente" aria-hidden="true"></span> Lecture de la recette sur ${esc(l.site)}… <span class="muted">(la première lecture peut prendre jusqu’à une minute)</span></p>`;
     if (l.etat === 'ok') return `<p class="lecture lecture-ok small" role="status">✓ ${pluriel(l.n, 'ingrédient repris', 'ingrédients repris')} de ${esc(l.site)}${l.portions ? `, recette pour ${l.portions}` : ''}. Vérifiez et décochez si besoin.${e.ignores && e.ignores.length ? ` <span class="muted">Non comptés : ${esc(e.ignores.slice(0, 6).join(', ').toLowerCase())}.</span>` : ''}</p>`;
     return `<p class="lecture lecture-echec small" role="status">${esc(l.message)} sur ${esc(l.site)}. ${e.ing.some((x) => x.coche) ? 'Ingrédients proposés d’après le nom du plat : vérifiez-les.' : 'Écrivez le nom du plat pour qu’on vous propose les ingrédients.'} <button class="btn-lien small" data-a="ed-lire">Réessayer</button></p>`;
+  }
+  /** Avertissement « à vérifier sur l'étiquette » pour une recette compatible (traces, produits variables, ingrédients ajoutés). */
+  function blocAVerifier(r) {
+    const l = E.aVerifier(r, S.profil);
+    if (!l.length) return '';
+    const lib = (a) => ((L.allergies || {})[a] || a).toLowerCase();
+    return `<div class="bandeau bandeau-alerte small a-verifier"><div class="stack" style="gap:4px"><strong>⚠️ À vérifier sur l’étiquette (allergies signalées)</strong>
+      <ul style="margin:0;padding-left:1.1em">${l.map((x) => `<li>${esc(x.nom)} : ${x.inconnu ? 'ingrédient ajouté à la main, composition inconnue' : 'peut contenir ' + esc(x.allergenes.map(lib).join(', ')) + ' selon la marque : choisissez une version « sans »'}</li>`).join('')}</ul>
+      <span class="muted">Budgétable écarte les ingrédients connus pour contenir vos allergènes, mais ne connaît pas la composition exacte de chaque marque ni les risques de traces.</span></div></div>`;
   }
   const libAllergie = (r) => String(r || '').replace(/allergie : (\w+)/, (m, a) => 'allergie : ' + ((L.allergies || {})[a] || a).toLowerCase());
   function qteTexte(id, q) {
@@ -2237,7 +2303,7 @@
       ${liste.length ? `<div class="jours">${liste.map((r) => { const g = gardees.includes(r.id); return `<article class="jour carte-recette carte-saison"><div class="repas repas-illu"><div class="vignette">${V(r, 64)}</div><div class="repas-corps">
           <button class="titre-repas" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button>
           ${r.accroche ? `<span class="small accroche">${esc(r.accroche)}</span>` : ''}
-          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
+          <div class="meta"><span>${r.temps} min</span><span class="part num" title="Prix estimé : ${esc(originePrixPlat(r))}">≈ ${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
           <div class="row" style="gap:6px">${S.plan ? `<button class="btn btn-petit btn-plein" data-a="au-menu" data-r="${r.id}">Mettre au menu</button>` : ''}<button class="btn btn-petit ${g ? 'garde' : ''}" data-a="saison-garder" data-r="${r.id}" aria-pressed="${g}">${g ? '♥ Gardée' : '♡ Garder'}</button></div>
           ${g ? '<span class="pourquoi small">Proposée dans vos menus</span>' : ''}</div></div></article>`; }).join('')}</div>` : '<p class="small">Aucune idée avec ce filtre.</p>'}
       ${toutes.length > compat.length ? `<p class="small muted" style="margin:0">${pluriel(toutes.length - compat.length, 'idée masquée', 'idées masquées')} : elles ne respectent pas votre profil (allergies, régime ou équipement).</p>` : ''}
@@ -2250,7 +2316,7 @@
     const recs = S.bibliotheque.map((r) => E.REC[r.id]).filter(Boolean);
     const favs = S.classiques.map((id) => E.REC[id]).filter((r) => r && !r.gourmand);
     const blocFavoris = `<section class="carte stack favoris" style="gap:10px"><div class="spread"><h2>⭐ Mes favoris</h2><span class="small muted">${favs.length ? pluriel(favs.length, 'plat') + ' · ils reviennent environ 3 fois par semaine' : ''}</span></div>
-      ${favs.length ? `<ul class="liste-favoris">${favs.map((r) => `<li><span class="vignette-fav">${V(r, 40)}</span><button class="btn-lien" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button><span class="small muted num">${euros(E.coutPortion(r))} la part</span><span class="row" style="gap:6px;flex-wrap:nowrap">${S.plan ? `<button class="btn btn-petit" data-a="au-menu" data-r="${r.id}">Mettre au menu</button>` : ''}${etoileFav(r.id)}</span></li>`).join('')}</ul>`
+      ${favs.length ? `<ul class="liste-favoris">${favs.map((r) => `<li><span class="vignette-fav">${V(r, 40)}</span><button class="btn-lien" data-a="fiche-r" data-r="${r.id}">${esc(r.nom)}</button><span class="small muted num">≈ ${euros(E.coutPortion(r))} la part</span><span class="row" style="gap:6px;flex-wrap:nowrap">${S.plan ? `<button class="btn btn-petit" data-a="au-menu" data-r="${r.id}">Mettre au menu</button>` : ''}${etoileFav(r.id)}</span></li>`).join('')}</ul>`
         : '<p class="small muted" style="margin:0">Touchez l’étoile ☆ à côté d’un plat de la semaine ou dans sa fiche : vos favoris reviendront régulièrement dans vos menus, et vous les retrouverez ici.</p>'}</section>`;
     return `<div class="spread"><div><p class="eyebrow">Ma bibliothèque</p><h1>Mes recettes</h1></div><button class="btn btn-plein" data-a="ed-nouveau">+ Ajouter une recette</button></div>
       ${blocFavoris}
@@ -2331,7 +2397,7 @@
         <div class="stack" style="gap:6px;padding:12px 14px 14px">
           ${actuel ? '<span class="tag tag-ok">Prévu</span>' : ''}
           <h3>${esc(r.nom)}</h3>
-          <div class="meta"><span>${r.temps} min</span><span class="part num">${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
+          <div class="meta"><span>${r.temps} min</span><span class="part num" title="Prix estimé : ${esc(originePrixPlat(r))}">≈ ${euros(E.coutPortion(r))} la part</span>${nutriMini(r)}</div>
           ${raisons.length ? `<ul class="raisons">${raisons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
           <div class="row"><button class="btn ${actuel ? '' : 'btn-plein'}" data-a="choisir" data-r="${id}">${enf ? 'Celui-là !' : actuel ? 'Garder ce plat' : 'Je choisis ce plat'}</button>
           ${enf ? '' : `<button class="btn-lien small" data-a="fiche-r" data-r="${id}">La recette</button>`}</div>
@@ -2388,7 +2454,7 @@
       <label class="case small"><input type="checkbox" data-a="jaica-basiques" ${c.basiques === false ? '' : 'checked'}><span>J’ai les basiques : huile, ail, épices, bouillon, moutarde, sel et poivre</span></label>
       ${c.ids.length ? `${idees.length ? `<div class="stack" style="gap:8px"><h3>${pluriel(idees.length, 'recette', 'recettes')} avec seulement ce que vous avez</h3><div class="jours">${idees.map((x) => { const rec = E.REC[x.recette]; return `<article class="jour"><div class="repas repas-illu"><div class="vignette">${V(rec, 64)}</div><div class="repas-corps">
           <button class="titre-repas" data-a="fiche-r" data-r="${rec.id}">${esc(rec.nom)}</button>
-          <div class="meta"><span>${rec.temps} min</span><span class="part num">${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</div>
+          <div class="meta"><span>${rec.temps} min</span><span class="part num" title="Prix estimé">≈ ${euros(E.coutPortion(rec))} la part</span>${nutriMini(rec)}</div>
           <span class="pourquoi small">✓ Rien à acheter : ${esc(x.choisis.concat(x.placard).map(nomIng).map((n) => n.toLowerCase()).join(', '))}${x.placard.length ? ' (dont placard)' : ''}</span>
           ${S.plan && S.plan.jours[aujourdhui()].diner ? `<div><button class="btn btn-petit btn-plein" data-a="placard-ce-soir" data-r="${rec.id}">Au menu ce soir</button></div>` : ''}</div></div></article>`; }).join('')}</div></div>`
         : '<p class="small" style="margin:0">Aucune recette ne se fait uniquement avec ces aliments.</p>'}
@@ -2491,55 +2557,82 @@
     } catch (e) { promos = { offres: (promos && promos.offres) || [], etat: 'erreur' }; }
     rendre();
   }
-  // quel produit du catalogue correspond à une offre (« L'ÉTAL DU BOUCHER 4 crépinettes de porc » → porc)
+  // quel produit du catalogue correspond à une offre : le même produit (exact) ou un produit de remplacement (alternative à vérifier)
+  const PMx = window.PromoMatch;
   const ingPromo = new Map();
   const RAYON_COMPATIBLE = { 'Fruits et légumes': /fruit|légume|legume|salade|herbe/i, 'Viandes et poissons': /viande|volaille|poisson|charcut|boucher|traiteur|porc|boeuf|bœuf|mer/i, 'Crèmerie et frais': /laitier|lait|fromage|crème|creme|beurre|œuf|oeuf|frais|crèmerie|cremerie|yaourt|dessert|traiteur|pâte|pate/i,
-    'Boulangerie': /pain|boulang|viennois|pâtisserie|patisserie/i, 'Épicerie': /épicerie|epicerie|conserve|pâtes|pates|riz|sauce|condiment|huile|petit-déj|céréale|cereale|apéritif|aperitif|café|cafe|monde|bio|féculent|feculent|légumineuse/i, 'Épicerie sucrée': /sucr|biscuit|chocolat|confiserie|petit-déj|céréale|cereale|gâteau|gateau|dessert/i, 'Surgelés': /surgel/i };
+    'Boulangerie': /pain|boulang|viennois|pâtisserie|patisserie/i, 'Épicerie': /épicerie|epicerie|conserve|pâtes|pates|riz|sauce|condiment|huile|petit-déj|céréale|cereale|apéritif|aperitif|café|cafe|monde|bio|féculent|feculent|légumineuse/i, 'Épicerie sucrée': /sucr|biscuit|chocolat|confiserie|petit-déj|céréale|cereale|gâteau|gateau|dessert/i, 'Surgelés': /surgel|poisson|légume|legume|viande|volaille/i };
   const MAGASINS = { Lidl: '#0050aa', Aldi: '#00005f', Carrefour: '#1e5bc6', 'E.Leclerc': '#0066b3', Auchan: '#e2001a', Intermarché: '#d90f2a', U: '#e30613', Netto: '#e2001a' };
   const badgeMagasin = (n) => `<span class="badge-magasin" style="--m:${MAGASINS[n] || '#5b6b62'}">${esc(n)}</span>`;
-  function ingredientDePromo(o) {
+  /** → { id, niveau: 'exact' | 'alternative' } ou null (aucun produit de la liste ne correspond vraiment). */
+  function rapprochementPromo(o) {
     if (ingPromo.has(o.id)) return ingPromo.get(o.id);
-    let id = null;
-    try { const a = window.Saisie.analyserLigne(o.nom.replace(/^[A-ZÀ-Ý0-9'’&.® -]{3,}(?= [A-Za-zà-ÿ])/, '').trim() || o.nom); id = a && a.id && E.ING[a.id] && !E.ING[a.id].perso ? a.id : null; } catch (e) { id = null; }
+    let r = null;
+    try { r = PMx ? PMx.analyser(o, E.ING) : null; } catch (e) { r = null; }
+    if (r && (!E.ING[r.id] || E.ING[r.id].perso)) r = null;
     // le rayon de l'offre doit aller avec celui du produit (des « boules crème » glacées ne sont pas de la crème fraîche)
-    if (id && o.rayon && o.rayon !== 'Prospectus') { const rx = RAYON_COMPATIBLE[E.ING[id].rayon]; if (rx && !rx.test(o.rayon)) id = null; }
-    // plats préparés et desserts : ce n'est pas l'ingrédient de la liste
-    if (id && /dessert|danette|yaourt|skyr|enrob|cake|brioche|pain au|préparation|preparation|panés|panes|nugget|nems|feuilleté|feuillete|gratin de|paëlla|paella|parmentier|velouté|veloute|goulash|croque|flan|tripes|grignot|frites de/i.test(o.nom) && !/^(yaourt|yaourt_grec|frites|bechamel)$/.test(id)) id = null;
-    if (id && /glace|bonbon|biscuit|gâteau|gateau|chips|confiserie|apéritif|aperitif|surprise/i.test(o.nom) && !/glace|biscuit|chips/.test(id)) id = null;
-    ingPromo.set(o.id, id);
-    return id;
+    if (r && o.rayon && o.rayon !== 'Prospectus') { const rx = RAYON_COMPATIBLE[E.ING[r.id].rayon]; if (rx && !rx.test(o.rayon)) r = null; }
+    ingPromo.set(o.id, r);
+    return r;
   }
-  function promosPour(id) { return promos && promos.offres ? promos.offres.filter((o) => ingredientDePromo(o) === id) : []; }
+  function ingredientDePromo(o) { const r = rapprochementPromo(o); return r ? r.id : null; }
+  // dates : en cours, à venir ou terminée, calculé à l'affichage (une offre lue ce matin a pu se terminer depuis)
+  const etatPromo = (o) => (PMx ? PMx.statut(o) : { etat: 'inconnu', texte: '' });
+  const offresActuelles = () => ((promos && promos.offres) || []).filter((o) => etatPromo(o).etat !== 'terminee');
+  /** Offres valables aujourd'hui pour un produit de la liste ; niveau : 'exact', 'alternative' ou les deux. */
+  function promosPour(id, niveau, avecAVenir) {
+    return offresActuelles().filter((o) => { const r = rapprochementPromo(o); return r && r.id === id && (!niveau || r.niveau === niveau) && (avecAVenir || etatPromo(o).etat !== 'a_venir'); });
+  }
+  // allergies du profil : le nom du produit ou le produit reconnu en contient probablement
+  function allergiesPromo(o) {
+    const al = (S.profil && S.profil.allergies) || [];
+    if (!al.length) return [];
+    const r = rapprochementPromo(o);
+    const parNom = PMx ? PMx.allergenesProbables(o.nom) : [];
+    const parProduit = r && E.ING[r.id] ? E.ING[r.id].tags : [];
+    return al.filter((a) => parNom.includes(a) || parProduit.includes(a));
+  }
   const RAYONS_PROMO = [['viande', 'Viandes et poissons', /viande|volaille|poisson|boucher|charcut|porc|boeuf|bœuf|traiteur de la mer/i], ['fruits', 'Fruits et légumes', /fruit|légume|legume/i], ['cremerie', 'Crèmerie et fromages', /fromage|lait|yaourt|crèmerie|cremerie|beurre|oeuf|œuf/i], ['boulangerie', 'Pain et viennoiseries', /pain|boulang|viennois|pâtisserie|patisserie/i], ['surgeles', 'Surgelés', /surgel|glace/i], ['sucre', 'Sucré et petit-déjeuner', /sucr|biscuit|chocolat|confiserie|céréales|cereales|muesli|tartiner|café|cafe/i], ['boissons', 'Boissons', /boisson|vin|bière|biere|jus|eau|alcool|spiritueux/i], ['epicerie', 'Épicerie', /./]];
   const rayonPromo = (o) => (RAYONS_PROMO.find(([, , rx]) => rx.test(o.rayon + ' ' + o.nom)) || RAYONS_PROMO[RAYONS_PROMO.length - 1])[0];
-  const finPromo = (o) => (o.quand ? o.quand.replace(/\s*\|.*$/, '') : o.fin ? 'jusqu’au ' + new Date(o.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '');
-  function lignePromo(o, avecIdee) {
-    const id = ingredientDePromo(o);
-    return `<li class="promo" style="--m:${MAGASINS[o.enseigne] || '#5b6b62'}"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
-      <div class="stack" style="gap:3px;min-width:0">${badgeMagasin(o.enseigne)}<a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
-        <span class="small muted">${[o.cond, o.prixKg ? o.prixKg + ' €' : '', finPromo(o), o.page ? 'prospectus p. ' + o.page : ''].filter(Boolean).map(esc).join(' · ')}</span>
-        ${avecIdee && id ? `<span><button class="btn-lien small" data-a="promo-idee" data-id="${id}">Une idée de plat avec ${esc(E.ING[id].nom.toLowerCase())}</button></span>` : ''}</div>
+  function lignePromo(o, avecIdee, pourArticle) {
+    const r = rapprochementPromo(o);
+    const id = r ? r.id : null;
+    const st = etatPromo(o);
+    const al = allergiesPromo(o);
+    const alt = pourArticle && r && r.niveau === 'alternative';
+    return `<li class="promo ${st.etat === 'a_venir' ? 'promo-a-venir' : ''}" style="--m:${MAGASINS[o.enseigne] || '#5b6b62'}"><div class="promo-img">${o.image ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '🏷️'}</div>
+      <div class="stack" style="gap:3px;min-width:0"><span class="row" style="gap:4px">${badgeMagasin(o.enseigne)}${st.etat === 'a_venir' ? '<span class="tag tag-simu">À venir</span>' : st.etat === 'inconnu' ? '<span class="tag tag-simu">Dates à vérifier</span>' : ''}${alt ? '<span class="tag tag-alt">Alternative à vérifier</span>' : ''}</span><a href="${esc(o.lien)}" target="_blank" rel="noopener noreferrer" class="promo-nom">${esc(o.nom)} ↗</a>
+        <span class="small muted">${[o.cond, o.prixKg ? o.prixKg + ' €' : '', st.etat !== 'inconnu' ? st.texte : '', o.page ? 'prospectus p. ' + o.page : ''].filter(Boolean).map(esc).join(' · ')}</span>
+        ${al.length ? `<span class="small alerte-ing">⚠️ Contient probablement : ${esc(al.map((a) => ((L.allergies || {})[a] || a).toLowerCase()).join(', '))} (allergie signalée). Vérifiez l’étiquette.</span>` : ''}
+        ${avecIdee && id && !al.length ? `<span><button class="btn-lien small" data-a="promo-idee" data-id="${id}">Une idée de plat avec ${esc(E.ING[id].nom.toLowerCase())}</button></span>` : ''}</div>
       <div class="promo-prix"><strong class="num">${euros(o.prix)}</strong>${o.prixAvant ? `<s class="small muted num">${euros(o.prixAvant)}</s>` : ''}${o.remise ? `<span class="tag-promo">${esc(o.remise)}</span>` : ''}${o.lidlPlus ? '<span class="tag-promo lidl-plus">Lidl Plus</span>' : ''}</div></li>`;
   }
   function ongletPromos() {
     chargerPromos(false);
     const charge = !promos || promos.etat === 'charge';
-    const offres = (promos && promos.offres) || [];
+    const toutes = (promos && promos.offres) || [];
+    const offres = offresActuelles();
+    const nbTerminees = toutes.length - offres.length;
     const f = S.filtrePromo || 'tout', mag = S.magasinPromo || 'tout', tri = S.triPromo || 'remise';
     const q = E.norm(S.cherchePromo || '').trim();
     const remiseDe = (o) => (o.prixAvant ? (o.prixAvant - o.prix) / o.prixAvant : /(\d+)\s*%/.test(o.remise) ? +o.remise.match(/(\d+)\s*%/)[1] / 200 : 0);
     const garde = (o) => (mag === 'tout' || o.enseigne === mag) && (!q || q.split(' ').every((w) => E.norm(o.nom + ' ' + o.rayon + ' ' + o.enseigne).includes(w)));
-    const trier = (l) => l.slice().sort(tri === 'prix' ? (a, b) => a.prix - b.prix : tri === 'fin' ? (a, b) => (a.fin || 9e15) - (b.fin || 9e15) : tri === 'magasin' ? (a, b) => a.enseigne.localeCompare(b.enseigne, 'fr') || remiseDe(b) - remiseDe(a) : (a, b) => remiseDe(b) - remiseDe(a));
+    const trier = (l) => l.slice().sort(tri === 'prix' ? (a, b) => a.prix - b.prix : tri === 'fin' ? (a, b) => (etatPromo(a).fin || 9e15) - (etatPromo(b).fin || 9e15) : tri === 'magasin' ? (a, b) => a.enseigne.localeCompare(b.enseigne, 'fr') || remiseDe(b) - remiseDe(a) : (a, b) => remiseDe(b) - remiseDe(a));
     const liste = S.plan ? E.listeCourses(S.plan, S.profil).articles.filter((a) => !a.enStock && !a.couvertParPlacard) : [];
-    const pourMoi = liste.map((a) => [a, trier(promosPour(a.id).filter(garde))]).filter(([a, l]) => l.length && (!q || l.length || E.norm(a.nom).includes(q)));
-    const dispo = offres.filter(garde);
+    // pour chaque article : le même produit en promo, sinon des alternatives à vérifier, et ce qui arrive bientôt
+    const pourArticle = liste.map((a) => ({ a, exact: trier(promosPour(a.id, 'exact').filter(garde)), alt: trier(promosPour(a.id, 'alternative').filter(garde)), bientot: trier(promosPour(a.id, null, true).filter((o) => etatPromo(o).etat === 'a_venir').filter(garde)) }));
+    const pourMoi = pourArticle.filter((x) => x.exact.length || x.alt.length || x.bientot.length);
+    const sansPromo = pourArticle.filter((x) => !x.exact.length && !x.alt.length && !x.bientot.length && !x.a.libre && !x.a.sansPrix);
+    const tous = offres.filter(garde);
+    const aVenir = trier(tous.filter((o) => etatPromo(o).etat === 'a_venir'));
+    const dispo = tous.filter((o) => etatPromo(o).etat !== 'a_venir');
     const visibles = trier(dispo.filter((o) => f === 'tout' || rayonPromo(o) === f));
     const nbR = (k) => dispo.filter((o) => rayonPromo(o) === k).length;
     const magasins = Object.entries(offres.reduce((m, o) => ({ ...m, [o.enseigne]: (m[o.enseigne] || 0) + 1 }), {}));
     const maj = promos && promos.maj ? new Date(promos.maj) : null;
     const groupes = tri === 'magasin' ? magasins.map(([n]) => [n, visibles.filter((o) => o.enseigne === n)]).filter(([, l]) => l.length) : [[null, visibles]];
     return `<div class="spread"><div><p class="eyebrow">Bons plans</p><h1>Promos du moment</h1></div><button class="btn btn-petit" data-a="promos-maj" ${charge ? 'disabled' : ''}>${charge ? 'Recherche…' : '↻ Actualiser'}</button></div>
-      <p class="muted" style="margin:0">Les promotions alimentaires de la semaine, comparées à votre liste de courses.${maj ? ` Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      <p class="muted" style="margin:0">Les promotions alimentaires en cours, comparées à votre liste de courses.${maj ? ` Mises à jour ${maj.toDateString() === new Date().toDateString() ? 'aujourd’hui' : 'le ' + maj.toLocaleDateString('fr-FR')} à ${maj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
       ${blocAlertes()}
       ${blocProspectus()}
       ${offres.length ? `<section class="barre-promos" aria-label="Chercher et trier les promotions">
@@ -2552,15 +2645,21 @@
       </section>` : ''}
       ${charge && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Recherche des promotions en cours…</strong><span class="small muted">Budgétable lit les pages d’offres des enseignes : cela peut prendre une minute la première fois.</span></section>' : ''}
       ${promos && promos.etat === 'erreur' && !offres.length ? '<section class="carte stack" style="gap:8px"><strong>Promotions indisponibles pour le moment</strong><span class="small">Le site de l’enseigne n’a pas répondu. Réessayez plus tard, ou consultez les catalogues ci-dessous.</span></section>' : ''}
-      ${offres.length ? `<section class="carte stack promos-moi" style="gap:10px"><h2>Pour vos courses de la semaine</h2>
-        ${pourMoi.length ? `<p class="small muted" style="margin:0">${pluriel(pourMoi.length, 'article de votre liste est', 'articles de votre liste sont')} en promotion${mag !== 'tout' ? ' chez ' + esc(mag) : ''}.</p>
-          ${pourMoi.map(([a, l]) => `<div class="stack" style="gap:6px"><div class="spread"><strong>${esc(a.nom)}</strong><span class="small muted">il vous faut ${a.unite === 'pièce' ? nb(Math.max(1, Math.ceil(a.quantite - 0.05))) : quantite(a.quantite, a.unite)} · estimé ${euros(a.cout)}</span></div><ul class="liste-promos">${l.slice(0, 4).map((o) => lignePromo(o, false)).join('')}</ul></div>`).join('')}`
-          : `<p class="small" style="margin:0">Aucun article de votre liste n’est en promotion${mag !== 'tout' ? ' chez ' + esc(mag) : ''} cette semaine. Regardez les promos ci-dessous : elles peuvent donner des idées de plats.</p>`}
+      ${offres.length || toutes.length ? `<section class="carte stack promos-moi" style="gap:10px"><h2>Pour vos courses de la semaine</h2>
+        ${pourMoi.length ? `<p class="small muted" style="margin:0">${pourMoi.some((x) => x.exact.length) ? `${pluriel(pourMoi.filter((x) => x.exact.length).length, 'article de votre liste est', 'articles de votre liste sont')} en promotion tel quel${mag !== 'tout' ? ' chez ' + esc(mag) : ''}. ` : 'Aucun article de votre liste n’est en promotion tel quel, mais des produits proches le sont. '}« Alternative à vérifier » : un produit proche qui peut le remplacer dans vos recettes, à vous de voir.</p>
+          ${pourMoi.map(({ a, exact, alt, bientot }) => `<div class="stack article-promos" style="gap:6px"><div class="spread"><strong>${esc(a.nom)}</strong><span class="small muted">il vous faut ${a.unite === 'pièce' ? nb(Math.max(1, Math.ceil(a.quantite - 0.05))) : quantite(a.quantite, a.unite)} · prix estimé ${euros(a.cout)}</span></div>
+            ${exact.length ? `<ul class="liste-promos">${exact.slice(0, 3).map((o) => lignePromo(o, false, true)).join('')}</ul>` : '<span class="small muted">Pas de promo sur ce produit exact en ce moment.</span>'}
+            ${alt.length ? `<ul class="liste-promos">${alt.slice(0, exact.length ? 2 : 3).map((o) => lignePromo(o, false, true)).join('')}</ul>` : ''}
+            ${bientot.length ? `<ul class="liste-promos">${bientot.slice(0, 2).map((o) => lignePromo(o, false, true)).join('')}</ul>` : ''}</div>`).join('')}`
+          : `<p class="small" style="margin:0">Aucune promotion adaptée aux articles de votre liste${mag !== 'tout' ? ' chez ' + esc(mag) : ''} en ce moment.</p>`}
+        ${sansPromo.length ? `<details class="small"><summary>Pas de promotion adaptée pour ${pluriel(sansPromo.length, 'article', 'articles')}</summary><p style="margin:6px 0 0">${esc(sansPromo.map((x) => x.a.nom).join(', '))}.</p><p class="muted" style="margin:4px 0 0">Plutôt que de proposer un produit sans rapport (un plat préparé qui en contient, par exemple), Budgétable n’affiche rien.</p></details>` : ''}
       </section>
-      <section class="stack" style="gap:10px"><h2>Toutes les promos alimentaires <span class="small muted">(${dispo.length})</span></h2>
+      <section class="stack" style="gap:10px"><h2>Toutes les promos en cours <span class="small muted">(${dispo.length})</span></h2>
         <div class="row" role="group" aria-label="Rayon" style="gap:6px"><button class="chip" data-a="promo-filtre" data-k="tout" aria-pressed="${f === 'tout'}">Tout <span class="small muted">${dispo.length}</span></button>${RAYONS_PROMO.filter(([k]) => nbR(k)).map(([k, v]) => `<button class="chip" data-a="promo-filtre" data-k="${k}" aria-pressed="${f === k}">${v} <span class="small muted">${nbR(k)}</span></button>`).join('')}</div>
         ${groupes.map(([n, l]) => `${n ? `<h3 class="titre-magasin">${badgeMagasin(n)} <span class="small muted">${pluriel(l.length, 'promo')}</span></h3>` : ''}<ul class="liste-promos">${l.slice(0, 120).map((o) => lignePromo(o, true)).join('')}</ul>`).join('') || '<p class="small muted">Aucune promo ne correspond. Essayez un autre mot ou un autre rayon.</p>'}
       </section>` : ''}
+      ${aVenir.length ? `<details class="carte promos-a-venir"><summary><strong>Promos à venir</strong> <span class="small muted">(${aVenir.length}) · pas encore en magasin</span></summary><ul class="liste-promos" style="margin-top:8px">${aVenir.slice(0, 80).map((o) => lignePromo(o, true)).join('')}</ul></details>` : ''}
+      ${nbTerminees ? `<p class="small muted" style="margin:0">${pluriel(nbTerminees, 'offre terminée n’est plus affichée', 'offres terminées ne sont plus affichées')}.</p>` : ''}
       <p class="small muted" style="margin:0">Prix et dates donnés par les enseignes, à vérifier en magasin ; offres valables dans les magasins participants et dans la limite des stocks.</p>`;
   }
   /* ---------- alertes promos : produits surveillés dans les offres et les prospectus ---------- */
@@ -2568,7 +2667,7 @@
   function offresPourAlerte(mot) {
     const ms = motsAlerte(mot);
     if (!ms.length || !promos || !promos.offres) return [];
-    return promos.offres.filter((o) => { const n = motsAlerte(o.nom); return ms.every((m) => n.some((w) => w.startsWith(m))); });
+    return offresActuelles().filter((o) => { const n = motsAlerte(o.nom); return ms.every((m) => n.some((w) => w.startsWith(m))); });
   }
   function alertesTrouvees() {
     return (S.alertesPromos || []).map((a) => [a, offresPourAlerte(a.mot)]).filter(([, l]) => l.length);
@@ -2715,7 +2814,7 @@
     return `<form class="edition-prix" data-form="prix" data-id="${a.id}">
       <label class="champ champ-euros" for="prix-${a.id}"><span>Prix pour ${esc(i.condLabel)}</span><span class="saisie-euros"><input type="text" inputmode="decimal" id="prix-${a.id}" value="${actuel.toFixed(2).replace('.', ',')}" autocomplete="off"><span aria-hidden="true">€</span></span></label>
       <div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" type="submit">Enregistrer</button>${perso ? `<button class="btn btn-petit" type="button" data-a="prix-reset" data-id="${a.id}">Prix estimé (${euros(E.prixReference(a.id))})</button>` : ''}<button class="btn btn-petit" type="button" data-a="prix-annuler">Annuler</button></div>
-      <p class="small muted" style="margin:0">Ce prix sert pour toute la liste, le budget et le coût des plats.</p>
+      <p class="small muted" style="margin:0">Prix actuel : ${esc(originePrix(a.id).texte)}. Le prix que vous saisissez sert pour toute la liste, le budget et le coût des plats.</p>
     </form>`;
   }
   // une ligne de la liste : ce qu'on met dans le panier en gros, le besoin réel en petit
@@ -2727,13 +2826,13 @@
       : a.enStock ? '<span class="pastille-qte ok">En réserve</span>'
       : a.sansPrix ? '<span class="pastille-qte">Selon la recette</span>'
       : `<span class="pastille-qte"><strong class="num">${a.conditionnements}</strong> × ${esc(a.condLabel)}</span>`;
-    const promo = !a.enStock && promosPour(a.id).length ? promosPour(a.id)[0] : null;
+    const promo = !a.enStock && promosPour(a.id, 'exact').length ? promosPour(a.id, 'exact')[0] : null;
     return `<div class="article ${S.coches[a.id] ? 'coche' : ''} ${a.enStock || a.couvertParPlacard ? 'stock' : ''}">
       <input type="checkbox" id="c-${a.id}" data-a="cocher" data-id="${a.id}" ${S.coches[a.id] ? 'checked' : ''} ${a.enStock ? 'disabled' : ''} aria-label="Acheté : ${esc(a.nom)}">
       <label class="nom" for="c-${a.id}">${esc(a.nom)}</label>
-      ${a.couvertParPlacard || a.enStock || a.libre || a.sansPrix ? `<span class="prix num">${a.couvertParPlacard || a.enStock ? '' : 'prix ?'}</span>` : `<button class="prix num prix-modif" data-a="prix-editer" data-id="${a.id}" title="Changer le prix" aria-label="Changer le prix : ${esc(a.nom)}">${E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo ? 'prix ?' : euros(a.cout)}${(S.prixPerso || {})[a.id] ? ' <span class="prix-perso" title="Votre prix">✎</span>' : ' <span class="prix-crayon" aria-hidden="true">✎</span>'}</button>`}
+      ${a.couvertParPlacard || a.enStock || a.libre || a.sansPrix ? `<span class="prix num">${a.couvertParPlacard || a.enStock ? '' : 'prix ?'}</span>` : `<button class="prix num prix-modif" data-a="prix-editer" data-id="${a.id}" title="${esc(originePrix(a.id).texte)} · toucher pour changer" aria-label="Changer le prix : ${esc(a.nom)} (${esc(originePrix(a.id).court)})">${E.ING[a.id] && E.ING[a.id].manuel && !E.ING[a.id].prixDemo ? 'prix ?' : (originePrix(a.id).type === 'estimation' ? '≈ ' : '') + euros(a.cout)}${(S.prixPerso || {})[a.id] ? ' <span class="prix-perso" title="Votre prix">✎</span>' : ' <span class="prix-crayon" aria-hidden="true">✎</span>'}</button>`}
       ${editionPrix === a.id ? blocEditionPrix(a) : ''}
-      <div class="qte-achat">${pastille}${a.manuel ? `<span class="tag-main small">✍️ ${a.seulManuel ? 'ajouté à la main' : `dont ${a.manuel} ajouté${a.manuel > 1 ? 's' : ''} à la main`}</span>` : ''}${a.sansPrix || a.enStock || a.seulManuel ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}</div>
+      <div class="qte-achat">${pastille}${a.manuel ? `<span class="tag-main small">✍️ ${a.seulManuel ? 'ajouté à la main' : `dont ${a.manuel} ajouté${a.manuel > 1 ? 's' : ''} à la main`}</span>` : ''}${a.sansPrix || a.enStock || a.seulManuel ? '' : `<span class="small muted">${besoin}${a.auPlacard > 0 && !a.couvertParPlacard ? ` · ${quantite(a.auPlacard, a.unite)} déjà au placard` : ''}${a.couvertParPlacard ? ` · vous avez ${quantite(a.auPlacard, a.unite)}` : ''}</span>`}${promo ? `<button class="tag-promo ecran-seul" data-a="onglet" data-k="promos" title="Voir les promotions">🏷 ${esc(promo.enseigne)} ${euros(promo.prix)}${promo.remise ? ' · ' + esc(promo.remise) : ''}</button>` : ''}${(() => { const al = S.profil.allergies || []; const t = (E.PEUT_CONTENIR[a.id] || []).filter((x) => al.includes(x) || (x === 'lait' && al.includes('lactose'))); return t.length && !a.enStock ? `<span class="small alerte-ing">⚠️ Peut contenir ${esc(t.map((x) => ((L.allergies || {})[x] || x).toLowerCase()).join(', '))} selon la marque : vérifiez l’étiquette</span>` : ''; })()}</div>
       <div class="actions-article ecran-seul">${a.manuel ? `<span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="-1" aria-label="Un de moins : ${esc(a.nom)}">−</button><button class="btn-mini" data-a="manuel-qte" data-id="${a.id}" data-d="1" aria-label="Un de plus : ${esc(a.nom)}">+</button><button class="btn-mini" data-a="manuel-suppr" data-id="${a.id}" aria-label="Retirer ${esc(a.nom)} de la liste">✕ Retirer</button></span>` : ''}${a.libre ? '' : `<button class="btn-mini" data-a="stock" data-id="${a.id}">${a.enStock || a.couvertParPlacard ? '↩ Je n’en ai plus' : '🏠 J’en ai déjà'}</button>`}${S.drives.enseigne && !a.enStock && !a.couvertParPlacard ? `<a class="btn-mini" href="${DRIVES[S.drives.enseigne].url(termeRecherche(a.nom))}" target="_blank" rel="noopener" aria-label="Chercher ${esc(a.nom)} chez ${esc(DRIVES[S.drives.enseigne].nom)} (nouvel onglet)">🔍 ${esc(DRIVES[S.drives.enseigne].nom)} ↗</a>` : ''}</div>
     </div>`;
   }
@@ -2750,6 +2849,33 @@
     const infos = m ? { nom: m.nom, date: m.maj ? new Date(m.maj + 'T12:00:00').toLocaleDateString('fr-FR') : '' } : {};
     if (nPerso) { infos.libelle = m ? `Prix de ${m.nom} et vos prix` : 'Vos prix'; infos.detail = `${nPerso} prix saisis par vous${m ? `, les autres relevés sur vos tickets chez ${m.nom}` : ''} ; les autres produits gardent un prix moyen estimé.`; }
     E.definirPrixMagasin(m || nPerso ? { ...duMagasin, ...perso } : null, m || nPerso ? infos : null);
+  }
+  // d'où vient le prix d'un produit : saisi par la personne, relevé sur un de ses tickets, ou estimation Budgétable
+  const dateFr = (iso) => (iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR') : '');
+  const DATE_ESTIMATIONS = dateFr(E.DATA.PRIX_SOURCE && E.DATA.PRIX_SOURCE.date);
+  function originePrix(id) {
+    if ((S.prixPerso || {})[id] > 0) return { type: 'perso', court: 'votre prix', texte: 'Prix saisi par vous' };
+    const m = S.magasinActif && (S.prixMagasins || {})[S.magasinActif];
+    const x = m && m.prix && m.prix[id];
+    if (x) return { type: 'ticket', court: 'ticket ' + m.nom, texte: `Relevé sur votre ticket ${m.nom}${x.d ? ' du ' + dateFr(x.d) : ''}` };
+    return { type: 'estimation', court: 'estimé', texte: `Estimation Budgétable : prix indicatif${DATE_ESTIMATIONS ? ' révisé le ' + DATE_ESTIMATIONS : ''}, non vérifié en magasin` };
+  }
+  /** Origine des prix d'un plat : estimations, ou en partie vos prix relevés. */
+  function originePrixPlat(r) {
+    const t = new Set(r.ing.map(([id]) => (E.ING[id] && !E.ING[id].perso ? originePrix(id).type : 'estimation')));
+    return t.size === 1 && t.has('estimation') ? 'estimations Budgétable, non vérifiées en magasin' : 'en partie vos prix (tickets ou saisis), le reste estimé';
+  }
+  /** Phrase qui dit d'où viennent les prix de la liste (estimations, tickets, prix saisis). */
+  function resumePrix(liste) {
+    const l = liste.articles.filter((a) => !a.enStock && !a.couvertParPlacard && !a.libre && !a.sansPrix && E.ING[a.id] && !E.ING[a.id].perso);
+    const c = { estimation: 0, ticket: 0, perso: 0 };
+    l.forEach((a) => { c[originePrix(a.id).type]++; });
+    const m = S.magasinActif && (S.prixMagasins || {})[S.magasinActif];
+    const parts = [];
+    if (c.estimation) parts.push(`${pluriel(c.estimation, 'prix estimé', 'prix estimés')} par Budgétable (indicatifs${DATE_ESTIMATIONS ? ', révisés le ' + DATE_ESTIMATIONS : ''}, non vérifiés en magasin)`);
+    if (c.ticket) parts.push(`${pluriel(c.ticket, 'prix relevé', 'prix relevés')} sur vos tickets ${m ? esc(m.nom) : ''}${m && m.maj ? ' (dernier le ' + dateFr(m.maj) + ')' : ''}`);
+    if (c.perso) parts.push(`${pluriel(c.perso, 'prix saisi', 'prix saisis')} par vous`);
+    return { c, total: l.length, texte: parts.length ? 'Prix utilisés : ' + parts.join(', ') + '.' : '' };
   }
   const NON_ALIMENTAIRE_TICKET = /lessive|papier|essuie|mouchoir|shampo|gel douche|savon|dentifrice|brosse|sac\b|sacs\b|nettoy|eponge|javel|piles?\b|couche|lingette|deodorant|rasoir|litiere|croquette|patee|bougie|ampoule|serviette|coton|vaisselle|adoucissant|desodor|insecticide|journal|magazine|carte cadeau/;
   const MOTS_VAGUES = new Set(['liquide', 'entier', 'demi', 'ecreme', 'nature', 'bio', 'frais', 'fraiche', 'extra', 'maxi', 'mini', 'lot', 'sachet', 'boite', 'pack', 'classique', 'tranches', 'tranche', 'barquette', 'filet', 'filets', 'plein', 'air', 'gros', 'petit', 'petits', 'grand', 'format', 'familial', 'eco', 'premium', 'gourmand', 'origine', 'france', 'cat', 'calibre', 'piece', 'pieces', 'unite', 'promo', 'offre', 'marque', 'repere', 'pouce', 'bouteille', 'brique', 'pot', 'kg', 'les', 'des', 'aux', 'avec', 'sans', 'pour']);
@@ -2999,7 +3125,7 @@
       <div class="row" style="gap:6px">${ENSEIGNES_TICKET.map(([k, nom]) => `<button class="chip chip-petit" data-a="ticket-enseigne" data-k="${k}" aria-pressed="${t.enseigne === k}">${esc(nom)}</button>`).join('')}<button class="chip chip-petit" data-a="ticket-enseigne" data-k="autre" aria-pressed="${t.enseigne === 'autre'}">Autre</button></div></div>`;
     let corps = '';
     if (t.lecture) corps = `${tete('Lecture du ticket…')}<div class="stack" style="gap:8px;align-items:center;padding:20px"><div class="sablier" aria-hidden="true">🧾</div><strong id="ticket-progres">${esc(t.lecture.texte)}${t.lecture.pct ? ` ${t.lecture.pct} %` : ''}</strong><span class="small muted">La photo est lue sur votre téléphone.</span></div>`;
-    else if (t.etape === 'source') corps = `${tete('Comparer mon ticket avec l’appli', 'Les vrais prix de votre magasin remplacent les prix de démonstration, et vous pourrez comparer les magasins et les drives.')}
+    else if (t.etape === 'source') corps = `${tete('Comparer mon ticket avec l’appli', 'Les prix payés dans votre magasin remplacent les estimations Budgétable, et vous pourrez comparer les magasins et les drives.')}
       ${choixMagasin}
       ${t.erreur ? `<div class="bandeau bandeau-alerte small"><span>${esc(t.erreur)}</span></div>` : ''}
       <div class="sources-ticket">
@@ -3126,12 +3252,19 @@
       return { k, m, total: Math.round(total * 100) / 100, couverture: aPrendre.length ? Math.round(connus / aPrendre.length * 100) : 0 };
     }).sort((a, b) => a.total - b.total);
     const demo = Math.round(aPrendre.reduce((s, a) => s + a.conditionnements * E.prixReference(a.id), 0) * 100) / 100;
-    return `<section class="carte stack ecran-seul bloc-tickets" style="gap:10px"><div class="spread"><h2>🧾 Mes tickets et mes prix</h2><button class="btn btn-plein btn-petit" data-a="ticket-ouvrir">Scanner un ticket</button></div>
-      <p class="small muted" style="margin:0">Après vos courses, scannez le ticket (ou collez le récapitulatif du drive) : l’appli apprend les vrais prix de chaque magasin et compare le prix de votre liste.</p>
-      ${mags.length ? `<div class="stack" style="gap:6px"><strong class="small">Prix utilisés pour mes menus et ma liste</strong><div class="row" role="radiogroup" style="gap:6px"><button class="chip" role="radio" data-a="magasin-actif" data-k="" aria-checked="${!S.magasinActif}" aria-pressed="${!S.magasinActif}">Prix de démonstration</button>${mags.map(([k, m]) => `<button class="chip" role="radio" data-a="magasin-actif" data-k="${k}" aria-checked="${S.magasinActif === k}" aria-pressed="${S.magasinActif === k}">${esc(m.nom)} <span class="small muted">· ${Object.keys(m.prix || {}).length} prix</span></button>`).join('')}</div></div>
-      <div class="stack" style="gap:6px"><strong class="small">Ma liste de la semaine selon le magasin</strong>${compare.every((c) => !c.couverture) ? '<span class="small muted">Aucun article de votre liste actuelle n’a encore de prix relevé : la comparaison se remplira avec vos prochains tickets.</span>' : ''}<ul class="comparatif-magasins">${compare.map((c, i) => `<li><span>${i === 0 && compare.length > 1 && c.couverture && c.total < compare[compare.length - 1].total - 0.01 ? '🏆 ' : ''}<strong>${esc(c.m.nom)}</strong></span><span class="barre-couv" title="${c.couverture} % des articles avec un vrai prix"><i style="width:${c.couverture}%"></i></span><span class="small muted">${c.couverture} % de vrais prix</span><strong class="num">${euros(c.total)}</strong></li>`).join('')}<li class="muted"><span>Prix de démonstration</span><span></span><span></span><span class="num">${euros(demo)}</span></li></ul>
+    // écart entre les estimations Budgétable et les prix relevés sur les tickets, produit par produit
+    const ecarts = [];
+    for (const [, m] of mags) for (const [id, x] of Object.entries(m.prix || {})) if (E.ING[id] && x && x.p > 0) { const est = E.prixReference(id); if (est > 0) ecarts.push({ id, nom: E.ING[id].nom, mag: m.nom, d: x.d, releve: x.p, est, pct: Math.round((x.p - est) / est * 100) }); }
+    ecarts.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    const moyEcart = ecarts.length ? Math.round(ecarts.reduce((t, e) => t + e.pct, 0) / ecarts.length) : 0;
+    return `<section class="carte stack ecran-seul bloc-tickets" id="mes-tickets" style="gap:10px"><div class="spread"><h2>🧾 Mes tickets et mes prix</h2><button class="btn btn-plein btn-petit" data-a="ticket-ouvrir">Scanner un ticket</button></div>
+      <p class="small muted" style="margin:0">Les prix de la liste sont d’abord des estimations Budgétable (indicatives${DATE_ESTIMATIONS ? ', révisées le ' + DATE_ESTIMATIONS : ''}). Après vos courses, scannez le ticket ou collez le récapitulatif de votre panier drive : l’appli relève les prix payés, les compare aux estimations et peut les utiliser à leur place.</p>
+      ${ecarts.length ? `<details class="small ecarts-prix"><summary><strong>Estimations comparées à vos tickets</strong> · ${pluriel(ecarts.length, 'produit')} · en moyenne ${moyEcart > 0 ? '+' : ''}${moyEcart} %</summary>
+        <table class="table-ecarts"><thead><tr><th>Produit</th><th>Estimé</th><th>Payé</th><th>Écart</th></tr></thead><tbody>${ecarts.slice(0, 30).map((e) => `<tr><td>${esc(e.nom)}<br><span class="muted">${esc(e.mag)}${e.d ? ' · ' + dateFr(e.d) : ''}</span></td><td class="num">${euros(e.est)}</td><td class="num">${euros(e.releve)}</td><td class="num ${e.pct > 0 ? 'alerte-ing' : ''}">${e.pct > 0 ? '+' : ''}${e.pct} %</td></tr>`).join('')}</tbody></table></details>` : ''}
+      ${mags.length ? `<div class="stack" style="gap:6px"><strong class="small">Prix utilisés pour mes menus et ma liste</strong><div class="row" role="radiogroup" style="gap:6px"><button class="chip" role="radio" data-a="magasin-actif" data-k="" aria-checked="${!S.magasinActif}" aria-pressed="${!S.magasinActif}">Prix estimés Budgétable</button>${mags.map(([k, m]) => `<button class="chip" role="radio" data-a="magasin-actif" data-k="${k}" aria-checked="${S.magasinActif === k}" aria-pressed="${S.magasinActif === k}">${esc(m.nom)} <span class="small muted">· ${Object.keys(m.prix || {}).length} prix</span></button>`).join('')}</div></div>
+      <div class="stack" style="gap:6px"><strong class="small">Ma liste de la semaine selon le magasin</strong>${compare.every((c) => !c.couverture) ? '<span class="small muted">Aucun article de votre liste actuelle n’a encore de prix relevé : la comparaison se remplira avec vos prochains tickets.</span>' : ''}<ul class="comparatif-magasins">${compare.map((c, i) => `<li><span>${i === 0 && compare.length > 1 && c.couverture && c.total < compare[compare.length - 1].total - 0.01 ? '🏆 ' : ''}<strong>${esc(c.m.nom)}</strong></span><span class="barre-couv" title="${c.couverture} % des articles avec un prix relevé sur ticket"><i style="width:${c.couverture}%"></i></span><span class="small muted">${c.couverture} % de prix relevés</span><strong class="num">${euros(c.total)}</strong></li>`).join('')}<li class="muted"><span>Estimations Budgétable</span><span></span><span></span><span class="num">${euros(demo)}</span></li></ul>
       ${S.magasinActif && (S.prixMagasins || {})[S.magasinActif] ? `<div><button class="btn-lien small" data-a="magasin-effacer" data-k="${S.magasinActif}">Effacer les prix relevés chez ${esc(S.prixMagasins[S.magasinActif].nom)}</button></div>` : ''}
-      <span class="small muted">Pour les articles dont le prix n’a pas encore été relevé dans un magasin, le prix de démonstration est utilisé : plus vous scannez de tickets, plus la comparaison est juste.</span></div>` : ''}
+      <span class="small muted">Pour les articles dont le prix n’a pas encore été relevé dans un magasin, l’estimation Budgétable est utilisée : plus vous scannez de tickets, plus la comparaison est juste.</span></div>` : ''}
       ${(S.tickets || []).length ? `<details class="small"><summary>Mes derniers tickets (${S.tickets.length})</summary><ul class="liste-tickets">${S.tickets.slice(0, 10).map((x) => `<li><span>${new Date(x.d + 'T12:00:00').toLocaleDateString('fr-FR')}</span><span>${esc(x.nom)} <button class="btn-lien small" data-a="ticket-suppr" data-i="${S.tickets.indexOf(x)}" aria-label="Supprimer ce ticket">supprimer</button></span><span class="num">${euros(x.paye)}</span><span class="small ${x.paye > x.estim ? 'alerte-ing' : 'muted'}">${x.estim ? (x.paye > x.estim ? '+' : '−') + euros(Math.abs(x.paye - x.estim)) + ' / estimation' : ''}${x.imprevus ? ` · 🛒 ${euros(x.imprevus)} d’imprévus` : ''}</span></li>`).join('')}</ul></details>` : ''}
       ${blocImprevusMois()}
     </section>`;
@@ -3188,7 +3321,7 @@
       </div></div>
       ${S.imprimable && !imprimerDispo ? '<p class="bandeau bandeau-info small ecran-seul">Pour obtenir un PDF, ouvrez Budgétable installé sur votre appareil et utilisez « Imprimer ou PDF ». Ici, la version imprimable sert d’aperçu.</p>' : ''}
       ${bandeauAlertes()}
-      <button class="bandeau-promos ecran-seul" data-a="onglet" data-k="promos"><span aria-hidden="true">🏷</span><span><strong>Promos du moment</strong> <span class="small">${promos && promos.offres ? (() => { const n = liste.articles.filter((a) => !a.enStock && promosPour(a.id).length).length; return n ? pluriel(n, 'article de votre liste en promo', 'articles de votre liste en promo') : 'voir les bons plans de la semaine'; })() : 'comparer votre liste aux promotions de la semaine'}</span></span><span aria-hidden="true">→</span></button>
+      <button class="bandeau-promos ecran-seul" data-a="onglet" data-k="promos"><span aria-hidden="true">🏷</span><span><strong>Promos du moment</strong> <span class="small">${promos && promos.offres ? (() => { const n = liste.articles.filter((a) => !a.enStock && promosPour(a.id, 'exact').length).length; return n ? pluriel(n, 'article de votre liste en promo', 'articles de votre liste en promo') : 'voir les bons plans de la semaine'; })() : 'comparer votre liste aux promotions de la semaine'}</span></span><span aria-hidden="true">→</span></button>
       <section class="carte stack ecran-seul panier-drive" style="gap:12px"><h2>Faire mes courses sur mon drive</h2>
         <p class="small">Choisissez votre drive, puis laissez-vous guider : un article à la fois, un bouton qui ouvre sa recherche sur le site du drive, et « C’est dans mon panier ». Sur téléphone comme sur ordinateur, rien à installer.</p>
         <div class="choix" role="radiogroup" aria-label="Mon drive">${enseignesOrdonnees().map(([k, d, lieu]) => `<button class="chip" role="radio" data-a="enseigne" data-k="${k}" aria-pressed="${S.drives.enseigne === k}" aria-checked="${S.drives.enseigne === k}">${esc(d.nom)}${lieu ? ` <span class="small muted">· ${esc(lieu)}</span>` : ''}</button>`).join('')}</div>
@@ -3291,7 +3424,7 @@
   function ongletProfil() {
     verifierAdmin();
     return `<div><p class="eyebrow">Profil</p><h1>Votre foyer et vos données</h1></div>
-      <section class="stack"><h2>Profil alimentaire</h2>${blocProfil(S.profil, true)}</section>
+      <section class="stack"><div class="spread"><h2>Profil alimentaire</h2>${S.profil.parcours === 'essentiel' ? `<button class="btn btn-petit btn-plein" data-a="affiner">✨ Affiner mes menus (${NB_COMPLEMENT()} questions)</button>` : ''}</div>${blocProfil(S.profil, true)}</section>
       <section class="carte stack" style="gap:8px"><div class="spread"><h2>Coach alimentaire</h2>${S.profil.coach ? `<span class="tag tag-ok">${COACHS[S.profil.coach].emoji} ${esc(COACHS[S.profil.coach].court)}</span>` : ''}</div>
         <p class="small muted" style="margin:0">${S.profil.coach ? esc(COACHS[S.profil.coach].accroche) : 'Minceur, sportif, ou femme de 40 ans et plus : vos menus suivent votre objectif.'}</p>
         <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="chat-ouvrir">💬 Parler à mon coach</button><button class="btn btn-petit" data-a="coach-voir" data-k="${S.profil.coach || 'minceur'}">${S.profil.coach ? 'Changer de coach' : 'Choisir un coach'}</button><button class="btn btn-petit" data-a="onglet" data-k="minceur">🥗 ${S.profil.programme ? 'Mon programme minceur' : 'Programme minceur personnalisé'}</button><button class="btn btn-petit" data-a="onglet" data-k="sport">🏃 ${S.profil.sport ? 'Mon coach sportif' : 'Coach sportif'}</button></div></section>
@@ -3354,6 +3487,7 @@
         <button class="btn btn-petit" data-a="fermer" aria-label="Fermer">Fermer</button></div>
       <figure class="fiche-illu">${V(r, 220, 'rect')}<figcaption class="small muted">${creditPhoto(r)}</figcaption></figure>
       <div class="meta"><span>${r.temps} min</span><span>${['', 'Facile', 'Moyen', 'Avancé'][r.niveau]}</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''} adulte${m.portions > 1 ? 's' : ''}</span><span class="num">≈ ${euros(E.coutPortion(r) * m.portions)}</span>${tagDemo}</div>
+      ${blocAVerifier(r)}
       ${nutriFiche(r, 'portion adulte')}
       <div class="equi"><span class="tag ${eq.legumes ? 'tag-ok' : 'tag-simu'}">Légumes ${eq.legumes ? '✓' : '—'}</span><span class="tag ${eq.feculent ? 'tag-ok' : 'tag-simu'}">Féculent ${eq.feculent ? '✓' : '—'}</span><span class="tag ${eq.proteine ? 'tag-ok' : 'tag-simu'}">Protéines ${eq.proteine ? '✓' : '—'}</span></div>
       ${!eq.legumes || !eq.feculent ? `<p class="small muted">Pour compléter : ${!eq.legumes ? 'une crudité ou un fruit' : ''}${!eq.legumes && !eq.feculent ? ' et ' : ''}${!eq.feculent ? 'du pain' : ''}.</p>` : ''}
@@ -3480,6 +3614,7 @@
         <button class="btn btn-petit" data-a="fermer" aria-label="Fermer">Fermer</button></div>
       <figure class="fiche-illu">${V(r, 200, 'rect')}${r.photo ? `<figcaption class="small muted">${creditPhoto(r)}</figcaption>` : ''}</figure>
       <div class="meta"><span>${r.temps} min</span><span>${pluriel(parts, 'part')}</span><span class="num">${euros(E.coutPortion(r))} la part${r.extras && r.extras.length ? '*' : ''}</span></div>
+      ${c.ok ? blocAVerifier(r) : ''}
       ${nutriFiche(r, 'part')}
       ${!c.ok ? `<div class="bandeau bandeau-demo small">Attention : ${esc(libAllergie(c.raison))}.</div>` : ''}
       ${r.lien ? `<a class="btn btn-petit btn-plein lien-recette" href="${esc(r.lien)}" target="_blank" rel="noopener noreferrer">Voir la recette sur ${esc(domaine(r.lien))} ↗</a>` : ''}
@@ -4363,11 +4498,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const part = b.atteints / b.reperes.length;
     return `<section class="carte stack bilan-nutri" style="gap:10px" aria-label="Bilan nutritionnel de la semaine">
       <div class="spread" style="align-items:center"><h2>Bilan nutritionnel</h2><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong> repères</span></div>
-      <div class="chiffres-nutri"><div><span class="small muted">Énergie</span><strong class="num">${b.kcal} kcal</strong><span class="small muted">par jour</span></div>${b.reperes.filter((r) => ['prot', 'fibres', 'legumes'].includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span class="small muted">${esc(r.nom)}</span><strong class="num">${nb(r.valeur)} ${r.cle === 'legumes' ? 'g' : 'g'}</strong><span class="small muted">par jour</span></div>`).join('')}</div>
+      <div class="chiffres-nutri"><div class="kcal-portee"><span class="small muted">Énergie</span><strong class="num">≈ ${nb(b.kcal)} kcal</strong><span class="small portee-kcal"><strong>déjeuner + dîner</strong>, par adulte et par jour</span></div>${b.reperes.filter((r) => ['prot', 'fibres', 'legumes'].includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span class="small muted">${esc(r.nom)}</span><strong class="num">${nb(r.valeur)} ${r.cle === 'legumes' ? 'g' : 'g'}</strong><span class="small muted">par jour</span></div>`).join('')}</div>
       ${aRevoir.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">À améliorer</span><ul class="liste-reperes">${aRevoir.map(ligne).join('')}</ul><div><button class="btn btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button> <span class="small muted">Le coach propose de changer quelques plats.</span></div></div>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints cette semaine. Bravo !</p>'}
       <div><button class="btn btn-petit" data-a="onglet" data-k="apports">📈 Mon suivi des apports (graphiques)</button></div>
       <details><summary class="small"><strong>Voir tout le détail</strong></summary><ul class="liste-reperes" style="margin-top:8px">${b.reperes.map(ligne).join('')}</ul></details>
-      <p class="small muted" style="margin:0">Pour un adulte, sur les déjeuners et dîners de la semaine${b.gourmand ? ' et les desserts ou goûters prévus' : ''}, hors petit-déjeuner. Estimation d’après les ingrédients et les repères de santé publique (PNNS), pas un avis médical.</p>
+      <p class="small" style="margin:0"><strong>À lire :</strong> ces chiffres comptent seulement le déjeuner et le dîner d’un adulte${b.gourmand ? ' (et les desserts ou goûters prévus)' : ''}, soit environ ${nb(b.kcalRepas)} kcal par repas. Le petit-déjeuner, les collations et les boissons n’y sont pas : ce n’est pas le total de votre journée, ni un objectif.</p>
+      <p class="small muted" style="margin:0">${b.repasHorsMaison ? `${pluriel(b.repasHorsMaison, 'repas pris dehors ou non prévu n’est pas compté', 'repas pris dehors ou non prévus ne sont pas comptés')}. ` : ''}${b.couverture < 0.9 ? `Estimation partielle : les valeurs de ${Math.round((1 - b.couverture) * 100)} % des ingrédients (en poids) ne sont pas connues et comptent pour zéro. ` : ''}Estimation d’après les ingrédients (tables Ciqual) et les repères de santé publique (PNNS), pas un avis médical.</p>
     </section>`;
   }
 
@@ -4381,13 +4517,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const cles = ['prot', 'fibres', 'legumes'];
     return `<section class="bandeau-nutri" aria-label="Bilan nutritionnel de la semaine">
       <div class="spread" style="align-items:center"><strong>Bilan nutritionnel</strong><span class="score-reperes ${part >= 0.8 ? 'bon' : part >= 0.6 ? 'moyen' : 'faible'}"><strong class="num">${b.atteints}/${b.reperes.length}</strong></span></div>
-      <div class="mini-chiffres"><div><span>Énergie</span><strong class="num">${b.kcal}</strong><span>kcal/j</span></div>${b.reperes.filter((r) => cles.includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span>${esc(r.nom)}</span><strong class="num">${nb(r.valeur)}</strong><span>g/j</span></div>`).join('')}</div>
+      <div class="mini-chiffres"><div><span>Déj. + dîner</span><strong class="num">${nb(b.kcal)}</strong><span>kcal/j</span></div>${b.reperes.filter((r) => cles.includes(r.cle)).map((r) => `<div class="rep-${r.etat}"><span>${esc(r.nom)}</span><strong class="num">${nb(r.valeur)}</strong><span>g/j</span></div>`).join('')}</div>
       ${b.reperes.some((r) => r.etat !== 'ok') ? `<ul class="mini-reperes">${b.reperes.filter((r) => r.etat !== 'ok').map((r) => `<li class="rep-${r.etat}" title="${esc(r.conseil)}"><span class="fleche">${fl(r)}</span><span>${esc(r.nom)}</span><span class="num">${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur}</span></li>`).join('')}</ul>` : '<p class="small" style="margin:0">✓ Tous les repères sont atteints.</p>'}
       ${b.atteints < b.reperes.length ? '<button class="btn btn-petit btn-plein" data-a="ameliorer">✨ Améliorer ma semaine</button>' : ''}
       <button class="btn btn-petit" data-a="bilan-ouvrir">Détails et conseils</button>
       <button class="btn btn-petit" data-a="onglet" data-k="apports">📈 Mon suivi des apports</button>
       <button class="btn btn-petit" data-a="onglet" data-k="journal">📖 Mon journal</button>
-      <span class="small muted">Par adulte, déjeuners et dîners. Estimation.</span>
+      <span class="small"><strong>kcal/j = déjeuner + dîner d’un adulte</strong>, sans petit-déjeuner ni collations. Estimation.</span>
     </section>`;
   }
   /* coach nutrition : propositions de changements de plats */
@@ -4515,7 +4651,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const b = S.plan && window.Nutrition ? window.Nutrition.bilanSemaine(S.plan, E.REC, E.ING) : null;
     if (!b) return null;
     const aRevoir = b.reperes.filter((r) => r.etat !== 'ok');
-    return { b, texte: `${b.atteints} repères sur ${b.reperes.length} atteints ; à améliorer : ${aRevoir.map((r) => `${r.nom} (${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur} ${r.unite || ''}, repère : ${r.repere})`).join(' ; ') || 'rien'}`, aRevoir };
+    return { b, texte: `Valeurs estimées pour un adulte, déjeuner + dîner seulement (≈ ${b.kcal} kcal par jour sur ces deux repas, sans petit-déjeuner ni collations). ${b.atteints} repères sur ${b.reperes.length} atteints ; à améliorer : ${aRevoir.map((r) => `${r.nom} (${typeof r.valeur === 'number' ? nb(r.valeur) : r.valeur} ${r.unite || ''}, repère : ${r.repere})`).join(' ; ') || 'rien'}`, aRevoir };
   }
   function consignesCoachAlimentaire() {
     const p = S.profil, c = coachCourant(), g = E.resumeGouts(p.gouts);
@@ -4540,6 +4676,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const t = TK && TK.norm ? TK.norm(q) : String(q).toLowerCase(), c = coachCourant(), bil = resumeBilanCoach();
     if (/vomi|plus manger|culpab|malaise|anorex|boulim/.test(t)) return 'Merci de me le confier. Ce que vous ressentez compte : parlez-en à votre médecin ou à une personne de confiance, ils pourront vraiment vous aider. Je reste là pour des repas simples et sans pression.';
     if (/semaine|equilibr|bilan|repere/.test(t) && bil) return `Votre semaine atteint ${bil.b.atteints} repères sur ${bil.b.reperes.length}${bil.aRevoir.length ? ` ; à améliorer : ${bil.aRevoir.map((r) => r.nom.toLowerCase()).join(', ')}. ${bil.aRevoir[0].conseil || ''} « Améliorer ma semaine » vous propose des plats à changer.` : '. Bravo, c’est très équilibré !'}`;
+    if (/allerg|intoleran|gluten|lactose|arachide|cacahu/.test(t)) return 'Indiquez vos allergies dans votre profil : les recettes qui contiennent ces ingrédients sont écartées des menus, et les produits qui peuvent en contenir selon la marque sont signalés. Budgétable ne connaît pas la composition exacte de chaque produit : vérifiez toujours l’étiquette et les mentions « peut contenir », et suivez l’avis de votre médecin en cas d’allergie sévère.';
     if (/enfant|petit|bebe|ado/.test(t)) return COACHS.famille.pour.replace(/^Les/, 'Pour les enfants : les') + ' Le coach famille peut préparer toute la semaine dans cet esprit.';
     if (/legume|fibre/.test(t)) return 'Glissez des légumes partout : dans les sauces, les gratins, les omelettes et les soupes. Visez la moitié de l’assiette, et pensez aux surgelés nature, pas chers et déjà prêts. 🥕';
     if (/leger|soir|diner|mincir|maigrir|kilo|poids/.test(t)) return COACHS.minceur.accroche + ' ' + COACHS.minceur.pour + ' Le coach minceur peut préparer votre semaine dans cet esprit.';
@@ -4703,7 +4840,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach], ['plus', vuePlus]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -4743,6 +4880,18 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
    * Refaire les plats de la semaine : de nouveaux plats sur les mêmes jours, en gardant ce qui est déjà mangé ou pris dehors,
    * les repas choisis à la main (ou par les enfants), les repas passés, les desserts, petits-déjeuners et produits ajoutés.
    */
+  /** Repas à ne pas changer : déjà mangés ou passés, choisis à la main, pris dehors. */
+  function verrousSemaine() {
+    if (!S.plan) return [];
+    const t = aujourdhui(), h = new Date().getHours(), out = [];
+    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => {
+      const m = jp[sl], k = j + '-' + sl;
+      if (!m) return;
+      const passe = posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21));
+      if ((S.deduits || {})[k] || m.choisi || m.choisiPar || m.dehors || passe) out.push(k);
+    }));
+    return out;
+  }
   function refairePlats() {
     if (!S.plan) return 0;
     const avant = JSON.parse(JSON.stringify(S.plan));
@@ -4771,6 +4920,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     return n;
   }
   function allerQuestion(id) {
+    S.qMode = null;
     const qs = questionsActives(S.profil);
     S.etape = Math.max(0, qs.findIndex((q) => q.id === id));
     S.edition = true;
@@ -4788,20 +4938,27 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     return ajouts.length;
   }
   function suivant() {
-    const qs = questionsActives(S.profil);
+    const qs = questionsParcours(S.profil);
     const q = qs[S.etape];
     if (q.id === 'provisions') { const n = rangerProvisions(S.profil); if (n) toast(`${pluriel(n, 'produit rangé', 'produits rangés')} dans votre placard`); }
     if (q.id === 'allergies') { S.profil.allergiesNonRenseignees = false; S.sensibleNonEnregistre = false; }
     if (S.edition) {
       // si la question a ouvert une question dépendante (ex. enfants → âges), on la pose aussi
-      const suivante = questionsActives(S.profil)[S.etape + 1];
+      const suivante = questionsParcours(S.profil)[S.etape + 1];
       if (suivante && ['ages', 'enfantsMode', 'sport', 'consentement'].includes(suivante.id) && !(suivante.id === 'consentement' && S.profil.consentementSante)) { S.etape++; return; }
       S.edition = false;
       S.vue = S.plan ? 'app' : 'profil';
       if (S.plan) S.onglet = 'profil';
       return;
     }
-    if (S.etape < qs.length - 1) S.etape++; else S.vue = 'profil';
+    if (S.etape < qs.length - 1) { S.etape++; return; }
+    // parcours court : le placard de base (huile, épices, bouillon…) est rangé comme si la question « provisions » avait été posée
+    if (S.qMode === 'essentiel' && !Array.isArray(S.profil.provisionsRangees)) rangerProvisions(S.profil);
+    if (S.qMode === 'complement') {
+      S.profil.parcours = 'complet'; S.qMode = null;
+      if (S.plan) { S.vue = 'app'; S.onglet = 'semaine'; S.complementFini = true; window.scrollTo(0, 0); toast('Profil complété : touchez « Refaire les plats » pour en tenir compte'); return; }
+    }
+    S.vue = 'profil';
   }
 
   /* ---------- événements ---------- */
@@ -4814,11 +4971,14 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if ((a === 'fermer-fond' || a === 'fermer-choix-fond' || a === 'courses-fond' || a === 'edition-fond' || a === 'au-menu-fond' || a === 'gourmand-fond' || a === 'coach-fond' || a === 'budget-fond' || a === 'presence-fond' || a === 'bilan-fond' || a === 'ameliorer-fond' || a === 'kcal-fond' || a === 'deplacer-fond' || a === 'ticket-fond') && ev.target !== el) return;
     const p = S.profil;
     switch (a) {
-      case 'commencer': S.vue = 'questionnaire'; S.etape = 0; break;
+      case 'commencer': S.vue = 'questionnaire'; S.etape = 0; S.qMode = 'essentiel'; if (!S.plan) S.profil.parcours = 'essentiel'; break;
+      case 'affiner': S.vue = 'questionnaire'; S.etape = 0; S.qMode = 'complement'; S.edition = false; window.scrollTo(0, 0); break;
+      case 'affiner-ok': S.complementFini = false; break;
+      case 'affiner-plus-tard': S.profil.affinerMasque = true; toast('D’accord. Vous pourrez affiner vos menus depuis « Mon profil ».'); break;
       case 'q-suiv': suivant(); break;
-      case 'q-prec': if (S.edition && S.etape === 0) { S.edition = false; S.vue = S.plan ? 'app' : 'profil'; } else S.etape = Math.max(0, S.etape - 1); break;
+      case 'q-prec': if ((S.edition || S.qMode === 'complement') && S.etape === 0) { S.edition = false; if (S.qMode === 'complement') S.qMode = null; S.vue = S.plan ? 'app' : 'profil'; } else S.etape = Math.max(0, S.etape - 1); break;
       case 'q-passer': p.allergies = []; p.allergiesNonRenseignees = true; suivant(); break;
-      case 'q-reprendre': S.vue = 'questionnaire'; S.etape = 0; break;
+      case 'q-reprendre': S.vue = 'questionnaire'; S.etape = 0; S.qMode = S.profil.parcours === 'essentiel' ? 'essentiel' : null; break;
       case 'cpt': {
         const d = +el.dataset.d;
         if (el.dataset.id === 'adultes') { p.foyer.adultes = Math.max(1, p.foyer.adultes + d); p.dejeuners.adultesMaison = Math.min(p.dejeuners.adultesMaison, p.foyer.adultes); }
@@ -4845,7 +5005,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'placard': p.placardBase = el.checked; break;
       case 'modifier': allerQuestion(el.dataset.q); break;
       case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois(); if (C.compter) C.compter('semaine', { source: sourceVisite() }); break;
-      case 'onglet': S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; window.scrollTo(0, 0); break;
+      case 'menu-plus': S.menuPlus = !S.menuPlus; break;
+      case 'voir-reglages': { if (mqMobile.matches) S.outilMobile = el.dataset.k || ''; setTimeout(() => { const c = document.getElementById(mqMobile.matches ? 'reglages-semaine' : 'reglage-' + (el.dataset.k || 'budget')) || document.getElementById('reglages-semaine'); if (c) c.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); break; }
+      case 'menu-plus-fond': if (ev.target !== el) return; S.menuPlus = false; break;
+      case 'onglet': { S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; S.menuPlus = false; window.scrollTo(0, 0); const ancre = el.dataset.ancre; if (ancre) setTimeout(() => { const c = document.getElementById(ancre); if (c) c.scrollIntoView({ block: 'start' }); }, 80); break; }
       case 'm-libre': { const m = S.plan.jours[+el.dataset.j][el.dataset.s]; if (!m) return; m.libre = !m.libre; toast(m.libre ? 'Repas libre : part normale pour vous, sans le coach' : 'Le coach minceur s’applique à nouveau à ce repas'); break; }
       case 'm-semaine-case': if (p.programme) { p.programme.dansSemaine = el.checked; toast(el.checked ? 'Coach appliqué à vos plats de la semaine' : 'Coach retiré de vos plats de la semaine'); } break;
       case 'm-semaine': { const pr = p.programme; if (!pr) return; pr.dansSemaine = pr.dansSemaine === false; toast(pr.dansSemaine ? '🥗 Coach minceur ajouté à vos plats de la semaine' : 'Coach minceur retiré de la semaine : vos plats et vos courses redeviennent normaux'); break; }
@@ -4879,8 +5042,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'ticket-utiliser': S.ticket.utiliser = el.checked; return;
       case 'ticket-enregistrer': enregistrerTicket(); toast('Prix enregistrés'); break;
       case 'ticket-suppr': { const i = +el.dataset.i; if (S.tickets && S.tickets[i]) { S.tickets.splice(i, 1); toast('Ticket supprimé de l’historique'); } break; }
-      case 'magasin-effacer': { const k = el.dataset.k; if (S.prixMagasins && S.prixMagasins[k]) { const nom = S.prixMagasins[k].nom; delete S.prixMagasins[k]; if (S.magasinActif === k) S.magasinActif = ''; appliquerPrixMagasin(); toast(`Prix de ${nom} effacés : retour aux prix de démonstration`); } break; }
-      case 'magasin-actif': S.magasinActif = el.dataset.k; appliquerPrixMagasin(); toast(el.dataset.k ? `Vos menus et votre liste utilisent les prix de ${S.prixMagasins[el.dataset.k].nom}` : 'Retour aux prix de démonstration'); break;
+      case 'magasin-effacer': { const k = el.dataset.k; if (S.prixMagasins && S.prixMagasins[k]) { const nom = S.prixMagasins[k].nom; delete S.prixMagasins[k]; if (S.magasinActif === k) S.magasinActif = ''; appliquerPrixMagasin(); toast(`Prix de ${nom} effacés : retour aux prix estimés`); } break; }
+      case 'magasin-actif': S.magasinActif = el.dataset.k; appliquerPrixMagasin(); toast(el.dataset.k ? `Vos menus et votre liste utilisent les prix de ${S.prixMagasins[el.dataset.k].nom}` : 'Retour aux prix estimés'); break;
       case 'deplacer': S.deplacer = { j: +el.dataset.j, s: el.dataset.s }; S.menuRepas = null; break;
       case 'deplacer-fermer': case 'deplacer-fond': S.deplacer = null; break;
       case 'deplacer-vers': {
@@ -4899,6 +5062,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'refaire-plats': {
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
+        S.complementFini = false;
         const n = refairePlats();
         toast(n ? `${pluriel(n, 'plat refait', 'plats refaits')} ; la liste de courses suit` : 'Tous les repas de la semaine sont déjà mangés ou choisis');
         break;
@@ -4918,9 +5082,14 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       }
       case 'ajuster': {
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
-        const r = E.ajusterAuBudget(S.plan, p, optsMoteur());
-        S.plan = { ...r.plan, alertes: S.plan.alertes.concat(r.atteint ? [] : [`Même avec les recettes compatibles les moins chères, l’estimation reste à ${euros(r.estimation)}. Pistes : augmenter un peu le budget, indiquer vos provisions, ou prévoir des déjeuners dehors.`]) };
-        toast(r.changements.length ? `${pluriel(r.changements.length, 'repas remplacé')}, économie ${euros(r.changements.reduce((s, c) => s + c.gain, 0))}` : 'Aucun remplacement moins cher trouvé');
+        const mode = el.dataset.k === 'max' ? 'max' : 'varie';
+        const r = E.ajusterAuBudget(S.plan, p, { ...optsMoteur(), mode, verrous: verrousSemaine() });
+        const alerte = r.atteint ? [] : [mode === 'varie'
+          ? `En gardant des menus variés, l’estimation reste à ${euros(r.estimation)}. Le choix « Économies maximales » peut baisser davantage, avec des plats plus répétitifs. Autres pistes : indiquer vos provisions, ou prévoir des déjeuners dehors.`
+          : `Même avec les recettes compatibles les moins chères, l’estimation reste à ${euros(r.estimation)}. Pistes : augmenter un peu le budget, indiquer vos provisions, ou prévoir des déjeuners dehors.`];
+        S.plan = { ...r.plan, alertes: (S.plan.alertes || []).filter((x) => !/l’estimation reste à/.test(x)).concat(alerte) };
+        S.dernierAjustement = { mode, n: r.changements.length, gain: r.changements.reduce((t, c) => t + c.gain, 0) };
+        toast(r.changements.length ? `${pluriel(r.changements.length, 'repas remplacé')} (${mode === 'max' ? 'économies maximales' : 'menus variés'}) : environ ${euros(S.dernierAjustement.gain)} de moins, en prix estimés` : 'Aucun remplacement moins cher trouvé');
         break;
       }
       case 'fiche': fiche = { jour: +el.dataset.j, slot: el.dataset.s }; break;

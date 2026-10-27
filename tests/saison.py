@@ -1,6 +1,13 @@
 # Mes recettes : idées de saison (filtrer, garder, mettre au menu, ouvrir la fiche)
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -17,7 +24,7 @@ with sync_playwright() as p:
         clic("Continuer")
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button", has_text="Recettes").click()
+    aller(page, 'recettes')
     sec = page.locator(".saison")
     assert "de saison en octobre" in sec.inner_text().lower() and "automne" in sec.inner_text(), sec.inner_text()[:300]
     n = sec.locator(".carte-saison").count(); print("idées :", n); assert n >= 45, n

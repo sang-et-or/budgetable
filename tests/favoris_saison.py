@@ -1,6 +1,13 @@
 # Favoris en étoile (semaine, fiche, page Recettes, retour dans les menus) et saison dans les propositions
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -24,7 +31,7 @@ with sync_playwright() as p:
     assert rid in fav
     main.locator(".jour").first.screenshot(path=f"{OUT}/favori.png")
     # page Recettes : section favoris
-    page.locator("nav button[data-k=recettes]").click()
+    aller(page, 'recettes')
     assert "Mes favoris" in main.inner_text() and main.locator(".liste-favoris li").count() == 1
     main.locator(".favoris").screenshot(path=f"{OUT}/favoris.png")
     # retire depuis la page Recettes

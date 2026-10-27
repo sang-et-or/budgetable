@@ -85,8 +85,11 @@ function offresProspectus(pages, { enseigne = 'Aldi', lien = '', maintenant = Da
     // pages alimentaires : elles portent le message « mangerbouger » ou parlent du rayon frais
     if (!/MANGERBOUGER|rayon frais|rayon surgel|fruits et l[ée]gumes|abus d.alcool/i.test(t)) return;
     const dates = /au (?:[a-z]{3,8}\.? )?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i.exec(t);
-    let fin = null;
+    let fin = null, debut = null;
     if (dates) { const an = dates[3] ? +dates[3] : new Date(maintenant).getFullYear(); fin = new Date(an, +dates[2] - 1, +dates[1], 23, 59).getTime(); }
+    // début de l'offre (« du mer. 29/10 », « à partir du 29/10 ») : une offre de la semaine prochaine n'est pas « en cours »
+    const dd = /(?:\bdu|à partir du|a partir du|dès le|des le)\s+(?:[a-z]{3,8}\.?\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i.exec(t);
+    if (dd) { const an = dd[3] ? +dd[3] : new Date(maintenant).getFullYear(); debut = new Date(an, +dd[2] - 1, +dd[1], 0, 0).getTime(); if (fin && debut > fin) debut = null; }
     const morceaux = t.split(/Réf\. ?\d+(?: ?\/ ?Réf\. ?\d+)*/);
     for (let i = 1; i < morceaux.length; i++) {
       // nom : la dernière suite de mots en capitales avant « Réf. » (marque ® comprise)
@@ -126,7 +129,7 @@ function offresProspectus(pages, { enseigne = 'Aldi', lien = '', maintenant = Da
       const nom = (lisible + complement).slice(0, 120);
       if (NON_ALIMENTAIRE.test(nom)) continue;
       if (fin && fin < maintenant - 86400000) continue;
-      out.push({ id: `${enseigne.toLowerCase()}-p${n + 1}-${i}`, enseigne, nom, prix, prixAvant, remise, lidlPlus: false, cond: cond ? cond[1].replace(/\s+/g, ' ') : '', prixKg: kg ? `1 ${kg[2]} = ${kg[1].replace('.', ',')}` : '', debut: null, fin, quand: '', lien: lien || '', image: null, rayon: 'Prospectus', page: n + 1 });
+      out.push({ id: `${enseigne.toLowerCase()}-p${n + 1}-${i}`, enseigne, nom, prix, prixAvant, remise, lidlPlus: false, cond: cond ? cond[1].replace(/\s+/g, ' ') : '', prixKg: kg ? `1 ${kg[2]} = ${kg[1].replace('.', ',')}` : '', debut, fin, quand: '', lien: lien || '', image: null, rayon: 'Prospectus', page: n + 1 });
     }
   });
   return out;

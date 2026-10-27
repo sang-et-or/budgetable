@@ -1,9 +1,9 @@
 /* Budgétable — données de référence (V0.1)
  *
- * PRIX : tous les champs `prixDemo` sont des PRIX DE DÉMONSTRATION.
- * Ils ne proviennent d'aucun magasin et ne doivent jamais être présentés
- * comme des prix réels. Ils servent uniquement à faire fonctionner le
- * calcul de budget en attendant une source autorisée (voir le plan, étape 4).
+ * PRIX : les champs `prixDemo` sont des PRIX INDICATIFS (estimations) fixés à la main par Budgétable
+ * pour un conditionnement courant. Ils ne sont relevés dans aucun magasin et ne doivent jamais être
+ * présentés comme des prix réels vérifiés. Ils sont remplacés, produit par produit, par les prix relevés
+ * sur les tickets de la personne ou par ceux qu'elle saisit elle-même.
  *
  * Étiquettes (tags) des ingrédients :
  *   allergènes : gluten, lait, lactose, oeuf, arachide, fruits_coque, poisson,
@@ -13,9 +13,9 @@
  */
 (function (root) {
   const PRIX_SOURCE = {
-    type: 'demo',
-    libelle: 'Prix de démonstration',
-    detail: "Valeurs fixées à la main pour tester le calcul. Elles ne viennent d'aucun magasin.",
+    type: 'estimation',
+    libelle: 'Prix estimés',
+    detail: 'Prix indicatifs fixés par Budgétable (révisés le 20/10/2026), non relevés dans un magasin précis : votre ticket peut différer.',
     date: '2026-10-20'
   };
 

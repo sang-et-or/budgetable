@@ -33,7 +33,7 @@ with sync_playwright() as p:
     page.locator(".bandeau-promos").click()
     page.wait_for_timeout(800)
     t = page.locator("main").inner_text(); print(t[:700])
-    assert "Promos du moment" in t and "Toutes les promos alimentaires" in t
+    assert "Promos du moment" in t and "Toutes les promos en cours" in t
     assert "crépinettes" in t
     page.screenshot(path=f"{OUT}/pr1.png", full_page=True)
     # prospectus : Aldi se feuillette dans Budgétable, Lidl s'ouvre sur son site
@@ -62,7 +62,7 @@ with sync_playwright() as p:
     assert page.locator(".titre-magasin").count() == 2
     page.screenshot(path=f"{OUT}/pr3.png", full_page=True)
     page.locator("[data-a=promo-filtre][data-k=viande]").click()
-    assert "Oignons jaunes" not in page.locator("main section", has_text="Toutes les promos alimentaires").inner_text()
+    assert "Oignons jaunes" not in page.locator("main section", has_text="Toutes les promos en cours").inner_text()
     # retour aux courses : étiquette promo sur les oignons
     page.locator("nav button", has_text="Courses").click()
     print("étiquettes promo :", page.locator(".article .tag-promo").count())

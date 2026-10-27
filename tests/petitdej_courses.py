@@ -1,6 +1,13 @@
 # Page Petit-déj (filtres, ajout à la semaine → courses) et produits ajoutés à la main dans la liste
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -14,7 +21,7 @@ with sync_playwright() as p:
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
     clic("Voir mon profil"); page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
-    page.locator("nav button[data-k=petitdej]").click()
+    aller(page, 'petitdej')
     assert "Petits-déjeuners" in page.inner_text("main")
     n_tout = page.locator(".grille-gourmande .carte-gourmande").count()
     page.locator("[data-a=pd-filtre][data-k=sportif]").click()
@@ -30,7 +37,7 @@ with sync_playwright() as p:
     # visible dans la semaine, avant le déjeuner, et pas dans Gourmand
     page.locator("nav button[data-k=semaine]").click()
     assert "Petit-déj : " + nom in page.inner_text("main"), nom
-    page.locator("nav button[data-k=gourmand]").click()
+    aller(page, 'gourmand')
     assert nom not in page.inner_text("main")
     # courses : ingrédients du petit-déj + ajouts à la main
     page.locator("nav button[data-k=courses]").click()
@@ -53,7 +60,7 @@ with sync_playwright() as p:
     assert "Parmesan" in page.inner_text(".ticket")
     # mobile : accès par la bascule de Gourmand
     page.set_viewport_size({"width": 390, "height": 844})
-    page.locator("nav button[data-k=gourmand]").click()
+    aller(page, 'gourmand')
     page.locator(".bascule-g [data-k=petitdej]").click()
     assert "Petits-déjeuners" in page.inner_text("main")
     page.screenshot(path=f"{OUT}/petitdej-mobile.png")

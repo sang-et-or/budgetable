@@ -1,6 +1,13 @@
 # Programme minceur : garde-fous, bilan, semaine selon les goûts, point hebdo, coach, arrêt
 import sys, re
 from playwright.sync_api import sync_playwright
+
+def aller(page, k):
+    """Ouvre un onglet : bouton de la navigation s'il est visible, sinon via « Plus » (téléphone)."""
+    b = page.locator(f"nav.nav button[data-k={k}]")
+    if b.is_visible(): b.click()
+    else: page.locator(".nav-plus").click(); page.locator(f".fenetre-plus [data-k={k}]").click()
+
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 erreurs = []
 with sync_playwright() as p:
@@ -17,7 +24,7 @@ with sync_playwright() as p:
     # goûts : on adore les pois chiches
     page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('budgetable.v1')); d.profil.gouts = { ing: { pois_chiches: 2.5, fromage_blanc: 2 }, cuisine: {}, modele: {}, plat: {} }; localStorage.setItem('budgetable.v1', JSON.stringify(d)); }""")
     page.reload()
-    page.locator("nav button[data-k=minceur]").click()
+    aller(page, 'minceur')
     assert "Programme minceur" in page.inner_text("main")
     choix = lambda cle, k: page.locator(f"[data-a=prog-choix][data-cle={cle}][data-k='{k}']").click()
     champ = lambda k, v: page.locator(f"[data-a=prog-champ][data-k={k}]").fill(v)
@@ -61,7 +68,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/minceur-mobile.png")
     # arrêt : données effacées
     page.set_viewport_size({"width": 1100, "height": 1000})
-    page.locator("nav button[data-k=minceur]").click()
+    aller(page, 'minceur')
     clic("Arrêter le programme"); clic("Confirmer : arrêter et effacer")
     assert page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).profil.programme") is None
     print("Erreurs JS :", erreurs or "aucune"); assert not erreurs
