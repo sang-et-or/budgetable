@@ -1064,7 +1064,7 @@
           <p class="accueil-sous">Environ une minute de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
           <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
           ${S.plan ? '' : '<p class="small" style="margin:6px 0 0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
-          <p class="small muted" style="margin:0">Gratuit · sans carte bancaire · créez votre compte pour garder vos menus · à installer sur votre téléphone en un geste</p>
+          <p class="small muted" style="margin:0">Une semaine d’essai gratuite · créez votre compte pour garder vos menus · à installer sur votre téléphone en un geste</p>
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
       </section>
