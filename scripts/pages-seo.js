@@ -89,7 +89,7 @@ nav.fil{font-size:.88rem;color:var(--doux);margin-top:14px}nav.pied{margin-top:4
 
 const MARQUE = '<a class="marque" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>';
 const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/conseils/">Conseils</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="https://www.youtube.com/@Budgetablecoach" rel="noopener">YouTube</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
-const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. 7 jours gratuits, sans carte bancaire.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
+const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. Une semaine d’essai gratuite.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
 
 const CONF = (() => { try { const t = fs.readFileSync(path.join(__dirname, '..', 'js', 'config.js'), 'utf8'); return { url: (t.match(/url:\s*'([^']+)'/) || [])[1], cle: (t.match(/cle:\s*'([^']+)'/) || [])[1] }; } catch (e) { return {}; } })();
 // compteur anonyme (aucun cookie, aucune donnée personnelle) : une ligne « page » par affichage
@@ -238,7 +238,7 @@ ${APPEL('Faites votre planning maintenant')}`,
 <h2>Exemple de semaine proposée</h2>
 <ul>${exempleSemaine}</ul>
 ${APPEL('Essayez le planificateur gratuitement')}`,
-      ld: [faq([['Qu’est-ce qu’un planificateur de repas ?', 'C’est un outil qui organise vos repas de la semaine à l’avance et en déduit la liste de courses. Budgétable propose lui-même les menus selon vos goûts, vos allergies et votre budget.'], ['Le planificateur de repas Budgétable est-il gratuit ?', 'Les 7 premiers jours sont gratuits, sans carte bancaire. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement.'], ['Faut-il installer une application ?', 'Non : Budgétable fonctionne dans le navigateur, sur téléphone et ordinateur. Vous pouvez aussi l’installer sur l’écran d’accueil comme une appli.']])]
+      ld: [faq([['Qu’est-ce qu’un planificateur de repas ?', 'C’est un outil qui organise vos repas de la semaine à l’avance et en déduit la liste de courses. Budgétable propose lui-même les menus selon vos goûts, vos allergies et votre budget.'], ['Le planificateur de repas Budgétable est-il gratuit ?', 'La première semaine est un essai gratuit. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement.'], ['Faut-il installer une application ?', 'Non : Budgétable fonctionne dans le navigateur, sur téléphone et ordinateur. Vous pouvez aussi l’installer sur l’écran d’accueil comme une appli.']])]
     },
     {
       fichier: 'liste-de-courses.html', titre: 'Liste de courses automatique, triée par rayon | Budgétable',
