@@ -1456,11 +1456,11 @@
     const g = S.plan.jours[j].gamelles;
     if (!g || !g.n || !E.REC[g.recette]) return '';
     const r = E.REC[g.recette];
-    if (!seule) return `<button class="ligne-gamelle" data-a="gamelle-fiche" data-j="${j}"><span aria-hidden="true">🥡</span> ${pluriel(g.n, 'gamelle')} : ${esc(r.nom)} <span class="small muted">· ${texteGamelle(j)}</span></button>`;
+    if (!seule) return `<button class="ligne-gamelle" data-a="gamelle-fiche" data-j="${j}"><span aria-hidden="true">🥡</span> ${pluriel(g.n, 'gamelle')} : ${esc(r.nom)} <span class="small muted">· ${texteGamelle(j)}</span></button>${boutonGamelle(j) ? `<div class="row" style="gap:6px;margin:2px 0 6px">${boutonGamelle(j)}</div>` : ''}`;
     return `<div class="repas repas-illu repas-gamelle"><div class="vignette">${V(r, 64)}</div><div class="repas-corps"><span class="eyebrow">Déjeuner · 🥡 ${pluriel(g.n, 'gamelle')}</span>
       <button class="titre-repas" data-a="gamelle-fiche" data-j="${j}">${esc(r.nom)}</button>
       <span class="small ${g.mode === 'restes' ? 'pourquoi' : ''}">${g.mode === 'restes' ? `Restes du dîner de ${E.JOURS[g.source].toLowerCase()} : rien à cuisiner ce midi` : 'À préparer la veille au soir, quantités dans la recette'}</span>
-      <div class="row" style="gap:6px"><button class="btn btn-petit" data-a="gamelles-ouvrir">Régler les gamelles</button></div></div></div>`;
+      <div class="row" style="gap:6px">${boutonGamelle(j)}<button class="btn btn-petit" data-a="gamelles-ouvrir">Régler les gamelles</button></div></div></div>`;
   }
   function blocGamelles() {
     if (!S.plan) return '';
@@ -3698,6 +3698,16 @@
     if (ajouter) { S.journal.push({ d: dateDuJour(j), s: slot, r: recette }); for (const g of complementsDu(j, slot)) S.journal.push({ d: dateDuJour(j), s: slot, r: g.recette, c: g.moment }); }
     if (S.journal.length > 1500) S.journal = S.journal.slice(-1500);
   }
+  // gamelle du midi : notée dans le journal des calories, sans toucher au placard (déjà déduit avec le plat de la veille)
+  const gamelleNotee = (j) => (S.journal || []).some((x) => x.d === dateDuJour(j) && x.s === 'dejeuner' && x.gamelle);
+  function boutonGamelle(j) {
+    const g = S.plan && S.plan.jours[j] && S.plan.jours[j].gamelles;
+    if (!g || !g.n || !E.REC[g.recette]) return '';
+    if (posJour(j) > posJour(aujourdhui())) return '';
+    return gamelleNotee(j)
+      ? `<span class="small gamelle-notee">✓ Gamelle notée dans mon journal <button class="btn-lien small" data-a="gamelle-annuler" data-j="${j}">annuler</button></span>`
+      : `<button class="btn btn-petit btn-mange" data-a="gamelle-mangee" data-j="${j}" title="Ajoute la gamelle au suivi des calories, sans changer le placard">🥡 J’ai mangé ma gamelle</button>`;
+  }
   // valeurs d'une journée (portion adulte) à partir du journal
   function apportsParJour(du, au) {
     const jours = {};
@@ -3878,7 +3888,7 @@
       <ul class="compteurs">${etats.map(compteur).join('')}</ul>
       <div class="stack" style="gap:6px"><h3>Mangé ${d === auj ? 'aujourd’hui' : 'ce jour-là'}</h3>
         <ul class="liste-carnet">
-          ${j.repas.map((x) => `<li><span>${x.c ? E.REC[x.r].emoji : '🍽️'} ${x.c ? (x.c === 'entree' ? 'Entrée' : 'Dessert') + (x.s === 'diner' ? ' du dîner' : ' du déjeuner') : x.s === 'diner' ? 'Dîner' : 'Déjeuner'} : ${esc(E.REC[x.r].nom)}</span><span class="small num">${x.n.kcal} kcal</span></li>`).join('')}
+          ${j.repas.map((x) => `<li><span>${x.c ? E.REC[x.r].emoji : '🍽️'} ${x.c ? (x.c === 'entree' ? 'Entrée' : 'Dessert') + (x.s === 'diner' ? ' du dîner' : ' du déjeuner') : x.s === 'diner' ? 'Dîner' : x.gamelle ? 'Gamelle du midi' : 'Déjeuner'} : ${esc(E.REC[x.r].nom)}</span><span class="small num">${x.n.kcal} kcal</span></li>`).join('')}
           ${Object.entries(parMoment).map(([mo, l]) => l.map((x) => { const al = alimentDe(x); return al ? `<li><span>${esc(al.nom)} <span class="small muted">· ${x.n > 1 ? x.n + ' × ' : ''}${esc(al.portion)}</span></span><span class="row" style="gap:4px;flex-wrap:nowrap;align-items:center"><span class="small num">${Math.round(al.kcal * x.n)} kcal</span><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="-1" aria-label="Une portion de moins">−</button><button class="btn btn-petit" data-a="carnet-qte" data-i="${x.i}" data-n="1" aria-label="Une portion de plus">+</button><button class="btn-lien small" data-a="carnet-suppr" data-i="${x.i}" aria-label="Retirer ${esc(al.nom)}">✕</button></span></li>` : ''; }).join('')).join('')}
           ${rien ? '<li class="small muted">Rien pour l’instant.</li>' : ''}
         </ul></div>
@@ -4423,7 +4433,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   }
   function lignesJournal(j) {
     const l = [];
-    j.repas.forEach((x) => l.push({ moment: x.s, nom: E.REC[x.r].nom, detail: x.c ? (x.c === 'entree' ? 'entrée' : 'dessert') + ' du repas' : 'repas du planning', kcal: x.n.kcal, ns: x.n.lettre, suppr: `data-a="journal-suppr-repas" data-d="${x.d}" data-s="${x.s}"`, r: x.r }));
+    j.repas.forEach((x) => l.push({ moment: x.s, nom: (x.gamelle ? '🥡 ' : '') + E.REC[x.r].nom, detail: x.c ? (x.c === 'entree' ? 'entrée' : 'dessert') + ' du repas' : x.gamelle ? 'gamelle (restes ou plat préparé la veille)' : 'repas du planning', kcal: x.n.kcal, ns: x.n.lettre, suppr: `data-a="journal-suppr-repas" data-d="${x.d}" data-s="${x.s}"`, r: x.r }));
     j.ajouts.forEach((x) => { const al = alimentDe(x); if (al) l.push({ moment: x.m || 'collation', nom: al.nom, detail: `${x.n > 1 ? x.n + ' × ' : ''}${al.portion}`, kcal: Math.round(al.kcal * x.n), ns: null, suppr: `data-a="carnet-suppr" data-i="${x.i}"` }); });
     return l;
   }
@@ -5124,6 +5134,17 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
         toast('Bon appétit ! Placard et suivi mis à jour. Dites-nous si vous avez aimé');
         break;
       }
+      case 'gamelle-mangee': {
+        const j = +el.dataset.j, g = S.plan.jours[j] && S.plan.jours[j].gamelles;
+        if (!g || !E.REC[g.recette]) return;
+        // le déjeuner de la personne, c'est la gamelle : une seule entrée pour ce midi dans le journal ; le placard ne bouge pas
+        S.journal = (S.journal || []).filter((x) => !(x.d === dateDuJour(j) && x.s === 'dejeuner'));
+        S.journal.push({ d: dateDuJour(j), s: 'dejeuner', r: g.recette, gamelle: true });
+        if (S.journal.length > 1500) S.journal = S.journal.slice(-1500);
+        toast('Gamelle ajoutée au suivi des calories. Le placard ne change pas : il a été mis à jour avec le plat cuisiné la veille');
+        break;
+      }
+      case 'gamelle-annuler': { const j = +el.dataset.j; S.journal = (S.journal || []).filter((x) => !(x.d === dateDuJour(j) && x.s === 'dejeuner' && x.gamelle)); toast('Gamelle retirée du journal'); break; }
       case 'dehors': {
         const j = +el.dataset.j, sl = el.dataset.s, k = j + '-' + sl;
         const m = S.plan.jours[j][sl];
