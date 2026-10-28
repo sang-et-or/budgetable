@@ -162,6 +162,7 @@
   }
 
   /* ---------- outils ---------- */
+  const VERSION_APP = (() => { try { const sc = [...document.scripts].find((x) => /js\/app\.[0-9a-f]+\.js/.test(x.src)); return sc ? sc.src.match(/app\.([0-9a-f]+)\.js/)[1] : 'locale'; } catch (e) { return 'inconnue'; } })();
   const optsMoteur = () => ({ notes: S.notes, classiques: S.classiques });
   function prenomDuTour() {
     const n = (S.profil.prenomsEnfants || []).map((x) => String(x || '').trim()).filter(Boolean);
@@ -1387,7 +1388,7 @@
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
       ${bandeauAlertes()}
       ${bandeauInstaller()}
-      ${resumeBudgetSemaine()}
+      ${bandeauMonotone()}${resumeBudgetSemaine()}
       ${liste ? '' : `<div class="jours-puces" role="tablist" aria-label="Jour">${jours}</div>`}
       <div class="jours jours-m">${liste ? joursOrdonnes().map(([jp, x]) => carteJour(jp, x, t)).join('') : carteJour(S.plan.jours[j], j, t)}</div>
       ${blocAffiner()}
@@ -1407,6 +1408,24 @@
     if (p.parcours !== 'essentiel' || p.affinerMasque) return '';
     return `<section class="carte-affiner ecran-seul"><span aria-hidden="true">✨</span><span class="stack" style="gap:2px;min-width:0"><strong>Affinez vos menus</strong><span class="small">${NB_COMPLEMENT()} questions facultatives (objectifs, niveau en cuisine, cuisines préférées, aliments refusés, provisions), environ une minute.</span></span><span class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="affiner">Répondre</button><button class="btn btn-petit" data-a="affiner-plus-tard">Plus tard</button></span></section>`;
   }
+  /** Semaine trop répétitive (créée avant les règles de variété, ou très contrainte) : on propose de la varier d'un geste. */
+  function bandeauMonotone() {
+    if (!S.plan) return '';
+    const verrous = new Set(verrousSemaine());
+    const fam = {}, sautes = ['poelee', 'wok', 'curry', 'mijote'];
+    let nSautes = 0, libres = 0;
+    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => {
+      const m = jp[sl]; if (!m || m.deRestes || !E.REC[m.recette]) return;
+      const r = E.REC[m.recette]; if (['maison', 'perso'].includes(r.modele)) return;
+      fam[r.modele] = (fam[r.modele] || 0) + 1;
+      if (sautes.includes(r.modele)) nSautes++;
+      if (!verrous.has(j + '-' + sl)) libres++;
+    }));
+    const [pire, n] = Object.entries(fam).sort((a, b) => b[1] - a[1])[0] || ['', 0];
+    if ((n <= 4 && nSautes <= 6) || !libres) return '';
+    const lib = ((E.MODELES[pire] || {}).libelle || 'plats').toLowerCase();
+    return `<div class="bandeau bandeau-alerte small ecran-seul"><div class="stack" style="gap:6px"><strong>Votre semaine manque de variété : ${n} ${esc(lib)} sur ${pluriel(Object.values(fam).reduce((t, x) => t + x, 0), 'plat')}.</strong><span>Budgétable peut la refaire avec des plats plus variés (four, soupes, pâtes, omelettes…), en gardant les repas déjà mangés ou choisis.</span><div><button class="btn btn-petit btn-plein" data-a="refaire-plats">🔄 Varier ma semaine</button></div></div></div>`;
+  }
   /** En haut de la semaine : le budget en une ligne (le détail est plus bas, avec les réglages). */
   function resumeBudgetSemaine() {
     const a = E.analyseBudget(S.plan, S.profil);
@@ -1425,7 +1444,7 @@
     // d'abord les repas et le budget ; les réglages détaillés (présences, gamelles, coach, bilan, budget détaillé) ensuite
     return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
-      ${resumeBudgetSemaine()}
+      ${bandeauMonotone()}${resumeBudgetSemaine()}
       ${boutonDemarrer()}${carteMinceurSemaine()}
       ${bandeauRefaire()}
       <div class="row ecran-seul"><button class="btn btn-plein" data-a="refaire-plats" title="Nouveaux plats sur les mêmes jours ; les repas déjà mangés ou choisis restent">🔄 Refaire les plats</button><button class="btn" data-a="nouvelle" title="Recommence une semaine à partir d’aujourd’hui">Nouvelle semaine</button><button class="btn" data-a="affiche-ouvrir">🖨 Menu à afficher sur le frigo</button><button class="btn" data-a="envoi-ouvrir" data-k="menu">📤 Envoyer le menu</button></div>
@@ -3450,6 +3469,7 @@
       <section class="carte stack"><div class="spread"><h2>Vos goûts</h2><div class="row"><button class="btn btn-petit btn-plein" data-a="test-go" data-depuis="app">Faire le test de goût</button><button class="btn btn-petit" data-a="gouts-effacer">Effacer mes goûts</button></div></div>
         ${blocGouts()}<p class="small muted">Vos notes de recettes affinent aussi vos goûts.</p></section>
       <section class="carte stack"><div class="spread"><h2>Assistant goût</h2><span class="tag tag-ok">IA</span></div>${blocIA()}</section>
+      <p class="small muted" style="margin:0">Version de l’appli : ${esc(VERSION_APP)} (utile si vous nous signalez un problème)</p>
       ${window.Photos ? `<details class="carte"><summary><strong>Crédits photos</strong> <span class="small muted">· photos d’illustration sous licence libre, via Wikimedia Commons</span></summary>
         <ul class="credits">${window.Photos.credits().map((ph) => `<li><a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(decodeURIComponent(ph.page.split('File:')[1]).replace(/_/g, ' '))}</a> — ${esc(ph.auteur)} — ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}</li>`).join('')}</ul></details>` : ''}
       ${blocAbonnement()}
