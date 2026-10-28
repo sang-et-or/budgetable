@@ -1,6 +1,7 @@
 /* Budgétable — lecteur de recettes (petit service web sur Render).
  *
  * GET /recette?url=https://…  →  { nom, ingredients: [lignes], portions, temps, image, site }
+ * POST /parrainage/moi, /parrainage/valider  →  code de parrainage, validation (un mois offert à chacune)
  * GET /promos                  →  { offres: [...], sources, maj } (promotions alimentaires du moment, voir promos.js)
  * GET /sante                   →  ok
  *
@@ -17,6 +18,7 @@ const { extraireRecette } = require('./extraire.js');
 const { promosDuMoment } = require('./promos.js');
 const { lireTicketAgent } = require('./ticket-agent.js');
 const Abonnement = require('./abonnement.js');
+const Parrainage = require('./parrainage.js');
 
 const PORT = process.env.PORT || 10000;
 // intelligence artificielle de Budgétable (commis de cuisine, goûts, photo du placard) : hébergée ici,
@@ -295,6 +297,21 @@ const serveur = http.createServer(async (req, res) => {
     }
   }
   // abonnement : état, page de paiement, espace client (le jeton de session voyage dans le corps : pas de pré-requête CORS)
+  // parrainage : mon code et mes compteurs, ou validation du code reçu (jeton dans le corps, comme l'abonnement)
+  if (u.pathname === '/parrainage/moi' || u.pathname === '/parrainage/valider') {
+    if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
+    if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (tropDeDemandes(ip)) return repondre(res, 429, { erreur: 'Trop de demandes' }, origine);
+    try {
+      const o = JSON.parse(await lireCorps(req, 16 * 1024) || '{}');
+      const r = u.pathname === '/parrainage/moi' ? await Parrainage.moi(o.jeton) : await Parrainage.valider(o.jeton, o.code);
+      return repondre(res, 200, r, origine);
+    } catch (e) {
+      const code = Number.isInteger(e.code) ? e.code : 502;
+      return repondre(res, code, { erreur: e.code ? e.message : 'Parrainage indisponible pour le moment' }, origine);
+    }
+  }
   if (u.pathname === '/abonnement/etat' || u.pathname === '/abonnement/payer' || u.pathname === '/abonnement/gerer') {
     if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' }, origine);
     if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);

@@ -55,7 +55,8 @@
 
   /** Inscription : renvoie { confirmer: true } si un e-mail de confirmation est parti, ou la session si la confirmation est désactivée. */
   async function inscrire(email, motDePasse, prenom) {
-    const r = await appel('/auth/v1/signup?redirect_to=' + encodeURIComponent(retour()), { corps: { email, password: motDePasse, data: prenom ? { prenom } : {} } });
+    let parrain = ''; try { parrain = (JSON.parse(localStorage.getItem('budgetable.parrain') || 'null') || {}).code || ''; } catch (e) { /* */ }
+    const r = await appel('/auth/v1/signup?redirect_to=' + encodeURIComponent(retour()), { corps: { email, password: motDePasse, data: { ...(prenom ? { prenom } : {}), ...(parrain ? { parrain } : {}) } } });
     if (r && r.access_token) { garder(versSession(r)); return { connecte: true }; }
     return { confirmer: true };
   }
@@ -80,7 +81,7 @@
   async function moi() {
     const j = await jetonValide(); if (!j) return null;
     const u = await appel('/auth/v1/user', { methode: 'GET', jeton: j });
-    if (u && u.id) { session.user = { id: u.id, email: u.email, prenom: (u.user_metadata || {}).prenom || '' }; garder(session); }
+    if (u && u.id) { session.user = { id: u.id, email: u.email, prenom: (u.user_metadata || {}).prenom || '', parrain: (u.user_metadata || {}).parrain || '' }; garder(session); }
     return session.user;
   }
 

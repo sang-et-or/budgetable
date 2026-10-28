@@ -671,6 +671,7 @@
       } else if (local) { await envoyerSync(); toast('Vos données sont enregistrées dans votre compte'); }
       compte.sync = { t: Date.now(), ok: true };
       try { localStorage.removeItem('budgetable.attente'); } catch (e) { /* */ }
+      validerParrainage();
       sauver();
     } catch (e) { compte.sync = { t: Date.now(), ok: false, erreur: e.message }; }
     rendre();
@@ -815,6 +816,52 @@
     if (d.mode === 'essai' && d.reste <= 3) return `<div class="bandeau bandeau-info small bandeau-abo"><span>🎁 Plus que ${pluriel(d.reste, 'jour')} d’essai gratuit. Ensuite, ${PRIX_ABO} par mois, sans engagement.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">Voir l’abonnement</button></div>`;
     if (d.mode === 'expire') return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>Votre semaine d’essai est terminée. Vos menus, votre liste et votre placard restent là ; pour préparer de nouvelles semaines : ${PRIX_ABO} par mois.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">M’abonner</button></div>`;
     return '';
+  }
+  /* ---------- parrainage : « Invitez une amie : un mois offert à toutes les deux » ---------- */
+  const parrainage = { info: null, charge: false, erreur: '' };
+  const codeRecu = () => { try { const x = JSON.parse(localStorage.getItem('budgetable.parrain') || 'null'); return x && x.code && Date.now() - x.t < 60 * 86400000 ? x.code : ''; } catch (e) { return ''; } };
+  async function appelParrainage(chemin, corps) {
+    const jeton = C.jetonValide ? await C.jetonValide() : null;
+    const rep = await fetch(`${LECTEUR}/parrainage/${chemin}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ jeton, ...corps }), signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined });
+    const j = await rep.json().catch(() => ({}));
+    if (!rep.ok) throw Object.assign(new Error(j.erreur || 'Parrainage indisponible pour le moment'), { status: rep.status });
+    return j;
+  }
+  /** La filleule : le code reçu (lien ou inscription) est validé une fois le compte créé et l'adresse confirmée. */
+  async function validerParrainage() {
+    const code = codeRecu() || ((C.utilisateur && C.utilisateur()) || {}).parrain || '';
+    if (!code || !C.connecte()) return;
+    try {
+      const r = await appelParrainage('valider', { code });
+      try { localStorage.removeItem('budgetable.parrain'); } catch (e) { /* */ }
+      if (r.ok) { toast('🎁 Parrainage validé : un mois offert pour vous, et pour votre amie !'); chargerAbonnement(true); }
+    } catch (e) {
+      // adresse pas encore confirmée : on réessaiera ; autre refus (code inconnu, propre code, compte ancien) : on oublie le code
+      if (e.status !== 403 || !/Confirmez/.test(e.message)) { try { localStorage.removeItem('budgetable.parrain'); } catch (x) { /* */ } if (e.status && e.status !== 503) toast(e.message); }
+    }
+  }
+  async function chargerParrainage() {
+    if (parrainage.charge || !C.connecte()) return;
+    parrainage.charge = true; parrainage.erreur = '';
+    try { parrainage.info = await appelParrainage('moi', {}); } catch (e) { parrainage.erreur = e.status === 503 ? 'ferme' : e.message; }
+    parrainage.charge = false;
+    rendre();
+  }
+  function blocParrainage() {
+    const titre = '<div class="spread"><h2>🎁 Invitez une amie</h2><span class="tag tag-ok">1 mois offert</span></div>';
+    const regle = '<p class="small" style="margin:0">Envoyez votre lien : quand votre amie crée son compte et confirme son adresse e-mail, <strong>vous avez toutes les deux un mois offert</strong>. Si vous êtes abonnée, le mois est déduit de votre prochain paiement.</p>';
+    if (!C.connecte()) return `<section class="carte stack bloc-parrainage" id="parrainage" style="gap:10px">${titre}${regle}<div><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte pour avoir mon lien</button></div></section>`;
+    if (!parrainage.info && !parrainage.erreur) { setTimeout(chargerParrainage, 0); return `<section class="carte stack bloc-parrainage" id="parrainage" style="gap:10px">${titre}<p class="small muted" style="margin:0">Préparation de votre lien…</p></section>`; }
+    if (parrainage.erreur === 'ferme') return '';
+    if (parrainage.erreur) return `<section class="carte stack bloc-parrainage" id="parrainage" style="gap:10px">${titre}<p class="small" style="margin:0">${esc(parrainage.erreur)}</p><div><button class="btn btn-petit" data-a="parrain-recharger">Réessayer</button></div></section>`;
+    const i = parrainage.info;
+    const message = `Je prépare mes menus de la semaine et ma liste de courses avec Budgétable, et ça m’aide à tenir mon budget. Avec mon lien, tu as un mois offert : ${i.lien}`;
+    const m = encodeURIComponent(message);
+    return `<section class="carte stack bloc-parrainage" id="parrainage" style="gap:10px">${titre}${regle}
+      <div class="lien-parrain"><input type="text" readonly value="${esc(i.lien)}" aria-label="Votre lien de parrainage" onclick="this.select()"><button class="btn btn-petit btn-plein" data-a="parrain-copier">Copier</button></div>
+      <div class="row" style="gap:6px">${navigator.share ? '<button class="btn btn-petit btn-plein" data-a="parrain-partager">📤 Partager</button>' : ''}<a class="btn btn-petit" href="https://wa.me/?text=${m}" target="_blank" rel="noopener">WhatsApp</a><a class="btn btn-petit" href="sms:?&body=${m}">SMS</a><a class="btn btn-petit" href="mailto:?subject=${encodeURIComponent('Un mois offert sur Budgétable')}&body=${m}">E-mail</a></div>
+      <p class="small muted" style="margin:0">${i.filleuls ? `${pluriel(i.filleuls, 'amie inscrite', 'amies inscrites')} grâce à vous · ${pluriel(i.moisGagnes, 'mois gagné', 'mois gagnés')}` : 'Personne pour l’instant : partagez votre lien !'}${i.accesOffertJusqua && Date.parse(i.accesOffertJusqua) > Date.now() ? ` · accès offert jusqu’au ${new Date(i.accesOffertJusqua).toLocaleDateString('fr-FR')}` : ''} · ${i.maxMois} mois offerts au plus.</p>
+    </section>`;
   }
   function blocAbonnement() {
     const d = droitsAbo(), e = abo.etat || {};
@@ -1067,6 +1114,7 @@
     return `<div class="wrap accueil"><div class="store" aria-hidden="true"></div>
       <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
         <div class="row" style="gap:8px">${boutonInstaller('btn-petit')}${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
+      ${codeRecu() && !connecte ? '<div class="bandeau bandeau-ok"><span>🎁 <strong>Une amie vous invite :</strong> créez votre compte et confirmez votre adresse e-mail, vous aurez <strong>un mois offert</strong>, et elle aussi.</span></div>' : ''}
       <section class="accueil-hero">
         <div class="stack" style="gap:16px">
           <p class="eyebrow">Bien manger, petit budget</p>
@@ -1130,7 +1178,7 @@
     return `<div class="voile" data-a="menu-plus-fond"><div class="fiche fenetre-plus" role="dialog" aria-modal="true" aria-labelledby="plus-titre">
       <div class="spread" style="flex-wrap:nowrap"><h2 id="plus-titre">Toutes les fonctions</h2><button class="btn btn-petit" data-a="menu-plus">Fermer</button></div>
       ${GROUPES_NAV.map(([titre, ks]) => `<section class="stack" style="gap:6px"><span class="eyebrow">${titre}</span><div class="grille-plus">${ks.map((k) => `<button class="tuile-plus" data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k]}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${(ONGLETS.find((x) => x[0] === k) || [k, k])[1]}</strong><span class="small muted">${DESCR_NAV[k] || ''}</span></span>${k === 'promos' && promos && promos.offres && offresActuelles().length ? `<em class="nav-badge">${offresActuelles().length}</em>` : ''}</button>`).join('')}</div></section>`).join('')}
-      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="accueil">Page d’accueil</button></div>
+      <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="parrain-voir">🎁 Invitez une amie : 1 mois offert</button><button class="btn btn-petit" data-a="accueil">Page d’accueil</button></div>
     </div></div>`;
   }
   function vueApp() {
@@ -3472,6 +3520,7 @@
       <p class="small muted" style="margin:0">Version de l’appli : ${esc(VERSION_APP)} (utile si vous nous signalez un problème)</p>
       ${window.Photos ? `<details class="carte"><summary><strong>Crédits photos</strong> <span class="small muted">· photos d’illustration sous licence libre, via Wikimedia Commons</span></summary>
         <ul class="credits">${window.Photos.credits().map((ph) => `<li><a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(decodeURIComponent(ph.page.split('File:')[1]).replace(/_/g, ' '))}</a> — ${esc(ph.auteur)} — ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}</li>`).join('')}</ul></details>` : ''}
+      ${blocParrainage()}
       ${blocAbonnement()}
       ${blocConflit()}${blocCompte()}${blocSauvegarde()}
       ${stats.admin ? '<section class="carte stack" style="gap:8px"><div class="spread"><h2>Statistiques du site</h2><span class="tag tag-ok">Admin</span></div><p class="small muted" style="margin:0">Visites, sources, semaines et comptes créés.</p><div><button class="btn btn-petit btn-plein" data-a="stats-ouvrir">📊 Voir les statistiques</button></div></section>' : ''}
@@ -5070,6 +5119,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'modifier': allerQuestion(el.dataset.q); break;
       case 'valider': S.compteLocal = true; nouvellePlanification(); S.vue = 'app'; S.onglet = 'semaine'; lancerTutoSiPremiereFois(); if (C.compter) C.compter('semaine', { source: sourceVisite() }); break;
       case 'menu-plus': S.menuPlus = !S.menuPlus; break;
+      case 'parrain-recharger': parrainage.info = null; parrainage.erreur = ''; chargerParrainage(); break;
+      case 'parrain-copier': { const l = parrainage.info && parrainage.info.lien; if (!l) return; try { await navigator.clipboard.writeText(l); toast('Lien copié : collez-le dans un message'); } catch (e) { toast('Sélectionnez le lien pour le copier'); } return; }
+      case 'parrain-partager': { const i = parrainage.info; if (!i) return; try { await navigator.share({ title: 'Budgétable', text: 'Je prépare mes menus et ma liste de courses avec Budgétable. Avec mon lien, tu as un mois offert :', url: i.lien }); } catch (e) { /* partage annulé */ } return; }
+      case 'parrain-voir': S.vue = 'app'; S.onglet = 'profil'; S.menuPlus = false; setTimeout(() => { const c = document.getElementById('parrainage'); if (c) c.scrollIntoView({ block: 'start' }); }, 80); break;
       case 'voir-reglages': { if (mqMobile.matches) S.outilMobile = el.dataset.k || ''; setTimeout(() => { const c = document.getElementById(mqMobile.matches ? 'reglages-semaine' : 'reglage-' + (el.dataset.k || 'budget')) || document.getElementById('reglages-semaine'); if (c) c.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60); break; }
       case 'menu-plus-fond': if (ev.target !== el) return; S.menuPlus = false; break;
       case 'onglet': { S.onglet = el.dataset.k; S.imprimable = false; S.afficheOuverte = false; S.menuPlus = false; window.scrollTo(0, 0); const ancre = el.dataset.ancre; if (ancre) setTimeout(() => { const c = document.getElementById(ancre); if (c) c.scrollIntoView({ block: 'start' }); }, 80); break; }
@@ -6303,7 +6356,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const q = new URLSearchParams(location.search);
     const o = q.get('onglet');
     if (o && ['semaine', 'soir', 'courses', 'promos', 'recettes', 'placard', 'profil'].includes(o) && S.plan) { S.vue = 'app'; S.onglet = o; }
-    if (q.has('onglet') || q.has('source')) history.replaceState(null, '', location.pathname + location.hash);
+    // lien de parrainage : budgetable.fr/?parrain=CODE (gardé jusqu'à la création du compte)
+    const pc = String(q.get('parrain') || '').toUpperCase().replace(/[^0-9A-F]/g, '').slice(0, 8);
+    if (pc.length === 8) { try { localStorage.setItem('budgetable.parrain', JSON.stringify({ code: pc, t: Date.now() })); } catch (e) { /* */ } }
+    if (q.has('onglet') || q.has('source') || q.has('parrain')) history.replaceState(null, '', location.pathname + location.hash);
   } catch (e) { /* */ }
   // retour depuis un lien reçu par e-mail (confirmation, connexion, nouveau mot de passe)
   function traiterRetourCompte() {

@@ -64,23 +64,26 @@ const cache = new Map();   // état d'abonnement gardé 2 min par compte (moins 
 async function etat(jeton, f = fetch, _site) {
   if (!actif()) return { disponible: false, prix: PRIX, essaiJours: ESSAI_JOURS };   // paiement pas encore branché : rien n'est bloqué
   const u = await utilisateur(jeton, f);
-  const finEssai = u.cree + ESSAI_JOURS * 86400000;
-  const base = { disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false };
-  if (!actif()) return base;
-  if (offert(u)) return { ...base, abonne: true, offert: true, statut: 'offert' };
+  let finEssai = u.cree + ESSAI_JOURS * 86400000;
+  const base = () => ({ disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false });
+  if (offert(u)) return { ...base(), abonne: true, offert: true, statut: 'offert' };
   const c = cache.get(u.id);
-  if (c && Date.now() - c.t < 120000) return { ...base, ...c.v };
+  if (c && Date.now() - c.t < 120000) { finEssai = Math.max(finEssai, c.finEssai || 0); return { ...base(), ...c.v }; }
   const client = await clientDe(u, false, f);
+  // mois offerts par le parrainage (date de fin d'accès gratuit, tenue chez Stripe)
+  finEssai = Math.max(finEssai, accesOffert(client));
   let v = { abonne: false };
   if (client) {
     const subs = await stripe('/subscriptions', { corps: { customer: client.id, status: 'all', limit: 5 } }, f);
     const s = (subs.data || []).find((x) => ['active', 'trialing', 'past_due'].includes(x.status));
     if (s) v = { abonne: true, statut: s.status, finPeriode: new Date((s.current_period_end || (s.items && s.items.data && s.items.data[0] && s.items.data[0].current_period_end) || 0) * 1000).toISOString(), resiliation: !!s.cancel_at_period_end };
   }
-  cache.set(u.id, { t: Date.now(), v });
+  cache.set(u.id, { t: Date.now(), v, finEssai });
   if (cache.size > 5000) cache.clear();
-  return { ...base, ...v };
+  return { ...base(), ...v };
 }
+/** Fin de l'accès offert par le parrainage (0 si aucun). */
+const accesOffert = (client) => (client && client.metadata && Date.parse(client.metadata.acces_offert_jusqua)) || 0;
 
 /** Page de paiement Stripe : abonnement mensuel. Les jours d'essai restants sont offerts (aucun prélèvement avant la fin). */
 async function paiement(jeton, f = fetch, site = SITE) {
@@ -89,11 +92,11 @@ async function paiement(jeton, f = fetch, site = SITE) {
   const u = await utilisateur(jeton, f);
   if (offert(u)) throw erreur('Votre accès est offert : rien à payer', 400);
   const client = await clientDe(u, true, f);
-  const resteEssai = Math.floor((u.cree + ESSAI_JOURS * 86400000 - Date.now()) / 86400000);
+  const resteEssai = Math.floor((Math.max(u.cree + ESSAI_JOURS * 86400000, accesOffert(client)) - Date.now()) / 86400000);
   const s = await stripe('/checkout/sessions', { methode: 'POST', corps: {
     mode: 'subscription', customer: client.id, client_reference_id: u.id, locale: 'fr',
     line_items: { 0: { quantity: 1, price_data: { currency: 'eur', unit_amount: PRIX, recurring: { interval: 'month' }, product_data: { name: 'Budgétable — abonnement mensuel', description: 'Menus de la semaine, liste de courses, coachs et toutes les fonctions. Sans engagement.' } } } },
-    subscription_data: { metadata: { budgetable_id: u.id }, ...(resteEssai >= 1 ? { trial_period_days: Math.min(ESSAI_JOURS, resteEssai) } : {}) },
+    subscription_data: { metadata: { budgetable_id: u.id }, ...(resteEssai >= 1 ? { trial_period_days: Math.min(400, resteEssai) } : {}) },
     allow_promotion_codes: 'true',
     success_url: site + '/?abonnement=merci', cancel_url: site + '/?abonnement=annule',
   } }, f);
@@ -113,4 +116,4 @@ async function portail(jeton, f = fetch, site = SITE) {
   return { url: s.url };
 }
 
-module.exports = { etat, paiement, portail, actif, PRIX, ESSAI_JOURS, _viderCache: () => cache.clear() };
+module.exports = { etat, paiement, portail, actif, PRIX, ESSAI_JOURS, utilisateur, stripe, clientDe, accesOffert, oublier: (id) => cache.delete(id), _viderCache: () => cache.clear() };
