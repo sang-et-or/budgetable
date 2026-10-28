@@ -507,7 +507,8 @@
       const raison = ingredientInterdit(ING[id], p);
       if (raison) return { ok: false, raison };
     }
-    for (const e of rec.equip) if (!p.equipement.includes(e)) return { ok: false, raison: 'équipement : ' + e };
+    // une friteuse à air remplace le four pour les petites quantités (gratins, pizzas, quiches)
+    for (const e of rec.equip) if (!p.equipement.includes(e) && !(e === 'four' && p.equipement.includes('airfryer'))) return { ok: false, raison: 'équipement : ' + e };
     if (p.niveau === 'debutant' && rec.niveau >= 3) return { ok: false, raison: 'niveau' };
     if (p.refus.includes('epice') && rec.tags.includes('epice')) return { ok: false, raison: 'épicé' };
     return { ok: true };
@@ -631,11 +632,26 @@
       temps: Math.round(repas.reduce((t, r) => t + r.temps, 0) / repas.length)
     };
   }
+  /**
+   * Le matériel de la cuisine compte : avec un four, 2 ou 3 plats au four dans la semaine (gratins, quiches, pizzas…) ;
+   * avec un autocuiseur ou un robot cuiseur, les mijotés et les soupes ; avec une friteuse à air, les plats au four (version friteuse).
+   */
+  function bonusMateriel(rec, p, ctx) {
+    const eq = p.equipement || [];
+    const auFour = (rec.equip || []).includes('four');
+    let b = 0;
+    const nbFour = ctx.nbFour || 0;
+    if (auFour && (eq.includes('four') || eq.includes('airfryer'))) b += nbFour < 2 ? 3 : nbFour < 3 ? 1 : -1;
+    if ((eq.includes('autocuiseur') || eq.includes('robot')) && ['mijote', 'veloute'].includes(rec.modele)) b += 1.2;
+    if (eq.includes('robot') && rec.modele === 'gratin') b += 0.5;
+    return b;
+  }
   function score(rec, p, ctx, r) {
     let s = r() * 3;
     s += bonusCoach(rec, p) * 1.6;
     s += rec.perso ? Math.max(0, bonusSaison(rec)) : bonusSaison(rec) + bonusStyleSaison(rec);
     if (p.cuisines.includes(rec.cuisine)) s += 1.5;
+    s += bonusMateriel(rec, p, ctx);
     if (p.foyer.enfants.length && p.enfantsMode === 'simple' && rec.tags.includes('enfants')) s += 2;
     if ((p.objectifs.includes('muscle') || p.seancesSport >= 2) && rec.tags.includes('proteines')) s += 2;
     if (p.objectifs.includes('perte') && rec.tags.includes('leger')) s += 2;
@@ -710,9 +726,15 @@
     let l = liste.filter((r) => libre(r.modele) || (familles[r.modele] || 0) > -2);
     if (!l.length) l = liste;
     const limite = (m) => ((familles[m] || 0) <= -1 ? 1 : 3);
-    const sous = l.filter((r) => libre(r.modele) || (ctx.modeles[r.modele] || 0) < limite(r.modele));
-    return sous.length ? sous : l;
+    let sous = l.filter((r) => libre(r.modele) || (ctx.modeles[r.modele] || 0) < limite(r.modele));
+    if (!sous.length) sous = l;
+    // plats « à la poêle » (poêlées, woks, currys, mijotés) : ils se ressemblent ; 5 au plus sur la semaine,
+    // pour laisser la place au four, aux soupes, aux pâtes, aux omelettes, aux salades…
+    const aLaPoele = SAUTES.reduce((t, m) => t + (ctx.modeles[m] || 0), 0);
+    if (aLaPoele >= 5) { const autres = sous.filter((r) => !SAUTES.includes(r.modele)); if (autres.length) sous = autres; }
+    return sous;
   }
+  const SAUTES = ['poelee', 'wok', 'curry', 'mijote'];
   /** Pas deux plats trop proches le même jour : on écarte ceux qui ressemblent aux autres repas du jour (s'il en reste). */
   function varierJour(liste, idsDuJour) {
     const duJour = (idsDuJour || []).map((id) => REC[id]).filter(Boolean);
@@ -766,6 +788,7 @@
     for (const id of legumesPrincipaux(rec)) ctx.legs[id] = (ctx.legs[id] || 0) + 1;
     const f = feculentDe(rec); if (f) ctx.fecs[f] = (ctx.fecs[f] || 0) + 1;
     ctx.cuisines[rec.cuisine] = (ctx.cuisines[rec.cuisine] || 0) + 1;
+    if ((rec.equip || []).includes('four')) ctx.nbFour = (ctx.nbFour || 0) + 1;
   }
   // légumes qui donnent son caractère au plat (pas l'oignon ni l'ail), et féculent principal : pour varier la semaine
   const LEG_DISCRETS = new Set(['oignon', 'ail', 'citron', 'citron_vert', 'persil', 'echalote', 'tomates_concassees', 'coulis_tomate', 'puree_tomate', 'concentre_tomate']);

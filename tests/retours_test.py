@@ -59,7 +59,7 @@ with sync_playwright() as p:
     page = nouvelle_page(nav, 1200)
     t0 = time.time()
     ecrans = questionnaire(page)
-    assert ecrans == 6, f"6 écrans essentiels attendus, {ecrans} vus"
+    assert ecrans == 7, f"7 écrans essentiels attendus, {ecrans} vus"
     txt = page.inner_text("body")
     assert "questions facultatives" in txt
     # nombre de recettes : formaté, au pluriel, identique à l'accueil

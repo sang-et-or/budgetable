@@ -470,3 +470,19 @@ test('message « trop de poêlées » : compris sans IA, et la semaine refaite n
   }
   assert.ok(avant.filter((m) => m === 'poelee').length <= 3, 'même aimée, une famille ne dépasse pas 3 plats par semaine : ' + avant.join(','));
 });
+
+// ---------- semaine variée et matériel (« que des poêlées ») ----------
+test('semaine variée : au plus 5 plats à la poêle, des plats au four si on a un four, friteuse à air acceptée', () => {
+  const ids = (plan) => plan.jours.flatMap((jp) => E.SLOTS.map((s) => jp[s] && E.REC[jp[s].recette])).filter(Boolean);
+  const p = profil({ foyer: { adultes: 2, enfants: [] }, equipement: ['plaque', 'four'] });
+  p.gouts = { ing: {}, cuisine: {}, modele: { poelee: 4, wok: 2, curry: 2 }, plat: {} };   // goûts qui poussaient vers la poêle
+  for (const seed of [1, 2, 3]) {
+    const l = ids(E.genererSemaine(p, { seed }));
+    assert.ok(l.filter((r) => ['poelee', 'wok', 'curry', 'mijote'].includes(r.modele)).length <= 5, l.map((r) => r.modele).join(','));
+    assert.ok(l.filter((r) => r.equip.includes('four')).length >= 2, 'au moins 2 plats au four');
+    assert.ok(new Set(l.map((r) => r.modele)).size >= 6, 'au moins 6 familles de plats');
+  }
+  const sansFour = profil({ equipement: ['plaque', 'airfryer'] });
+  assert.ok(E.recetteCompatible(E.RECETTES.find((r) => r.modele === 'gratin'), sansFour).ok, 'gratin à la friteuse à air');
+  assert.ok(!E.recetteCompatible(E.RECETTES.find((r) => r.modele === 'gratin'), profil({ equipement: ['plaque'] })).ok);
+});

@@ -36,6 +36,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/2-consentement.png")
     cliquer(page, "Continuer")  # pas de consentement
     cliquer(page, "Continuer")  # temps
+    cliquer(page, "Continuer")  # matériel
     cliquer(page, "Certains mangent dehors (travail, cantine)")
     page.get_by_role("button", name="Retirer").click()  # l'adulte déjeune au travail
     page.screenshot(path=f"{OUT}/3-dejeuners.png")
@@ -47,7 +48,6 @@ with sync_playwright() as p:
     cliquer(page, "Ils préfèrent les plats simples"); cliquer(page, "Continuer")
     cliquer(page, "Faire des économies"); cliquer(page, "Continuer")
     cliquer(page, "Continuer")  # niveau
-    cliquer(page, "Continuer")  # équipement
     cliquer(page, "Continuer")  # cuisines
     cliquer(page, "Champignons"); cliquer(page, "Continuer")
     cliquer(page, "Voir mon profil")

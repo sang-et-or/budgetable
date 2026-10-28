@@ -260,7 +260,7 @@
     { id: 'consentement', essentiel: true, quand: (p) => p.allergies.length > 0 || p.objectifs.includes('perte'), type: 'consentement', titre: 'Garder ces informations sur cet appareil ?' },
     { id: 'temps', essentiel: true, titre: 'Combien de temps pour cuisiner un repas ?', type: 'temps' },
     { id: 'niveau', titre: 'En cuisine, vous êtes plutôt…', type: 'unique', champ: 'niveau', options: L.niveau },
-    { id: 'equipement', titre: 'Qu’avez-vous dans la cuisine ?', type: 'multi', champ: 'equipement', options: L.equipement },
+    { id: 'equipement', essentiel: true, titre: 'Qu’avez-vous dans la cuisine ?', aide: 'Les menus s’adaptent à votre matériel : plats au four, à la friteuse à air, mijotés à l’autocuiseur, soupes au robot…', type: 'multi', champ: 'equipement', options: L.equipement },
     { id: 'cuisines', titre: 'Quelles cuisines vous font envie ?', aide: 'On les proposera plus souvent.', type: 'multi', champ: 'cuisines', options: L.cuisines, aucune: 'Pas de préférence' },
     { id: 'refus', titre: (p) => kids(p) ? 'Ce que quelqu’un refuse de manger' : 'Ce que vous ne mangez pas', aide: 'Ces aliments seront écartés.', type: 'multi', champ: 'refus', options: L.refus, aucune: 'Rien de particulier' },
     { id: 'dejeuners', essentiel: true, titre: 'Et les déjeuners en semaine ?', type: 'dejeuners' },
@@ -1094,7 +1094,7 @@
       </section>
       <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Trois étapes, et c’est prêt</h2></div>
         <ol class="etapes">
-          <li><span class="num-etape">1</span><div><strong>Vous répondez à l’essentiel</strong><p class="small muted">Qui mange à la maison, votre régime, vos allergies, le temps que vous avez, les déjeuners et votre budget. Le reste (goûts, équipement, provisions) peut attendre.</p></div></li>
+          <li><span class="num-etape">1</span><div><strong>Vous répondez à l’essentiel</strong><p class="small muted">Qui mange à la maison, votre régime, vos allergies, le temps que vous avez, votre matériel de cuisine, les déjeuners et votre budget. Le reste (goûts, provisions) peut attendre.</p></div></li>
           <li><span class="num-etape">2</span><div><strong>Budgétable prépare la semaine</strong><p class="small muted">Menus variés, recettes pas à pas, quantités pour votre foyer. Changez un plat en un geste.</p></div></li>
           <li><span class="num-etape">3</span><div><strong>Vous faites les courses</strong><p class="small muted">Liste par rayon, promos du moment, drive guidé, placard mis à jour. Et bon appétit !</p></div></li>
         </ol>
@@ -1405,7 +1405,7 @@
     const p = S.profil;
     if (S.complementFini) return `<div class="bandeau bandeau-ok small ecran-seul"><div class="stack" style="gap:6px"><strong>Profil complété</strong><span>Vos nouvelles réponses serviront pour les prochains plats. Pour les appliquer tout de suite à cette semaine :</span><div class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="refaire-plats">🔄 Refaire les plats</button><button class="btn btn-petit" data-a="affiner-ok">Garder ma semaine</button></div></div></div>`;
     if (p.parcours !== 'essentiel' || p.affinerMasque) return '';
-    return `<section class="carte-affiner ecran-seul"><span aria-hidden="true">✨</span><span class="stack" style="gap:2px;min-width:0"><strong>Affinez vos menus</strong><span class="small">${NB_COMPLEMENT()} questions facultatives (objectifs, niveau en cuisine, équipement, cuisines préférées, aliments refusés, provisions), environ une minute.</span></span><span class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="affiner">Répondre</button><button class="btn btn-petit" data-a="affiner-plus-tard">Plus tard</button></span></section>`;
+    return `<section class="carte-affiner ecran-seul"><span aria-hidden="true">✨</span><span class="stack" style="gap:2px;min-width:0"><strong>Affinez vos menus</strong><span class="small">${NB_COMPLEMENT()} questions facultatives (objectifs, niveau en cuisine, cuisines préférées, aliments refusés, provisions), environ une minute.</span></span><span class="row" style="gap:6px"><button class="btn btn-petit btn-plein" data-a="affiner">Répondre</button><button class="btn btn-petit" data-a="affiner-plus-tard">Plus tard</button></span></section>`;
   }
   /** En haut de la semaine : le budget en une ligne (le détail est plus bas, avec les réglages). */
   function resumeBudgetSemaine() {
@@ -1826,6 +1826,16 @@
     if (l.etat === 'encours') return `<p class="lecture small" role="status"><span class="rond-attente" aria-hidden="true"></span> Lecture de la recette sur ${esc(l.site)}… <span class="muted">(la première lecture peut prendre jusqu’à une minute)</span></p>`;
     if (l.etat === 'ok') return `<p class="lecture lecture-ok small" role="status">✓ ${pluriel(l.n, 'ingrédient repris', 'ingrédients repris')} de ${esc(l.site)}${l.portions ? `, recette pour ${l.portions}` : ''}. Vérifiez et décochez si besoin.${e.ignores && e.ignores.length ? ` <span class="muted">Non comptés : ${esc(e.ignores.slice(0, 6).join(', ').toLowerCase())}.</span>` : ''}</p>`;
     return `<p class="lecture lecture-echec small" role="status">${esc(l.message)} sur ${esc(l.site)}. ${e.ing.some((x) => x.coche) ? 'Ingrédients proposés d’après le nom du plat : vérifiez-les.' : 'Écrivez le nom du plat pour qu’on vous propose les ingrédients.'} <button class="btn-lien small" data-a="ed-lire">Réessayer</button></p>`;
+  }
+  /** Le matériel de la personne, dans la recette : friteuse à air à la place du four, autocuiseur, robot cuiseur. */
+  function astuceMateriel(r) {
+    const eq = S.profil.equipement || [], l = [];
+    const four = (r.equip || []).includes('four');
+    if (four && eq.includes('airfryer') && !eq.includes('four')) l.push('🍟 Sans four, à la friteuse à air : 180 °C, environ 20 % de temps en moins, dans un plat qui rentre dans le panier (en deux fois si besoin).');
+    else if (four && eq.includes('airfryer')) l.push('🍟 Possible à la friteuse à air pour une ou deux parts : 180 °C, environ 20 % de temps en moins.');
+    if (eq.includes('autocuiseur') && ['mijote', 'veloute'].includes(r.modele)) l.push('♨️ À l’autocuiseur : après la mise en pression, comptez environ un tiers du temps de mijotage.');
+    if (eq.includes('robot') && r.modele === 'veloute') l.push('🤖 Au robot cuiseur : tout dans le bol, programme soupe, puis mixez.');
+    return l.length ? `<div class="bandeau bandeau-info small"><div class="stack" style="gap:4px">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div></div>` : '';
   }
   /** Avertissement « à vérifier sur l'étiquette » pour une recette compatible (traces, produits variables, ingrédients ajoutés). */
   function blocAVerifier(r) {
@@ -3497,6 +3507,7 @@
       <figure class="fiche-illu">${V(r, 220, 'rect')}<figcaption class="small muted">${creditPhoto(r)}</figcaption></figure>
       <div class="meta"><span>${r.temps} min</span><span>${['', 'Facile', 'Moyen', 'Avancé'][r.niveau]}</span><span>${nb(m.portions)} portion${m.portions > 1 ? 's' : ''} adulte${m.portions > 1 ? 's' : ''}</span><span class="num">≈ ${euros(E.coutPortion(r) * m.portions)}</span>${tagDemo}</div>
       ${blocAVerifier(r)}
+      ${astuceMateriel(r)}
       ${nutriFiche(r, 'portion adulte')}
       <div class="equi"><span class="tag ${eq.legumes ? 'tag-ok' : 'tag-simu'}">Légumes ${eq.legumes ? '✓' : '—'}</span><span class="tag ${eq.feculent ? 'tag-ok' : 'tag-simu'}">Féculent ${eq.feculent ? '✓' : '—'}</span><span class="tag ${eq.proteine ? 'tag-ok' : 'tag-simu'}">Protéines ${eq.proteine ? '✓' : '—'}</span></div>
       ${!eq.legumes || !eq.feculent ? `<p class="small muted">Pour compléter : ${!eq.legumes ? 'une crudité ou un fruit' : ''}${!eq.legumes && !eq.feculent ? ' et ' : ''}${!eq.feculent ? 'du pain' : ''}.</p>` : ''}
