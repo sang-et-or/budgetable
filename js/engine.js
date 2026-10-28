@@ -699,6 +699,20 @@
     const neufs = liste.filter((r) => !ctx.sigs[r.sig || r.id] && !ctx.utilisations[r.id]);
     return neufs.length >= 3 ? neufs : liste;
   }
+  /**
+   * Familles de plats : celles dont la personne ne veut plus (« trop de poêlées ») sont écartées,
+   * et une même famille revient au plus 3 fois dans la semaine (1 fois si elle est peu aimée), s'il reste du choix.
+   * Appliqué après le thème du soir, pour ne pas lui retirer ses plats.
+   */
+  function limiterFamilles(liste, p, ctx) {
+    const familles = (p.gouts && p.gouts.modele) || {};
+    const libre = (m) => ['maison', 'perso'].includes(m);
+    let l = liste.filter((r) => libre(r.modele) || (familles[r.modele] || 0) > -2);
+    if (!l.length) l = liste;
+    const limite = (m) => ((familles[m] || 0) <= -1 ? 1 : 3);
+    const sous = l.filter((r) => libre(r.modele) || (ctx.modeles[r.modele] || 0) < limite(r.modele));
+    return sous.length ? sous : l;
+  }
   /** Pas deux plats trop proches le même jour : on écarte ceux qui ressemblent aux autres repas du jour (s'il en reste). */
   function varierJour(liste, idsDuJour) {
     const duJour = (idsDuJour || []).map((id) => REC[id]).filter(Boolean);
@@ -729,7 +743,7 @@
       if (!vus.some((x) => memePlat(x, rec)) || !libre) { vus.push(rec); continue; }
       const ctx = contexteDepuisPlan({ ...plan, jours }, opts.notes, { jour: j, slot: sl }, opts.classiques);
       const autre = SLOTS.map((s2) => s2 !== sl && jours[j][s2] && jours[j][s2].recette).filter(Boolean);
-      const liste = varierJour(filtreTheme(candidats(p, j, sl, ctx, [m.recette, ...autre]), m.theme, ctx).filter((x) => !vus.some((v) => memePlat(v, x))), autre);
+      const liste = varierJour(limiterFamilles(filtreTheme(candidats(p, j, sl, ctx, [m.recette, ...autre]), m.theme, ctx), p, ctx).filter((x) => !vus.some((v) => memePlat(v, x))), autre);
       if (!liste.length) { vus.push(rec); continue; }
       let best = null, bestS = -Infinity;
       for (const x of liste) { const sc = score(x, p, ctx, r); if (sc > bestS) { bestS = sc; best = x; } }
@@ -846,7 +860,7 @@
         const nb = portions(p, j, slot);
         if (nb <= 0) { jourPlan[slot] = null; continue; }
         const theme = themeDuSlot(p, j, slot);
-        const liste = varierJour(filtreTheme(candidats(p, j, slot, ctx, aujourdHui), theme, ctx), aujourdHui);
+        const liste = varierJour(limiterFamilles(filtreTheme(candidats(p, j, slot, ctx, aujourdHui), theme, ctx), p, ctx), aujourdHui);
         if (!liste.length) { jourPlan[slot] = null; alertes.push(`Aucune recette compatible pour ${JOURS[j]} (${slot}).`); continue; }
         let best = null, bestS = -Infinity;
         for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
@@ -879,7 +893,7 @@
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';
     const memeJour = plan.jours[jour][autreSlot] ? [plan.jours[jour][autreSlot].recette] : [];
     const r = rng((plan.seed * 31 + jour * 7 + (slot === 'diner' ? 3 : 1) + (plan.remplacements + 1) * 101) >>> 0);
-    let liste = varierJour(filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx), memeJour);
+    let liste = varierJour(limiterFamilles(filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx), p, ctx), memeJour);
     if (!liste.length) return plan;
     let best = null, bestS = -Infinity;
     for (const rec of liste) { const s = score(rec, p, ctx, r); if (s > bestS) { bestS = s; best = rec; } }
@@ -917,7 +931,7 @@
     const modelesDeja = compte((x) => (x.modele !== 'maison' ? x.modele : null)), protDeja = compte((x) => x.prot);
     const legDeja = compte((x) => (x.ing.find(([id]) => ING[id] && ING[id].groupe === 'L' && !['oignon', 'ail', 'citron', 'persil'].includes(id)) || [])[0]);
     let liste = filtreTheme(candidats(p, jour, slot, ctx, [actuel.recette, ...memeJour, ...(opts.exclure || [])]), actuel.theme, ctx);
-    { const v = varierJour(liste, memeJour); if (v.length > 3) liste = v; }   // idées différentes de l'autre repas du jour
+    { const v = varierJour(limiterFamilles(liste, p, ctx), memeJour); if (v.length > 3) liste = v; }   // idées différentes de l'autre repas du jour, familles pas trop répétées
     if (filtre) {
       // un filtre (rapide, petit prix, végétarien…) cherche dans tous les plats compatibles, pas seulement les mieux classés
       liste = recettesCompatibles(p).filter((x) => x.repas.includes(slot) && x.id !== actuel.recette && !memeJour.includes(x.id) && !(opts.exclure || []).includes(x.id) && !contientDeteste(x, p.gouts) && filtre(x));
@@ -989,7 +1003,7 @@
         if (nb <= 0) { if (n[slot]) n[mis] = n[slot]; n[slot] = null; continue; }
         if (n[slot]) { n[slot] = { ...n[slot], portions: n[slot].manuel ? n[slot].portions : nb }; continue; }
         if (n[mis] && REC[n[mis].recette]) { n[slot] = { ...n[mis], portions: nb }; delete n[mis]; continue; }
-        const liste = varierJour(candidats(p, j, slot, ctx, aujourdHui), aujourdHui);
+        const liste = varierJour(limiterFamilles(candidats(p, j, slot, ctx, aujourdHui), p, ctx), aujourdHui);
         if (!liste.length) continue;
         let best = null, bestS = -Infinity;
         for (const rec of liste) { const sc = score(rec, p, ctx, r); if (sc > bestS) { bestS = sc; best = rec; } }
@@ -1467,7 +1481,7 @@
     if (!g) return 0;
     let s = 0;
     for (const [id] of rec.ing) { const w = (g.ing || {})[id]; if (w) s += w * (POIDS_GROUPE[ING[id].groupe] || 0.2); }
-    s += ((g.cuisine || {})[rec.cuisine] || 0) * 0.8 + ((g.modele || {})[rec.modele] || 0) * 0.8 + ((g.plat || {})[rec.id] || 0);
+    s += ((g.cuisine || {})[rec.cuisine] || 0) * 0.8 + ((g.modele || {})[rec.modele] || 0) * ((g.modele || {})[rec.modele] < 0 ? 1.5 : 0.8) + ((g.plat || {})[rec.id] || 0);
     if (g.epice && rec.ing.some(([id]) => EPICES_PLAT.has(id))) s += g.epice * 0.9;
     return s;
   }
@@ -1534,10 +1548,59 @@
       for (const [k, v] of Object.entries(src[t] || {})) {
         const n = Number(v);
         if (!ok[t](k) || !Number.isFinite(n)) continue;
-        g[t][k] = borne((g[t][k] || 0) + Math.max(-3, Math.min(3, n)));
+        const avant = g[t][k] || 0, x = Math.max(-3, Math.min(3, n));
+        // un avis écrit l'emporte sur ce qui avait été appris : « trop de poêlées » efface le « j'adore » du test
+        g[t][k] = borne(Math.sign(x) !== Math.sign(avant) && Math.abs(x) >= 1.5 ? x : avant + x);
       }
     }
     return g;
+  }
+  /* ---------- goûts écrits en message (« trop de poêlées », « j'adore le poisson », « pas de champignons ») ---------- */
+  const FAMILLES_TEXTE = [
+    ['poelee', /po[eê]l[ée]+s?\b|poelee/], ['curry', /\bcurr(y|ys|ies)\b/], ['salade', /salades? compos|\bsalades?\b(?! verte)/], ['mijote', /mijot/],
+    ['wok', /\bwoks?\b|saut[ée]s? (au|de) wok/], ['pates', /\bp[aâ]tes\b/], ['bowl', /\bbowls?\b/], ['veloute', /velout|soupes?\b|potages?/],
+    ['gratin', /gratins?/], ['omelette', /omelettes?/], ['quiche', /quiches?|tartes? sal/], ['wraps', /\bwraps?\b|tortillas?/], ['pizza', /pizzas?/]
+  ];
+  const CUISINES_TEXTE = [['asiatique', /asiat|chinois|japonais|thai|vietnam/], ['indienne', /indien/], ['italienne', /italien/], ['mexicaine', /mexic|tex.?mex/], ['orientale', /oriental|libanais|marocain|maghr/], ['espagnole', /espagnol/], ['francaise', /fran[cç]ais|traditionnel/]];
+  const MOTS_GROUPES = { poisson: ['saumon', 'colin', 'thon'], poulet: ['poulet_filet', 'cuisses_poulet'], volaille: ['poulet_filet', 'cuisses_poulet'], boeuf: ['boeuf_hache'], porc: ['jambon', 'lardons', 'saucisse'], charcuterie: ['jambon', 'lardons', 'saucisse'], legumineuse: ['lentilles_corail', 'lentilles_vertes', 'pois_chiches', 'haricots_rouges', 'haricots_blancs'], oeuf: ['oeufs'], fromage: ['emmental', 'mozzarella', 'feta'] };
+  const NEGATIF = /\btrop\b|\bpas (de|d|du|des|les|la|le|aim|fan|top)|n.?aim|n.?adore|d[ée]test|marre|moins (de|d)|[ée]vit|\bsans\b|\bassez de\b|toujours (des|les|la|le)|que des|uniquement des|plus jamais|ne .{0,20}plus|lass|horreur|beurk|d[ée]go[uû]t|allergi|r[ée]p[ée]titi|encore des|\bstop\b|\bbof\b/;
+  const POSITIF = /\baim|ador|plus (de|d)|davantage|envie|kiff|fan de|pr[ée]f[eè]r|j.?appr[ée]ci|vive|miam|super|bon(s|nes)?\b/;
+  /**
+   * Préférences comprises dans un message libre, sans IA : familles de plats, cuisines, ingrédients.
+   * → { modeles: { poelee: -2.5 }, cuisines: {}, ingredients: { champignon: -2.5 } } (même forme que la réponse de l'assistant)
+   */
+  function preferencesDepuisTexte(texte) {
+    const out = { modeles: {}, cuisines: {}, ingredients: {} };
+    const n = norm(String(texte || '')).replace(/[’']/g, ' ');
+    const noms = Object.values(ING).filter((i) => !i.perso && !i.libre && ['P', 'L', 'F', 'D'].includes(i.groupe))
+      .map((i) => [i.id, norm(i.nom.replace(/\([^)]*\)/g, '')).split(/\s+ou\s+|,/)[0].trim().split(' ')[0].replace(/(s|x)$/, '')]).filter(([, w]) => w.length >= 3);
+    let derniers = [];
+    let precedent = null;   // une proposition sans avis reprend celui de la précédente (« pas de lentilles, ni de champignons »)
+    for (const prop of n.split(/[.;!?\n,]|\bmais\b|\bpar contre\b|\bpar ailleurs\b/)) {
+      const t = prop.trim();
+      if (!t) continue;
+      let neg = NEGATIF.test(t) || /^ni\b/.test(t), pos = !neg && POSITIF.test(t);
+      if (!neg && !pos && precedent) { neg = precedent === 'neg'; pos = precedent === 'pos'; }
+      if (!neg && !pos) continue;
+      precedent = neg ? 'neg' : 'pos';
+      const v = neg ? (/\btrop\b|que des|toujours|marre|lass|r[ée]p[ée]titi/.test(t) ? -2.5 : -3) : 2;
+      const ici = FAMILLES_TEXTE.filter(([, rx]) => rx.test(t)).map(([k]) => k);
+      for (const k of ici) out.modeles[k] = v;
+      // « les poêlées c'est bon, mais il y en a trop » : le « trop » porte sur ce qui vient d'être dit
+      if (!ici.length && neg && /\btrop\b|lass|marre/.test(t)) for (const k of derniers) out.modeles[k] = -2.5;
+      if (ici.length) derniers = ici;
+      for (const [k, rx] of CUISINES_TEXTE) if (rx.test(t)) out.cuisines[k] = neg ? -2 : 1.5;
+      const mots = t.split(/[^a-z]+/).map((w) => w.replace(/(s|x)$/, ''));
+      for (const [id, w] of noms) if (mots.includes(w) && !(id === 'pates' && out.modeles.pates != null)) out.ingredients[id] = neg ? -2.5 : 1.5;
+      for (const [mot, ids] of Object.entries(MOTS_GROUPES)) if (mots.includes(mot)) for (const id of ids) if (ING[id]) out.ingredients[id] = neg ? -2.5 : 1.5;
+    }
+    return out;
+  }
+  /** Assemble la réponse de l'assistant et ce que le texte dit clairement (le plus marqué des deux l'emporte). */
+  function fusionPreferences(ia, local) {
+    const r = { modeles: { ...((ia && ia.modeles) || {}) }, cuisines: { ...((ia && ia.cuisines) || {}) }, ingredients: { ...((ia && ia.ingredients) || {}) } };
+    for (const t of ['modeles', 'cuisines', 'ingredients']) for (const [k, v] of Object.entries((local && local[t]) || {})) { const a = Number(r[t][k]); if (!Number.isFinite(a) || Math.abs(v) > Math.abs(a) || Math.sign(v) !== Math.sign(a)) r[t][k] = v; }
+    return r;
   }
   /** Choisit n plats variés (familles, protéines, cuisines différentes) pour le test de goût. */
   // `garder` (facultatif) : ne retenir que certains plats, par exemple ceux qui ont une vraie photo.
@@ -1593,7 +1656,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
-    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, preferencesDepuisTexte, fusionPreferences, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };

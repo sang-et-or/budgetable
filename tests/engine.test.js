@@ -449,3 +449,24 @@ test('bibliothèque : ses recettes entrent dans les semaines, tournent d’une s
   assert.ok(vus.size >= 3, 'les recettes de la bibliothèque tournent : ' + [...vus]);
   E.definirRecents([]); E.definirPerso([]);
 });
+
+// ---------- goûts écrits en message : « trop de poêlées » ----------
+test('message « trop de poêlées » : compris sans IA, et la semaine refaite n’en propose presque plus', () => {
+  const pref = E.preferencesDepuisTexte('Il y a trop de poêlées, et je n’aime pas les champignons');
+  assert.equal(pref.modeles.poelee, -2.5);
+  assert.equal(pref.ingredients.champignon, -2.5);
+  // le test de goût avait appris « j'adore les poêlées » : le message l'emporte
+  const p = profil({ foyer: { adultes: 1, enfants: [] }, temps: { semaine: 20, weekend: 30 }, equipement: ['plaque'] });
+  p.gouts = { ing: {}, cuisine: {}, modele: { poelee: 4 }, plat: {} };
+  const familles = (plan) => plan.jours.flatMap((jp) => E.SLOTS.map((s) => jp[s] && E.REC[jp[s].recette].modele)).filter(Boolean);
+  const avant = familles(E.genererSemaine(p, { seed: 9 }));
+  p.gouts = E.fusionnerGouts(p.gouts, pref);
+  assert.ok(p.gouts.modele.poelee <= -2);
+  for (const seed of [9, 10, 11]) {
+    const plan = E.genererSemaine(p, { seed });
+    const f = familles(plan);
+    assert.ok(f.filter((m) => m === 'poelee').length <= 1, 'presque plus de poêlées : ' + f.join(','));
+    assert.ok(!plan.jours.some((jp) => E.SLOTS.some((s) => jp[s] && E.REC[jp[s].recette].ing.some(([id]) => id === 'champignon'))), 'plus de champignons');
+  }
+  assert.ok(avant.filter((m) => m === 'poelee').length <= 3, 'même aimée, une famille ne dépasse pas 3 plats par semaine : ' + avant.join(','));
+});

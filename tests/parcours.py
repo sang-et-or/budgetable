@@ -65,7 +65,7 @@ with sync_playwright() as p:
         if k % 3 == 2: cliquer(page, "Rien de précis, juste ce plat")
     texte = page.inner_text("body")
     assert "vous aimez" in texte.lower(), "résumé des goûts absent"
-    assert "pas disponible pour le moment" in texte, "message IA hors ligne absent"
+    assert "Assistant IA indisponible" in texte, "message IA hors ligne absent"
     page.screenshot(path=f"{OUT}/4c-palais.png", full_page=True)
     cliquer(page, "Créer ma semaine avec ces goûts")
     texte = page.inner_text("body")

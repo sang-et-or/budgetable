@@ -563,15 +563,24 @@
     return ids.map((id) => { const w = (g.ing || {})[id] || 0; return `<div class="spread ligne-gout"><span>${esc(nomCourt(id))}${w >= 0.9 ? ' <span class="small muted">· aimé</span>' : w <= -0.9 ? ' <span class="small muted">· pas aimé</span>' : ''}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-petit" data-a="gout-regler" data-t="ing" data-c="${id}" data-v="aime">♥ J’aime</button><button class="btn btn-petit" data-a="gout-regler" data-t="ing" data-c="${id}" data-v="non">Pas pour moi</button></span></div>`; }).join('');
   }
 
+  /** Ce que Budgétable a compris d'un message de goûts, en mots simples. */
+  function resumePreferences(a) {
+    const l = [];
+    const nomModele = (k) => ((E.MODELES[k] || {}).libelle || k).toLowerCase();
+    for (const [k, v] of Object.entries(a.modeles || {})) if (E.MODELES[k] && Number(v)) l.push((v < 0 ? 'moins de ' : 'plus de ') + nomModele(k));
+    for (const [k, v] of Object.entries(a.cuisines || {})) if (Number(v)) l.push((v < 0 ? 'moins de cuisine ' : 'plus de cuisine ') + ((L.cuisines || {})[k] || k).toLowerCase());
+    for (const [k, v] of Object.entries(a.ingredients || {})) if (E.ING[k] && Number(v)) l.push((v < 0 ? 'pas de ' : 'j’aime : ') + E.ING[k].nom.replace(/\s*\([^)]*\)/, '').toLowerCase());
+    return l;
+  }
   function blocIA() {
     if (iaDispo === null) return '<p class="small muted">Recherche de l’assistant IA…</p>';
-    if (!iaDispo) return `<div class="bandeau bandeau-info small"><span>L’assistant IA n’est pas disponible pour le moment. Le test de goût et vos notes suffisent à apprendre vos goûts.</span></div>`;
     const tours = S.ia.tours;
-    return `<div class="chat" aria-live="polite">${tours.length ? tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! Racontez-moi ce que vous aimez manger, ce que vous n’aimez pas, vos plats préférés d’enfance… Je traduis tout ça en préférences pour vos menus.</p>'}
+    return `<div class="chat" aria-live="polite">${tours.length ? tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! Racontez-moi ce que vous aimez manger, ce que vous n’aimez pas, ce qui revient trop souvent (« trop de poêlées », « pas de champignons »…). Vos menus en tiendront compte.</p>'}
         ${S.ia.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
       ${S.ia.message ? `<p class="small" style="color:var(--tomate)">${esc(S.ia.message)}</p>` : ''}
-      <label class="champ"><span class="sr">Votre message à l’assistant</span><textarea id="ia-texte" rows="3" style="min-height:80px;font-family:inherit;font-size:.95rem" placeholder="Ex. : j’adore les plats épicés et le poisson, mais les champignons, très peu pour moi."></textarea></label>
-      <div class="row"><button class="btn btn-plein" data-a="ia-envoyer" ${S.ia.attente ? 'disabled' : ''}>Envoyer</button><span class="small muted">L’assistant est fourni par Budgétable, sans compte à créer.</span></div>`;
+      ${S.ia.compris && S.ia.compris.length ? `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:6px"><span><strong>Pris en compte pour vos menus :</strong> ${esc(S.ia.compris.join(' · '))}.</span>${S.plan && S.vue === 'app' ? '<div><button class="btn btn-petit btn-plein" data-a="refaire-plats">🔄 Refaire les plats avec ces goûts</button></div>' : '<span class="muted">Ils serviront pour votre semaine.</span>'}</div></div>` : ''}
+      <label class="champ"><span class="sr">Votre message à l’assistant</span><textarea id="ia-texte" rows="3" style="min-height:80px;font-family:inherit;font-size:.95rem" placeholder="Ex. : trop de poêlées ; j’adore les plats épicés et le poisson, mais les champignons, très peu pour moi."></textarea></label>
+      <div class="row"><button class="btn btn-plein" data-a="ia-envoyer" ${S.ia.attente ? 'disabled' : ''}>Envoyer</button><span class="small muted">${iaDispo ? 'L’assistant est fourni par Budgétable, sans compte à créer.' : 'Assistant IA indisponible : Budgétable comprend quand même les demandes simples.'}</span></div>`;
   }
 
   function vueTestFin() {
@@ -4697,6 +4706,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   async function envoyerCoachChat(question) {
     const texte = String(question || '').trim().slice(0, 500);
     if (!texte || coachChat.attente) return;
+    // « trop de poêlées », « pas de champignons » : écrit au coach, c'est aussi un goût pour les menus
+    const pref = E.preferencesDepuisTexte(texte), compris = resumePreferences(pref);
+    if (compris.length) { S.profil.gouts = E.fusionnerGouts(S.profil.gouts, pref); toast(`Noté pour vos menus : ${compris.join(', ')}. « Refaire les plats » pour l’appliquer`); }
     coachChat.tours.push({ role: 'user', content: texte }); coachChat.message = '';
     const secours = reponseLocaleCoach(texte);
     if (!iaDispo) { coachChat.attente = true; rendre(); setTimeout(() => { coachChat.tours.push({ role: 'assistant', content: secours }); coachChat.attente = false; rendre(); defilerChat(); }, 700); defilerChat(); return; }
@@ -5084,6 +5096,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'refaire-plats': {
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         S.complementFini = false;
+        if (S.onglet === 'profil') { S.onglet = 'semaine'; window.scrollTo(0, 0); }
         const n = refairePlats();
         toast(n ? `${pluriel(n, 'plat refait', 'plats refaits')} ; la liste de courses suit` : 'Tous les repas de la semaine sont déjà mangés ou choisis');
         break;
@@ -6138,24 +6151,29 @@ Réponds uniquement avec un objet JSON de cette forme :
   async function envoyerIA() {
     const zone = document.getElementById('ia-texte');
     const texte = zone ? zone.value.trim() : '';
-    if (!texte || !iaDispo || S.ia.attente) return;
+    if (!texte || S.ia.attente) return;
     S.ia.tours.push({ role: 'user', content: texte.slice(0, 1500) });
     S.ia.attente = true; S.ia.message = '';
     rendre();
-    const tours = S.ia.tours.slice(-10);
-    try {
-      const r = await iaDispo.json([{ role: 'user', content: consignesIA() }, ...tours], { cache: false, modelTier: 'quick' });
-      const reponse = r && typeof r.reponse === 'string' ? r.reponse : 'C’est noté.';
-      S.profil.gouts = E.fusionnerGouts(S.profil.gouts, r || {});
-      S.ia.tours.push({ role: 'assistant', content: reponse.slice(0, 1200) });
-    } catch (e) {
-      const code = e && e.code;
-      if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) { iaDispo = false; S.ia.message = ''; }
-      else if (code === 'rate_limited') S.ia.message = e.message || 'L’assistant est très sollicité : réessayez dans quelques minutes.';
-      else if (code === 'reseau') S.ia.message = 'Pas de connexion : réessayez.';
-      else if (code !== 'cancelled') S.ia.message = 'L’assistant n’a pas pu répondre. Réessayez.';
-      S.ia.tours.pop();
+    // ce que le message dit clairement (« trop de poêlées ») est toujours pris en compte, avec ou sans IA
+    const local = E.preferencesDepuisTexte(texte);
+    let ia = null, reponse = '';
+    if (iaDispo) {
+      try {
+        ia = await iaDispo.json([{ role: 'user', content: consignesIA() }, ...S.ia.tours.slice(-10)], { cache: false, modelTier: 'quick' });
+        reponse = ia && typeof ia.reponse === 'string' ? ia.reponse : '';
+      } catch (e) {
+        const code = e && e.code;
+        if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) iaDispo = false;
+        ia = null;
+      }
     }
+    const apport = E.fusionPreferences(ia, local);
+    const compris = resumePreferences(apport);
+    S.profil.gouts = E.fusionnerGouts(S.profil.gouts, apport);
+    S.ia.compris = compris.length ? [...new Set([...(S.ia.compris || []), ...compris])].slice(-12) : S.ia.compris;
+    if (!reponse) reponse = compris.length ? `C’est noté : ${compris.join(', ')}. Vos prochains menus en tiendront compte.` : 'Je n’ai pas bien compris. Dites-moi par exemple « trop de poêlées », « plus de poisson » ou « pas de champignons ».';
+    S.ia.tours.push({ role: 'assistant', content: reponse.slice(0, 1200) });
     S.ia.attente = false;
     rendre();
   }
