@@ -42,7 +42,7 @@ services:
   - type: web
     name: budgetable-recettes
     runtime: node
-    plan: free
+    plan: starter   # payant (≈ 7 $/mois) : ne s’endort jamais
     region: frankfurt
     buildCommand: node --version
     startCommand: node api/server.js
