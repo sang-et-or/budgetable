@@ -204,6 +204,39 @@
   }).forEach(([cle, v]) => { PHOTOS[cle] = PHOTOS[v.replace(/^R:|^=/, '')]; });
 
 
+  // Ce que chaque photo d'un type de plat montre vraiment : le féculent visible (riz, pommes de terre…),
+  // les légumes qu'on reconnaît, ou « faux » si la photo montre autre chose (autre viande, nouilles…).
+  // Une photo n'est utilisée que si elle ne contredit pas la recette ; sinon on garde l'illustration
+  // dessinée à partir des vrais ingrédients (plus juste qu'une photo trompeuse).
+  const MONTRE = {
+    'g:poelee|poulet_filet': { fec: 'riz' },
+    'g:poelee|pois_chiches': { leg: ['epinards'] },
+    'g:poelee|saucisse': { fec: 'pomme_de_terre' },
+    'g:poelee|haricots_rouges': { fec: 'riz' },
+    'g:poelee|lardons': { fec: 'pomme_de_terre' },
+    'g:curry|saumon': { fec: 'riz' },
+    'g:curry|colin': { fec: 'riz' },
+    'g:curry|poulet_filet': { fec: 'riz', leg: ['poivron'] },
+    'g:curry|tofu': { faux: true },            // curry au porc
+    'g:wok|poulet_filet': { faux: true },      // porc frit aux cacahuètes
+    'g:wok|boeuf_hache': { leg: ['brocoli'] },
+    'g:bowl|saumon': { fec: 'riz' },
+    'g:bowl|oeufs': { fec: 'riz' },
+    'g:bowl|poulet_filet': { fec: 'riz' },
+    'g:bowl|tofu': { fec: 'riz' },
+    'g:mijote|saucisse': { faux: true },       // ragoût coréen aux nouilles
+    'g:mijote|haricots_rouges': { fec: 'riz' },
+  };
+  const FECULENTS = ['riz', 'pates', 'semoule', 'quinoa', 'pomme_de_terre', 'patate_douce', 'boulgour'];
+  function compatible(cle, rec) {
+    const m = MONTRE[cle];
+    if (!m) return true;
+    if (m.faux) return false;
+    const ids = new Set((rec.ing || []).map((i) => i[0]));
+    if (m.fec) { const fec = FECULENTS.filter((f) => ids.has(f)); if (fec.length && !fec.includes(m.fec)) return false; if (!fec.length) return false; }
+    if (m.leg && !m.leg.every((l) => ids.has(l))) return false;
+    return true;
+  }
   // Photos qui montrent vraiment le plat (et pas seulement un plat de la même famille) :
   // ce sont les seules utilisées pour le test de goût.
   /** Photo du type de plat d'une recette générée (id « g-famille-protéine-légumes-féculent-variante »). */
@@ -211,16 +244,19 @@
     if (!rec.id.startsWith('g-')) return null;
     const p = rec.id.split('-'), m = rec.modele, pr = rec.prot;
     const fins = [p[p.length - 1], p[p.length - 2]]; // féculent et/ou variante (sauce, épices) en fin d'identifiant
-    for (const f of fins) if (PHOTOS[`g:${m}|${pr}|${f}`]) return PHOTOS[`g:${m}|${pr}|${f}`];
-    if (PHOTOS[`g:${m}|${pr}`]) return PHOTOS[`g:${m}|${pr}`];
-    for (const f of fins) if (PHOTOS[`g:${m}|*|${f}`]) return PHOTOS[`g:${m}|*|${f}`];
+    const essai = (cle) => (PHOTOS[cle] && compatible(cle, rec) ? PHOTOS[cle] : null);
+    for (const f of fins) { const ph = essai(`g:${m}|${pr}|${f}`); if (ph) return ph; }
+    const ph = essai(`g:${m}|${pr}`); if (ph) return ph;
+    for (const f of fins) { const q = essai(`g:${m}|*|${f}`); if (q) return q; }
     return null;
   }
   /** Photo qui montre vraiment ce plat (recette maison ou type de plat), ou null. */
   function photoFidele(rec) { return (rec.id.startsWith('g-') ? photoType(rec) : PHOTOS[rec.id]) || null; }
 
   /** Photo d'illustration d'un plat, ou null. */
-  function photoPour(rec) { return photoFidele(rec) || PHOTOS['m:' + rec.modele] || null; }
+  // Plat généré sans photo fidèle : l'illustration dessinée (la photo générique de la famille montrait souvent
+  // une autre viande ou un autre féculent).
+  function photoPour(rec) { return photoFidele(rec) || (rec.id && rec.id.startsWith('g-') ? null : PHOTOS['m:' + rec.modele]) || null; }
   /** Liste des crédits (sans doublon) pour la page « Crédits photos ». */
   function credits() {
     const vus = new Set();
@@ -231,7 +267,7 @@
   const LOCALES = root.BUDGETABLE_PHOTOS_LOCALES || {};
   Object.values(PHOTOS).forEach((p) => { if (p && LOCALES[p.src]) { p.distant = p.src; p.src = LOCALES[p.src]; } });
 
-  const api = { PHOTOS, photoPour, photoFidele, credits };
+  const api = { PHOTOS, photoPour, photoFidele, credits, compatible };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Photos = api;
 })(typeof window !== 'undefined' ? window : globalThis);

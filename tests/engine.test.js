@@ -203,12 +203,29 @@ test('test de goût : uniquement des plats avec une vraie photo, quel que soit l
   }
 });
 
-test('chacun des 12 000+ menus a une vraie photo de son type de plat, créditée', () => {
+test('photos des plats : créditées, et jamais en contradiction avec la recette (féculent, légumes, viande)', () => {
   const P = require('../js/photos.js');
+  let avec = 0;
   for (const r of E.RECETTES) {
-    const ph = P.photoFidele(r);
-    assert.ok(ph && ph.src.startsWith('https://upload.wikimedia.org/') && ph.auteur && ph.licenceUrl, r.id);
+    const ph = P.photoPour(r);
+    if (!ph) continue;   // pas de photo fidèle : l'illustration dessinée à partir des ingrédients
+    avec++;
+    assert.ok(ph.src.startsWith('https://upload.wikimedia.org/') && ph.auteur && ph.licenceUrl, r.id);
   }
+  assert.ok(avec > 7000, 'trop peu de photos : ' + avec);
+  // le cas signalé : poêlée lardons-poivrons-haricots verts AU RIZ ne doit pas montrer des pommes de terre sautées
+  assert.equal(P.photoPour(E.REC['g-poelee-lardons-poivron-haricots_verts-riz-cum']), null);
+  const pdt = E.RECETTES.find((x) => x.id.startsWith('g-poelee-lardons') && x.ing.some((i) => i[0] === 'pomme_de_terre'));
+  assert.ok(/Bratkartoffeln/.test(P.photoPour(pdt).page));
+  // aucune photo « riz » sur un plat aux pâtes, aucune photo « pommes de terre » sur un plat au riz
+  for (const r of E.RECETTES.filter((x) => x.id.startsWith('g-poelee-saucisse') || x.id.startsWith('g-poelee-poulet_filet'))) {
+    const ph = P.photoPour(r); if (!ph) continue;
+    const fec = r.ing.map((i) => i[0]);
+    if (/Sausage,_fried_red_potato/.test(ph.page)) assert.ok(fec.includes('pomme_de_terre'), r.id);
+    if (/vegetables_and_rice/.test(ph.page)) assert.ok(fec.includes('riz'), r.id);
+  }
+  // les photos qui montrent une autre viande ne sont plus utilisées
+  for (const r of E.RECETTES.filter((x) => /^g-(curry-tofu|wok-poulet_filet|mijote-saucisse)-/.test(x.id))) assert.equal(P.photoPour(r), null, r.id);
 });
 
 test('rituels : chaque dîner à thème respecte son thème (si une recette compatible existe)', () => {
