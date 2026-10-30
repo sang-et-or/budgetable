@@ -11,7 +11,7 @@ with sync_playwright() as p:
     page.evaluate("localStorage.setItem('budgetable.attente', '1')")   # comme une inscription en cours : les données sont gardées
     page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(30):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

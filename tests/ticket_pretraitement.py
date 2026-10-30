@@ -13,7 +13,7 @@ with sync_playwright() as p:
     page.route("**/tesseract.min.js", lambda r: r.fulfill(status=200, content_type="application/javascript", body="window.__vu=[];window.Tesseract={createWorker:async()=>({setParameters:async()=>{},terminate:async()=>{},recognize:async(c)=>{window.__vu.push([c.width,c.height]);return {data:{blocks:c.width>800?" + json.dumps(BLOCS) + ":[],text:" + json.dumps(TEXTE) + "}}}})};"))
     page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

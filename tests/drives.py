@@ -12,7 +12,7 @@ with sync_playwright() as p:
     pg.route("https://api-adresse.data.gouv.fr/**", lambda r: r.fulfill(status=200, content_type="application/json", body=ban, headers={"Access-Control-Allow-Origin": "*"}))
     pg.route("https://overpass-api.de/**", lambda r: r.fulfill(status=200, content_type="application/json", body=osm, headers={"Access-Control-Allow-Origin": "*"}))
     pg.goto("http://localhost:8766/index.html"); pg.evaluate("localStorage.clear()"); pg.reload()
-    pg.get_by_role("button", name="Préparer ma semaine").first.click()
+    pg.get_by_role("button", name="🍽️ Tester gratuitement sans compte").first.click()
     for _ in range(20):
         bt = pg.get_by_role("button", name="Voir mon profil")
         if bt.count(): bt.click(); break

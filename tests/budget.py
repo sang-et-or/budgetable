@@ -11,7 +11,7 @@ with sync_playwright() as p:
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     budget = lambda: page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).profil.budget")
     for _ in range(25):
         if page.get_by_role("button", name="Taper un montant ou calculer mon budget").count(): break

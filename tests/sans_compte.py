@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 erreurs = []
 def semaine(page):
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    page.locator(".accueil-hero [data-a=commencer]").click()   # « Tester gratuitement sans compte », ou « Préparer ma semaine » une fois connecté
     for _ in range(30):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
