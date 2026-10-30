@@ -28,7 +28,7 @@ with sync_playwright() as p:
     # 1. placard vide puis « ce que j'ai déjà »
     aller(page, 'placard')
     main = page.locator("main")
-    assert "Votre placard est vide" in main.inner_text()
+    assert "Mon placard" in main.inner_text()   # provisions de base déjà rangées (huile, épices…)
     for nom in ["+ Pâtes", "+ Courgettes", "+ Œufs"]:
         b = main.get_by_role("button", name=nom, exact=True)
         if not b.count(): b = main.locator(".puce-ajout", has_text=nom[2:5]).first

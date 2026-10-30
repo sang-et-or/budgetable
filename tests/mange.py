@@ -7,6 +7,8 @@ erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
     page = nav.new_page(viewport={"width": 760, "height": 900}, is_mobile=True, has_touch=True)
+    import datetime as _dt; _l = _dt.datetime.now().replace(hour=9, minute=30, second=0, microsecond=0); _l -= _dt.timedelta(days=_l.weekday())
+    page.context.clock.install(time=_l)   # la semaine s’affiche à partir d’aujourd’hui : on se place un lundi matin
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()

@@ -18,7 +18,7 @@ OFFRES = {"offres": [
     o("t6", "Comté râpé", "Produits laitiers · Fromages"),
     o("t7", "Salade de concombres", "Fruits et légumes · Salades"),
     o("t8", "Laitue", "Fruits et légumes · Salades"),
-    o("t9", "Oignons jaunes", "Fruits et légumes", debut=None, fin=None, quand="22.10. - 28.10."),
+    o("t9", "Oignons jaunes", "Fruits et légumes", debut=None, fin=None, quand=time.strftime("%d.%m.", time.localtime(now - 2 * J)) + " - " + time.strftime("%d.%m.", time.localtime(now + 4 * J))),
     o("ex1", "Carottes en offre terminée", "Fruits et légumes", debut=(now - 12 * J) * 1000, fin=None, quand="En magasin le 15/10"),
     o("ex2", "Pommes de terre offre passée", "Fruits et légumes", debut=(now - 9 * J) * 1000, fin=(now - 2 * J) * 1000),
     o("av1", "Riz basmati", "Épicerie · Riz", debut=(now + 2 * J) * 1000, fin=(now + 8 * J) * 1000),

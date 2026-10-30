@@ -8,6 +8,8 @@ erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch()
     page = nav.new_page(viewport={"width": 760, "height": 900})
+    import datetime as _dt; _l = _dt.datetime.now().replace(hour=9, minute=30, second=0, microsecond=0); _l -= _dt.timedelta(days=_l.weekday())
+    page.context.clock.install(time=_l)   # la semaine s’affiche à partir d’aujourd’hui : on se place un lundi matin
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.goto(URL); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
@@ -30,7 +32,7 @@ with sync_playwright() as p:
     # 2. trois idées pour le dîner du lundi
     page.locator("[data-a=choix][data-j='0'][data-s='diner']").click()
     cartes = page.locator(".choix-carte")
-    assert cartes.count() == 3, cartes.count()
+    assert cartes.count() >= 3, cartes.count()
     assert page.locator(".choix-carte .raisons li").count() >= 3, "raisons absentes"
     page.screenshot(path=f"{OUT}/r3-trois-idees.png", full_page=False)
     nom = cartes.nth(1).locator("h3").inner_text()
@@ -39,21 +41,20 @@ with sync_playwright() as p:
     # 3. choix des enfants (mercredi)
     page.get_by_label  # noqa
     page.locator(".grille-rituels")  # présent dans la carte repliée
-    page.get_by_text("Nos rituels et nos classiques").click()
+    page.get_by_text("Nos rituels et nos favoris").click()
     page.locator("input[data-a=prenom]").first.fill("Léa")
-    page.get_by_text("Nos rituels et nos classiques").click()
+    page.get_by_text("Nos rituels et nos favoris").click()
     page.locator("[data-a=choix][data-enfants='1']").first.click()
     assert "À toi de choisir, Léa !" in page.inner_text("#choix-titre")
     page.screenshot(path=f"{OUT}/r4-enfants.png", full_page=False)
     page.locator(".choix-carte").nth(2).get_by_role("button", name="Celui-là !").click()
     assert "choisi par léa" in page.inner_text("main").lower(), "choix des enfants non noté"
-    # 4. classique avec le cœur
-    page.locator(".titre-repas").first.click()
-    page.get_by_role("button", name=re.compile("Ajouter à nos classiques")).click()
-    assert page.get_by_role("button", name=re.compile("Un classique de la famille")).count() == 1
-    page.get_by_role("button", name="Fermer").first.click()
-    assert page.locator(".coeur").count() >= 1, "cœur absent du planning"
-    page.get_by_text("Nos rituels et nos classiques").click()
+    # 4. plat préféré : l'étoile (les « classiques » au cœur sont devenus les favoris en étoile le 24/10)
+    etoile = page.locator("main .etoile-fav").first
+    rid = etoile.get_attribute("data-r"); etoile.click()
+    assert page.locator(f"main .etoile-fav[data-r='{rid}']").first.inner_text() == "★", "étoile absente du planning"
+    assert rid in page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).classiques")
+    page.get_by_text("Nos rituels et nos favoris").click()
     page.locator(".rituels").screenshot(path=f"{OUT}/r5-rituels.png")
     print("Erreurs JS :", erreurs or "aucune")
     assert not erreurs

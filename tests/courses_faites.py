@@ -24,6 +24,7 @@ with sync_playwright() as p:
     clic("Voir mon profil")
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
     stock = lambda: page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).profil.stock")
+    base = stock()   # provisions de base rangées à la création de la semaine
     page.locator("nav button", has_text="Courses").click()
     a_acheter = page.locator("main input[data-a=cocher]:not([disabled])").count()
     assert a_acheter > 5
@@ -47,7 +48,7 @@ with sync_playwright() as p:
     # annuler le rangement
     aller(page, 'placard')
     page.get_by_role("button", name="Annuler ce rangement").click()
-    assert stock() == {} and main.locator(".bilan-rangement").count() == 0
+    assert stock() == base and main.locator(".bilan-rangement").count() == 0
     # tout est coché maintenant : le bouton range directement
     page.locator("nav button", has_text="Courses").click()
     clic("✓ Courses faites : tout mettre au placard")
