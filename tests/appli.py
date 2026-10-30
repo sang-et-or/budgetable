@@ -14,7 +14,7 @@ with sync_playwright() as p:
     for f in ["icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png", "captures/telephone-semaine.png"]:
         assert page.request.get("http://localhost:8766/" + f).ok, f
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

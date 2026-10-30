@@ -10,7 +10,7 @@ with sync_playwright() as p:
     page.route("https://budgetable-recettes.onrender.com/**", lambda r: r.abort())
     page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

@@ -20,7 +20,7 @@ with sync_playwright() as p:
     page.evaluate("localStorage.clear()")
     page.reload()
     page.screenshot(path=f"{OUT}/0-accueil.png")
-    cliquer(page, "Préparer ma semaine")
+    cliquer(page, "🍽️ Tester gratuitement sans compte")
     # foyer : 1 adulte + 2 enfants
     page.get_by_role("button", name="Ajouter").nth(1).click()
     page.get_by_role("button", name="Ajouter").nth(1).click()

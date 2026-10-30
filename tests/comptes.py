@@ -56,7 +56,7 @@ with sync_playwright() as p:
     page.locator(".fenetre-compte").get_by_role("button", name="Fermer").click()
     # préparer la semaine sans être connecté, puis se connecter : les données partent dans le compte
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

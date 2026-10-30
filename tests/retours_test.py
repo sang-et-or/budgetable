@@ -39,7 +39,7 @@ def nouvelle_page(nav, largeur, hauteur=900):
 def questionnaire(page, allergies=()):
     """Parcours réaliste du premier menu. → nombre d'écrans de questions."""
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     ecrans = 0
     for _ in range(30):
         ecrans += 1

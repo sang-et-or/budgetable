@@ -20,7 +20,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: erreurs.append(str(e)))
     page.goto("http://localhost:8766/index.html")
     page.evaluate("localStorage.clear()"); page.reload()
-    page.get_by_role("button", name="Préparer ma semaine").first.click()
+    page.get_by_role("button", name="🍽️ Tester gratuitement sans compte").first.click()
     cliquer = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break

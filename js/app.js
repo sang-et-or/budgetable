@@ -809,7 +809,7 @@
   }
   function bandeauSansCompte() {
     if (garderSurAppareil() || !S.plan) return '';
-    return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>⚠️ Sans compte, votre semaine n’est pas enregistrée : elle s’effacera quand vous fermerez Budgétable. Créez votre compte gratuit pour la garder.</span><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button></div>`;
+    return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>⚠️ <strong>Sans compte, votre semaine n’est pas enregistrée</strong> : elle s’effacera quand vous fermerez Budgétable. Créez votre compte gratuit pour l’enregistrer et la retrouver sur tous vos appareils. 7 jours d’essai gratuit dès la création du compte, puis ${PRIX_ABO} par mois, sans engagement.</span><button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button></div>`;
   }
   function bandeauAbo() {
     const d = droitsAbo();
@@ -1099,6 +1099,42 @@
     </div></div>`;
   }
 
+  /** Accueil : exemple réel de semaine (plats choisis par le moteur à la publication, prix et liste calculés par l'appli). */
+  let apercuCache = null;
+  function apercuSemaineAccueil() {
+    const A = window.APERCU_ACCUEIL;
+    if (!A || !Array.isArray(A.jours)) return '';
+    if (!apercuCache) {
+      try {
+        const jours = A.jours.filter((j) => j.dejeuner && j.diner && E.REC[j.dejeuner.recette] && E.REC[j.diner.recette]);
+        if (jours.length < 7) return '';
+        const plan = { jours };
+        const p = { ...E.profilParDefaut(), foyer: A.foyer };
+        const repas = jours.flatMap((j) => [j.dejeuner, j.diner]);
+        const total = repas.reduce((t, m) => t + E.coutRepas(m), 0);
+        const parts = repas.reduce((t, m) => t + (m.portions || 1), 0);
+        const L = E.listeCourses(plan, p);
+        const achats = (L.articles || []).filter((a) => !a.enStock);
+        apercuCache = { jours, total, parPart: total / parts, achats, adultes: (A.foyer && A.foyer.adultes) || 2 };
+      } catch (e) { return ''; }
+    }
+    const c = apercuCache;
+    const carte = (j) => {
+      const r = E.REC[j.diner.recette], d = E.REC[j.dejeuner.recette];
+      return `<article class="ex-jour"><span class="ex-visuel">${V(r, 72)}</span><div class="stack" style="gap:2px;min-width:0"><span class="eyebrow">${esc(j.jour)} · dîner</span><strong class="ex-nom">${esc(r.nom)}</strong><span class="small muted">${r.temps} min · ≈ ${euros(E.coutRepas(j.diner))} pour ${c.adultes}</span><span class="small muted ex-midi">Midi : ${esc(d.nom)}</span></div></article>`;
+    };
+    return `<section class="stack exemple-semaine" style="gap:16px"><div class="titre-section"><p class="eyebrow">Exemple réel</p><h2>Voici à quoi ressemble une semaine</h2>
+        <p class="small muted" style="margin:0">Une semaine préparée par Budgétable pour ${c.adultes} adultes (profil type). Prix estimés par l’appli, à ajuster avec vos tickets de caisse.</p></div>
+      <div class="ex-grille">
+        <div class="stack" style="gap:10px">${c.jours.slice(0, 4).map(carte).join('')}
+          <p class="small" style="margin:0"><strong>14 repas</strong> au total · coût estimé ${euros(c.total)}, soit ≈ ${euros(c.parPart)} par repas et par personne.</p></div>
+        <div class="ex-liste carte stack" style="gap:8px"><strong>🛒 La liste de courses (extrait)</strong>
+          <ul>${c.achats.slice(0, 7).map((a) => `<li><span>${esc(a.nom)}</span><span class="small muted">${esc(a.condLabel || '')}</span></li>`).join('')}</ul>
+          <p class="small muted" style="margin:0">… et ${pluriel(Math.max(0, c.achats.length - 7), 'autre article', 'autres articles')}, rangés par rayon, avec les promos du moment.</p></div>
+      </div>
+      ${S.plan ? '' : `<div><button class="btn btn-plein btn-hero" data-a="commencer">${C.connecte() ? '🍽️ Préparer ma semaine' : '🍽️ Tester avec mes goûts'}</button></div>`}
+    </section>`;
+  }
   function vueAccueil() {
     const nbRec = E.nombreRecettes().total.toLocaleString('fr-FR');
     const nbIng = E.DATA.ingredients.filter((i) => !i.perso).length;
@@ -1113,19 +1149,26 @@
     ];
     return `<div class="wrap accueil"><div class="store" aria-hidden="true"></div>
       <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
-        <div class="row" style="gap:8px">${boutonInstaller('btn-petit')}${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
+        <div class="row" style="gap:8px">${boutonInstaller('btn-petit')}${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein cacher-mobile" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
       ${codeRecu() && !connecte ? '<div class="bandeau bandeau-ok"><span>🎁 <strong>Une amie vous invite :</strong> créez votre compte et confirmez votre adresse e-mail, vous aurez <strong>un mois offert</strong>, et elle aussi.</span></div>' : ''}
       <section class="accueil-hero">
-        <div class="stack" style="gap:16px">
-          <p class="eyebrow">Bien manger, petit budget</p>
-          <h1>Des bons petits plats toute la semaine, sans vider le porte-monnaie</h1>
-          <p class="accueil-sous">Environ une minute de questions, et Budgétable prépare vos menus, les recettes et une liste de courses qui évite le gaspillage.</p>
-          <div class="row" style="gap:10px">${S.plan ? '<button class="btn btn-plein btn-grand" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button>'}${connecte ? '' : '<button class="btn btn-grand" data-a="compte-ouvrir" data-k="inscription">Créer mon compte gratuit</button>'}</div>
-          ${S.plan ? '' : '<p class="small" style="margin:6px 0 0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
-          <p class="small muted" style="margin:0">Une semaine d’essai gratuite · créez votre compte pour garder vos menus · à installer sur votre téléphone en un geste</p>
+        <div class="stack hero-texte" style="gap:14px">
+          <h1>Et si vos repas de la semaine étaient déjà organisés ?</h1>
+          <p class="accueil-sous">Des menus adaptés à vos goûts et à votre budget, avec des recettes simples et une liste de courses pour mieux maîtriser vos dépenses.</p>
+          <div class="hero-actions">${S.plan ? '<button class="btn btn-plein btn-grand btn-hero" data-a="compte-reprendre">Retrouver ma semaine</button>' : `<button class="btn btn-plein btn-grand btn-hero" data-a="commencer">${connecte ? '🍽️ Préparer ma semaine' : '🍽️ Tester gratuitement sans compte'}</button>`}</div>
+          ${connecte ? '' : `<ul class="rassurance"><li>✓ Sans inscription pour tester</li><li>✓ Menus personnalisés</li><li>✓ 7 jours d’essai gratuit dès la création du compte</li></ul>
+          <p class="small muted" style="margin:0">Ensuite ${PRIX_ABO} par mois, sans engagement. Sans compte, vos menus ne sont pas enregistrés.</p>`}
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
       </section>
+      <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Testez d’abord, inscrivez-vous ensuite</h2></div>
+        <ol class="etapes">
+          <li><span class="num-etape">1</span><div><strong>Je choisis mes goûts et mon budget.</strong><p class="small muted">Qui mange à la maison, régime, allergies, temps, matériel et budget : environ une minute.</p></div></li>
+          <li><span class="num-etape">2</span><div><strong>Je découvre gratuitement mes menus de la semaine, sans compte.</strong><p class="small muted">Recettes simples, prix estimés et liste de courses. Sans compte, rien n’est enregistré : la semaine s’efface quand vous fermez Budgétable.</p></div></li>
+          <li><span class="num-etape">3</span><div><strong>Je crée mon compte pour profiter des fonctionnalités complètes et conserver mes menus.</strong><p class="small muted">7 jours d’essai gratuit dès la création du compte, puis ${PRIX_ABO} par mois, sans engagement. Vos menus vous suivent sur tous vos appareils.</p></div></li>
+        </ol>
+      </section>
+      ${apercuSemaineAccueil()}
       <section class="chiffres" aria-label="Budgétable en chiffres">
         <div><strong class="num">${nbRec}</strong><span>recettes adaptées à votre foyer</span></div>
         <div><strong class="num">${nbIng}</strong><span>produits avec un prix estimé, à ajuster avec vos tickets</span></div>
@@ -1141,16 +1184,10 @@
         </div>
         <p class="small muted" style="margin:0">Des conseils de bon sens, pas un avis médical : en cas de problème de santé, de grossesse ou de trouble alimentaire, parlez-en d’abord à votre médecin.</p>
       </section>
-      <section class="stack etapes-accueil" style="gap:16px"><div class="titre-section"><p class="eyebrow">Comment ça marche</p><h2>Trois étapes, et c’est prêt</h2></div>
-        <ol class="etapes">
-          <li><span class="num-etape">1</span><div><strong>Vous répondez à l’essentiel</strong><p class="small muted">Qui mange à la maison, votre régime, vos allergies, le temps que vous avez, votre matériel de cuisine, les déjeuners et votre budget. Le reste (goûts, provisions) peut attendre.</p></div></li>
-          <li><span class="num-etape">2</span><div><strong>Budgétable prépare la semaine</strong><p class="small muted">Menus variés, recettes pas à pas, quantités pour votre foyer. Changez un plat en un geste.</p></div></li>
-          <li><span class="num-etape">3</span><div><strong>Vous faites les courses</strong><p class="small muted">Liste par rayon, promos du moment, drive guidé, placard mis à jour. Et bon appétit !</p></div></li>
-        </ol>
-      </section>
       <section class="carte stack compte-accueil" style="gap:12px"><h2>${connecte ? 'Vous êtes connecté' : 'Un compte pour vous suivre partout'}</h2>
         <p class="muted" style="margin:0">${connecte ? 'Vos menus, votre liste et vos recettes sont enregistrés dans votre compte et vous suivent sur tous vos appareils.' : 'Avec un compte gratuit, vos menus, votre liste et vos recettes sont enregistrés et vous suivent sur votre téléphone et votre ordinateur. Sans compte, vous pouvez tout essayer, mais rien n’est gardé quand vous fermez Budgétable.'}</p>
         <div class="row" style="gap:8px">${connecte ? '<button class="btn btn-plein" data-a="compte-reprendre">Retrouver ma semaine</button>' : '<button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">J’ai déjà un compte</button>'}</div>
+        ${S.plan ? '' : '<p class="small" style="margin:0"><label class="btn-lien" style="cursor:pointer">📂 J’ai une sauvegarde : la restaurer<input type="file" accept="application/json,.json" data-a="sauvegarde-fichier" class="visuellement-cache"></label></p>'}
       </section>
       <section class="stack" style="gap:10px"><div class="titre-section"><p class="eyebrow">Questions fréquentes</p><h2>Bon à savoir</h2></div>
         <div class="faq">
@@ -1160,7 +1197,7 @@
           <details><summary>Et mes allergies ?</summary><p>Budgétable écarte des menus les recettes dont un ingrédient contient un allergène que vous avez signalé, et signale les produits qui peuvent en contenir selon la marque (bouillon, épices, charcuterie…). Il ne connaît pas la composition exacte de chaque produit ni les risques de traces : vérifiez toujours la liste des ingrédients et les mentions « peut contenir » sur l’étiquette. En cas d’allergie sévère, suivez l’avis de votre médecin. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
         </div>
       </section>
-      <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2><button class="btn btn-plein btn-grand" data-a="commencer">Préparer ma semaine</button></section>
+      <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2>${S.plan ? '<button class="btn btn-plein btn-grand btn-hero" data-a="compte-reprendre">Retrouver ma semaine</button>' : `<button class="btn btn-plein btn-grand btn-hero" data-a="commencer">${connecte ? '🍽️ Préparer ma semaine' : '🍽️ Tester gratuitement sans compte'}</button>${connecte ? '' : '<p class="small" style="margin:0;opacity:.85">Sans inscription · 7 jours d’essai gratuit dès la création du compte</p>'}`}</section>
       ${PIED}
     </div>`;
   }

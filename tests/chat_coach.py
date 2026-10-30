@@ -5,7 +5,7 @@ LECT = "https://budgetable-recettes.onrender.com"
 erreurs, recu = [], []
 def semaine(page):
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(30):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")

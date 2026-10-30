@@ -9,7 +9,7 @@ with sync_playwright() as p:
     page.goto("http://localhost:8766/index.html"); page.evaluate("localStorage.clear()"); page.reload()
     page.evaluate("navigator.canShare = undefined")
     clic = lambda t: page.get_by_role("button", name=t, exact=True).first.click()
-    clic("Préparer ma semaine")
+    clic("🍽️ Tester gratuitement sans compte")
     for _ in range(25):
         if page.get_by_role("button", name="Voir mon profil").count(): break
         clic("Continuer")
@@ -26,7 +26,7 @@ with sync_playwright() as p:
     assert "aujourd’hui" in page.locator(".outils-m").inner_text()
     # réinstallation : tout est effacé
     page.evaluate("localStorage.clear()"); page.reload(); page.wait_for_timeout(300)
-    assert page.get_by_role("button", name="Préparer ma semaine", exact=True).count()
+    assert page.get_by_role("button", name="🍽️ Tester gratuitement sans compte", exact=True).count()
     page.locator("input[data-a=sauvegarde-fichier]").first.set_input_files(chemin)
     page.wait_for_timeout(600)
     apres = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")

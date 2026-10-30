@@ -1122,6 +1122,28 @@ html:has(.carte-swipe), body:has(.carte-swipe) { overflow-x: hidden; }
 .appel-final { display: grid; justify-items: center; gap: 14px; padding: 32px 18px; border-radius: 24px; background: var(--ardoise); color: #fbfaf3; text-align: center; }
 .appel-final h2 { font-family: var(--f-craie); font-size: clamp(1.8rem, 4vw, 2.6rem); }
 @media (prefers-reduced-motion: reduce) { .fonction { transition: none; } .fonction:hover { transform: none; } }
+/* accueil : test gratuit visible dès le premier écran, exemple réel de semaine */
+.btn-hero { min-height: 56px; font-size: 1.15rem; padding-inline: 26px; }
+.rassurance { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-weight: 700; color: var(--poireau); font-size: .98rem; }
+.ex-grille { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.ex-grille > *, .ex-jour, .exemple-semaine, .accueil > * { min-width: 0; }
+@media (min-width: 820px) { .ex-grille { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; } }
+.ex-jour { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--trait); }
+.ex-visuel { flex: none; width: 72px; height: 72px; }
+.ex-nom { line-height: 1.2; }
+.ex-midi { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-liste ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ex-liste li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
+@media (max-width: 699px) {
+  .accueil { gap: 32px; }
+  .accueil .store { height: 22px; margin-bottom: 10px; }
+  .accueil .accueil-hero { gap: 12px; }
+  .accueil .accueil-hero h1 { font-size: 1.9rem; }
+  .accueil .accueil-sous { font-size: 1.02rem; }
+  .accueil .stickers { display: none; }
+  .accueil .btn-hero { width: 100%; font-size: 1.04rem; padding-inline: 12px; white-space: nowrap; }
+  .cacher-mobile { display: none !important; }
+}
 /* ---------- comptes ---------- */
 .fenetre-compte { display: grid; gap: 16px; max-width: 460px; }
 .logo-compte svg { width: 30px; height: 30px; }
@@ -1322,6 +1344,7 @@ a.btn-plein, a.btn-plein:visited { color: #fff; }
 <script src="js/promos-match.js"></script>
 <script src="js/visuels.js"></script>
 <script src="js/photos.js"></script>
+<script src="js/apercu-accueil.js"></script>
 <script src="js/magasins.js"></script>
 <script src="js/config.js"></script>
 <script src="js/compte.js"></script>
