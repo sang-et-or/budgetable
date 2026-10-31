@@ -1451,7 +1451,7 @@
   function carteJour(jp, j, t) {
     const totalMinceur = minceurDansSemaine() ? (() => { const rep = P.repartition(cibleProg()); const pd = (jp.gourmand || []).find((g) => g.moment === 'petitdej' && E.REC[g.recette]); const k = (pd ? (NUT(E.REC[pd.recette]) || {}).kcal || 0 : 0) + ['dejeuner', 'diner'].reduce((t, sl) => { const x = assietteRepas(jp[sl], j, sl, rep); return t + (x && !x.dehors ? x.kcal : 0); }, 0) + (() => { const gt = (jp.gourmand || []).filter((g) => !g.slot && g.moment !== 'petitdej' && E.REC[g.recette]); return gt.length ? gt.reduce((t, g) => t + (((NUT(E.REC[g.recette]) || {}).kcal) || 0), 0) : rep.collation; })(); return `<span class="total-minceur small num" title="Total estimé pour vous, collation comprise">🥗 ≈ ${nb(Math.round(k / 10) * 10)} kcal</span>`; })() : '';
     return `<article class="jour ${j === t ? 'aujourdhui' : ''}" data-j="${j}"><header><h3>${jp.jour} <span class="date-jour">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></h3>${totalMinceur}${j === t ? '<span class="tag tag-ok">Aujourd’hui</span>' : ''}</header>
-        ${lignesGourmandes(jp, true)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false)}</article>`;
+        ${lignesGourmandes(jp, true, j)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false, j)}</article>`;
   }
   function semaineMobile() {
     const t = aujPlan();
@@ -5100,7 +5100,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       <button class="btn btn-plein btn-grand" data-a="gourmand-valider" ${a.jours.length ? '' : 'disabled'}>Ajouter à ma semaine et à mes courses</button>
     </div></div>`;
   }
-  const lignesGourmandes = (jp, matin) => (jp.gourmand || []).filter((g) => E.REC[g.recette] && !g.slot && (g.moment === 'petitdej') === matin).map((g) => `<button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${momentLib(g.moment)} : ${esc(E.REC[g.recette].nom)}</button>`).join('');
+  // petit-déjeuner et goûter dans la semaine, avec ✕ pour les retirer directement
+  const lignesGourmandes = (jp, matin, j) => (jp.gourmand || []).map((g, k) => ({ ...g, k })).filter((g) => E.REC[g.recette] && !g.slot && (g.moment === 'petitdej') === matin).map((g) => `<span class="ligne-gourmande-x"><button class="ligne-gourmande" data-a="fiche-g" data-r="${g.recette}" data-n="${g.portions}"><span aria-hidden="true">${E.REC[g.recette].emoji}</span> ${momentLib(g.moment)} : ${esc(E.REC[g.recette].nom)}</button>${j != null ? `<button class="btn-x" data-a="complement-suppr" data-j="${j}" data-k="${g.k}" aria-label="Retirer ${esc(momentLib(g.moment))} : ${esc(E.REC[g.recette].nom)}" title="Retirer de ce jour">✕</button>` : ''}</span>`).join('');
   const TAGS_PD = { equilibre: 'Équilibré', sportif: 'Sportif', gourmand: 'Gourmand', sale: 'Salé', express: 'Express', enfants: 'Enfants' };
   const momentLib = (m, slot) => (m === 'petitdej' ? 'Petit-déj' : m === 'gouter' ? 'Goûter' : (m === 'entree' ? 'Entrée' : 'Dessert') + (slot === 'dejeuner' ? ' du midi' : slot === 'diner' ? ' du soir' : ''));
   const basculeGourmand = (k) => `<div class="bascule-g" role="group" aria-label="Page"><button class="chip" data-a="onglet" data-k="petitdej" aria-pressed="${k === 'petitdej'}">🥐 Petits-déjeuners</button><button class="chip" data-a="onglet" data-k="gourmand" aria-pressed="${k === 'gourmand'}">🍰 Desserts et goûters</button></div>`;
@@ -5497,7 +5498,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         toast(`${r.nom} : ajouté au ${c.slot === 'dejeuner' ? 'déjeuner' : 'dîner'} de ${E.JOURS[c.j].toLowerCase()}, et aux courses`);
         break;
       }
-      case 'complement-suppr': { const jp = S.plan && S.plan.jours[+el.dataset.j]; if (!jp || !jp.gourmand) return; const k = +el.dataset.k; jp.gourmand = jp.gourmand.filter((_, i) => i !== k); break; }
+      case 'complement-suppr': { const jp = S.plan && S.plan.jours[+el.dataset.j]; if (!jp || !jp.gourmand) return; const k = +el.dataset.k; const g = jp.gourmand[k]; jp.gourmand = jp.gourmand.filter((_, i) => i !== k); if (g && E.REC[g.recette]) toast(`${momentLib(g.moment, g.slot)} retiré de ${E.JOURS[+el.dataset.j].toLowerCase()} (et de la liste de courses)`); break; }
       case 'fermer-erreur': fiche = null; edPlat = null; choix = null; auMenu = null; break;
       case 'mange': {
         const k = el.dataset.j + '-' + el.dataset.s;
