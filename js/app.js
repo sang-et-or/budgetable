@@ -2494,6 +2494,26 @@
     const auj = ISO(new Date());
     return (S.tickets || []).filter((x) => x.d && x.d >= S.planDu && x.d <= auj);
   }
+  /** Repas encore à venir après le repas (j, sl) dans la semaine (pas encore cuisinés ni déduits). */
+  function repasApres(j, sl) {
+    if (!S.plan) return [];
+    const pj = posJour(j), res = [];
+    ordreJours().forEach((x) => E.SLOTS.forEach((s2) => {
+      const m = S.plan.jours[x] && S.plan.jours[x][s2];
+      if (!m || S.deduits[x + '-' + s2]) return;
+      const apres = posJour(x) > pj || (x === j && s2 === 'diner' && sl === 'dejeuner');
+      if (apres) res.push(m);
+    }));
+    return res;
+  }
+  /** Retire du placard ce qu'un repas a utilisé ; les produits frais entamés qui ne servent plus sont finis. */
+  function deduireDuPlacard(j, sl, m) {
+    const p = S.profil;
+    const r = E.consommationAvecFin(m, repasApres(j, sl), p.stock);
+    p.stock = E.retirerDuStock(p.stock, r.retraits);
+    return r.finis;
+  }
+  const messageFinis = (finis) => (finis.length ? ` · ${finis.map(([id]) => E.ING[id].nom).join(', ')} : plus prévu cette semaine, le reste est retiré du placard` : '');
   /** Date (AAAA-MM-JJ) du jour j (0 = lundi) dans une semaine qui commence le jour « du ». */
   const dateDansSemaine = (du, j) => { const b = new Date(du + 'T12:00:00'); const d0 = (b.getDay() + 6) % 7; const d = new Date(b); d.setDate(b.getDate() + (j - d0 + 7) % 7); return ISO(d); };
   /** Repas prévu dans l'ancienne semaine à une date donnée (s'il y en avait un). */
@@ -5484,12 +5504,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
         if (!m) return;
         const avant = { ...(p.stock || {}) };
-        p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+        const finis = deduireDuPlacard(+el.dataset.j, el.dataset.s, m);
         S.retraits = S.retraits || {};
         S.retraits[k] = Object.keys(avant).map((id) => [id, avant[id] - ((p.stock || {})[id] || 0)]).filter(([, q]) => q > 0);
         S.deduits[k] = 'cuisine';
         noterJournal(+el.dataset.j, el.dataset.s, m.recette, true);
-        toast('Bon appétit ! Placard et suivi mis à jour. Dites-nous si vous avez aimé');
+        toast('Bon appétit ! Placard et suivi mis à jour' + messageFinis(finis));
         break;
       }
       case 'gamelle-mangee': {
@@ -6165,9 +6185,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       case 'cuisine': {
         const k = el.dataset.j + '-' + el.dataset.s;
         const m = S.plan.jours[+el.dataset.j][el.dataset.s];
-        p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+        const finis = deduireDuPlacard(+el.dataset.j, el.dataset.s, m);
         S.deduits[k] = 'cuisine';
-        toast('Bon appétit ! Votre placard est à jour');
+        toast('Bon appétit ! Votre placard est à jour' + messageFinis(finis));
         break;
       }
       case 'deduire-repas': {
@@ -6175,7 +6195,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         repasATraiter().forEach(({ j, sl, m }) => {
           const k = j + '-' + sl;
           if (S.repasDecoches && S.repasDecoches[k]) { S.deduits[k] = 'ignore'; return; }
-          p.stock = E.retirerDuStock(p.stock, E.consommationRepas(m));
+          deduireDuPlacard(j, sl, m);
           S.deduits[k] = 'cuisine'; n++;
         });
         S.repasDecoches = {};
