@@ -1127,6 +1127,8 @@ html:has(.carte-swipe), body:has(.carte-swipe) { overflow-x: hidden; }
 .puce-debut { display: grid; gap: 2px; padding: 12px 10px; min-height: 64px; border-radius: 14px; border: 2px solid var(--trait); background: var(--surface); color: var(--encre); cursor: pointer; text-align: left; font: inherit; }
 .puce-debut.actif { border-color: var(--poireau); background: var(--poireau-pale); box-shadow: inset 0 0 0 1px var(--poireau); }
 .puce-debut .small { color: var(--encre-douce); }
+.choix-repas { grid-template-columns: 1fr 1fr; }
+.puce-debut:disabled { opacity: .45; cursor: not-allowed; }
 /* accueil : test gratuit visible dès le premier écran, exemple réel de semaine */
 .btn-hero { min-height: 56px; font-size: 1.15rem; padding-inline: 26px; }
 .rassurance { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-weight: 700; color: var(--poireau); font-size: .98rem; }

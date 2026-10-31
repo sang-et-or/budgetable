@@ -1346,7 +1346,7 @@
   const etoileFav = (id) => { const f = S.classiques.includes(id); return `<button class="etoile-fav ${f ? 'on' : ''}" data-a="classique" data-r="${id}" aria-pressed="${f}" aria-label="${f ? 'Retirer des favoris' : 'Ajouter aux favoris'}" title="${f ? 'Dans vos favoris' : 'Ajouter aux favoris'}">${f ? '★' : '☆'}</button>`; };
   function ligneRepas(m, j, slot) {
     const lab = slot === 'dejeuner' ? 'Déjeuner' : 'Dîner';
-    if (!m) return S.plan && S.plan.jours[j] && (S.plan.jours[j].passes || []).includes(slot) && posJour(j) === 0 ? `<div class="repas repas-passe"><span class="eyebrow">${lab}</span><span class="vide">Déjà passé : la semaine commence au ${slot === 'dejeuner' ? 'dîner' : 'déjeuner de demain'}</span></div>` : `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
+    if (!m) return S.plan && S.plan.jours[j] && (S.plan.jours[j].passes || []).includes(slot) && posJour(j) === 0 ? `<div class="repas repas-passe"><span class="eyebrow">${lab}</span><span class="vide">${S.plan.jours[j].debutAuDiner && slot === 'dejeuner' ? 'La semaine commence au dîner' : `Déjà passé : la semaine commence au ${slot === 'dejeuner' ? 'dîner' : 'déjeuner de demain'}`}</span></div>` : `<div class="repas"><span class="eyebrow">${lab}</span><span class="vide">Pris dehors</span></div>`;
     const r = E.REC[m.recette];
     const note = S.notes[r.id];
     const th = m.theme && E.THEMES[m.theme];
@@ -2493,6 +2493,18 @@
     const auj = ISO(new Date());
     return (S.tickets || []).filter((x) => x.d && x.d >= S.planDu && x.d <= auj);
   }
+  /** Le déjeuner du jour choisi peut-il encore être le premier repas ? (pas aujourd'hui après 13 h) */
+  const dejeunerPossible = (iso) => !(iso === ISO(new Date()) && new Date().getHours() >= 13);
+  /** La semaine commence au dîner : pas de déjeuner le premier jour (ni de gamelle), comme un repas déjà passé. */
+  function commencerAuDiner() {
+    const jp = S.plan && S.plan.jours[debutSemaine()];
+    if (!jp) return;
+    jp.dejeuner = null;
+    delete jp.gamelles;
+    jp.passes = [...new Set(['dejeuner'].concat(jp.passes || []))];
+    jp.debutAuDiner = true;
+    E.organiserRestes(S.plan, S.profil);
+  }
   /** Nouvelle semaine alors qu'une semaine existe : à partir de quel jour ? (et le ticket de l'ancienne semaine est effacé) */
   function vueNouvelleSemaine() {
     const n = S.nouvelleSemaine;
@@ -2507,7 +2519,9 @@
       <div class="spread" style="flex-wrap:nowrap"><h2 id="nouvelle-titre">Nouvelle semaine</h2><button class="btn btn-petit" data-a="nouvelle-annuler">Fermer</button></div>
       <p style="margin:0"><strong>À partir de quel jour voulez-vous créer la semaine ?</strong></p>
       <div class="choix-debut" role="radiogroup" aria-label="Premier jour de la semaine">${jours.map((d, k) => { const iso = ISO(d); const on = iso === n.debut; return `<button class="puce-debut ${on ? 'actif' : ''}" role="radio" aria-checked="${on}" data-a="nouvelle-jour" data-d="${iso}"><strong>${nom(d, k)}</strong><span class="small">${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></button>`; }).join('')}</div>
-      <p class="small muted" style="margin:0">Votre semaine ira du ${court(choisi)} au ${court(fin)}. Les plats de la semaine actuelle seront remplacés ; vos goûts, vos favoris et votre placard sont gardés.</p>
+      <p style="margin:0"><strong>Par quel repas commence-t-elle ?</strong></p>
+      <div class="choix-debut choix-repas" role="radiogroup" aria-label="Premier repas">${[['dejeuner', '☀️ Le déjeuner'], ['diner', '🌙 Le dîner']].map(([k, lab]) => { const on = n.repas === k, off = k === 'dejeuner' && !dejeunerPossible(n.debut); return `<button class="puce-debut ${on ? 'actif' : ''}" role="radio" aria-checked="${on}" data-a="nouvelle-repas" data-k="${k}" ${off ? 'disabled title="Déjà passé aujourd’hui"' : ''}><strong>${lab}</strong><span class="small">${off ? 'déjà passé' : k === 'dejeuner' ? 'midi et soir dès le 1er jour' : 'pas de déjeuner le 1er jour'}</span></button>`; }).join('')}</div>
+      <p class="small muted" style="margin:0">Votre semaine ira du ${n.repas === 'diner' ? 'dîner du ' : ''}${court(choisi)} au ${court(fin)}. Les plats de la semaine actuelle seront remplacés ; vos goûts, vos favoris et votre placard sont gardés.</p>
       ${tickets.length ? `<div class="bandeau bandeau-info small" style="margin:0"><span>🧾 ${tickets.length > 1 ? `Les ${tickets.length} tickets de caisse` : 'Le ticket de caisse'} de la semaine actuelle (${tickets.map((x) => `${esc(x.nom)}, ${euros(x.paye)}`).join(' · ')}) ${tickets.length > 1 ? 'seront effacés' : 'sera effacé'} de l’historique. Les prix appris avec ${tickets.length > 1 ? 'eux' : 'lui'} sont gardés.</span></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="nouvelle-ok">Créer la semaine</button><button class="btn" data-a="nouvelle-annuler">Annuler</button></div>
     </div></div>`;
@@ -5258,20 +5272,22 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         if (!S.plan) { nouvellePlanification(); toast('Nouvelle semaine créée'); break; }
-        S.nouvelleSemaine = { debut: ISO(new Date()) }; break;   // une semaine existe : on demande le jour de départ
-      case 'nouvelle-jour': if (S.nouvelleSemaine) S.nouvelleSemaine.debut = el.dataset.d; break;
+        S.nouvelleSemaine = { debut: ISO(new Date()), repas: new Date().getHours() >= 13 ? 'diner' : 'dejeuner' }; break;   // une semaine existe : on demande le jour et le repas de départ
+      case 'nouvelle-jour': if (S.nouvelleSemaine) { S.nouvelleSemaine.debut = el.dataset.d; if (!dejeunerPossible(el.dataset.d)) S.nouvelleSemaine.repas = 'diner'; } break;
+      case 'nouvelle-repas': if (S.nouvelleSemaine && (el.dataset.k === 'diner' || dejeunerPossible(S.nouvelleSemaine.debut))) S.nouvelleSemaine.repas = el.dataset.k; break;
       case 'nouvelle-annuler': case 'nouvelle-fond': if (el.dataset.a === 'nouvelle-fond' && ev.target !== el) return; S.nouvelleSemaine = null; break;
       case 'nouvelle-ok': {
         if (!S.nouvelleSemaine) break;
-        const debut = S.nouvelleSemaine.debut;
+        const debut = S.nouvelleSemaine.debut, auDiner = S.nouvelleSemaine.repas === 'diner';
         // le ticket de caisse de l'ancienne semaine est effacé de l'historique (les prix appris restent)
         const anciens = ticketsSemaineEnCours();
         if (anciens.length) S.tickets = (S.tickets || []).filter((x) => !anciens.includes(x));
         S.ticket = null;
         nouvellePlanification(debut);
+        if (auDiner) commencerAuDiner();
         S.nouvelleSemaine = null;
         const j = new Date(debut + 'T12:00:00');
-        toast(`Nouvelle semaine créée, à partir ${debut === ISO(new Date()) ? 'd’aujourd’hui' : 'de ' + j.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}${anciens.length ? ' · ancien ticket effacé' : ''}`);
+        toast(`Nouvelle semaine créée, à partir ${auDiner ? 'du dîner ' : 'du déjeuner '}${debut === ISO(new Date()) ? 'd’aujourd’hui' : 'de ' + j.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}${anciens.length ? ' · ancien ticket effacé' : ''}`);
         break;
       }
       case 'changer': {
