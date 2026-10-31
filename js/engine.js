@@ -1391,6 +1391,30 @@
     for (const [id, q] of retraits) if (r[id] != null) r[id] = Math.max(0, r[id] - q);
     return nettoyerStock(r);
   }
+  /**
+   * Produits frais entamés (viande, poisson) : une fois le plat cuisiné, s'ils ne servent à aucun autre repas
+   * à venir de la semaine, on considère que le reste est fini (cuisiné en entier ou jeté), pas gardé au placard.
+   * Les sachets encore fermés d'un lot (« 5 × 100 g ») restent.
+   */
+  const perissable = (id) => !!ING[id] && ING[id].rayon === 'Viandes et poissons';
+  function sousPaquet(id) { const m = /(\d+)\s*[×x]\s*(\d+)\s*g/.exec((ING[id] && ING[id].condLabel) || ''); return m ? +m[2] : 0; }
+  /** Consommation d'un repas, en finissant les produits frais entamés qui ne servent plus : { retraits, finis }. */
+  function consommationAvecFin(m, restants, st) {
+    const conso = consommationRepas(m);
+    const encore = new Set();
+    for (const r of restants || []) for (const [id] of consommationRepas(r)) encore.add(id);
+    const finis = [];
+    const retraits = conso.map(([id, q]) => {
+      if (!perissable(id) || encore.has(id)) return [id, q];
+      const dispo = (st || {})[id] || 0, reste = dispo - q;
+      if (reste <= QUASI_RIEN) return [id, q];
+      const u = sousPaquet(id);
+      const entame = u ? reste % u : reste;   // les sachets fermés d'un lot restent
+      if (entame > QUASI_RIEN) finis.push([id, Math.round(entame)]);
+      return [id, q + (entame > QUASI_RIEN ? entame : 0)];
+    });
+    return { retraits, finis };
+  }
   /** Ce qu'un repas consomme : recette × portions (ingrédients du catalogue). */
   function consommationRepas(m) {
     if (!m || !REC[m.recette]) return [];
@@ -1678,7 +1702,7 @@
     goutsVides, scoreGout, contientDeteste, apprendre, fusionnerGouts, selectionTest, resumeGouts,
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
-    ajouterAuStock, retirerDuStock, consommationRepas, achatArticle, recettesAvecStock, nettoyerStock,
+    ajouterAuStock, retirerDuStock, consommationRepas, consommationAvecFin, achatArticle, recettesAvecStock, nettoyerStock,
     definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, preferencesDepuisTexte, fusionPreferences, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
