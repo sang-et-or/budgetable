@@ -177,10 +177,15 @@
   const debutSemaine = () => (S.planDu ? (new Date(S.planDu + 'T12:00:00').getDay() + 6) % 7 : aujourdhui());
   /** Les jours du planning dans l'ordre de la semaine, à partir du premier jour : [jp, index du jour]. */
   const ordreJours = () => { const d = debutSemaine(); return [0, 1, 2, 3, 4, 5, 6].map((k) => (d + k) % 7); };
+  /** La semaine démarre plus tard (jour choisi à sa création) : aucun de ses repas n'est encore passé. */
+  const semaineFuture = () => !!S.planDu && S.planDu > ISO(new Date());
+  /** Aujourd'hui dans le planning (0 = lundi), ou -1 si la semaine n'a pas encore commencé. */
+  const aujPlan = () => (semaineFuture() ? -1 : aujourdhui());
   /** Repas d'aujourd'hui déjà passés à la création de la semaine : on ne les prévoit pas (déjeuner après 13 h, dîner après 21 h). */
   function retirerRepasPasses() {
     if (!S.plan) return;
     S.plan.jours.forEach((x) => { delete x.passes; });
+    if (semaineFuture()) return;
     const d = new Date(), h = d.getHours() + d.getMinutes() / 60, jp = S.plan.jours[aujourdhui()];
     const passes = (h >= 13 ? ['dejeuner'] : []).concat(h >= 21 ? ['diner'] : []);
     passes.forEach((sl) => { jp[sl] = null; });
@@ -802,7 +807,7 @@
     return reste > 0 ? { mode: 'essai', reste } : { mode: 'expire' };
   }
   // ce qui demande l'abonnement une fois l'essai terminé (la semaine en cours, la liste, le placard et les recettes restent consultables)
-  const ACTIONS_ABONNES = new Set(['commencer', 'nouvelle', 'refaire-plats', 'choix', 'plat-editer', 'complement-ouvrir', 'ticket-ouvrir', 'gourmand-ajouter', 'jaica-ouvrir', 'coach-envoyer', 'chat-question', 'chat-ouvrir', 'chef-envoyer', 'ed-nouveau', 'ed-nouveau-g', 'deplacer-ouvrir', 'test-go']);
+  const ACTIONS_ABONNES = new Set(['commencer', 'nouvelle', 'nouvelle-ok', 'refaire-plats', 'choix', 'plat-editer', 'complement-ouvrir', 'ticket-ouvrir', 'gourmand-ajouter', 'jaica-ouvrir', 'coach-envoyer', 'chat-question', 'chat-ouvrir', 'chef-envoyer', 'ed-nouveau', 'ed-nouveau-g', 'deplacer-ouvrir', 'test-go']);
   function etiquetteAbo() {
     const d = droitsAbo();
     return d.mode === 'abonne' ? '<span class="tag tag-ok">Abonné</span>' : d.mode === 'essai' ? `<button class="tag tag-simu btn-tag" data-a="abo-ouvrir">Essai gratuit · ${pluriel(d.reste, 'jour')}</button>` : d.mode === 'expire' ? '<button class="tag tag-alerte btn-tag" data-a="abo-ouvrir">Essai terminé</button>' : '';
@@ -1448,8 +1453,8 @@
         ${lignesGourmandes(jp, true)}${!jp.dejeuner && jp.gamelles && jp.gamelles.n ? carteGamelle(j, true) : ligneRepas(jp.dejeuner, j, 'dejeuner') + (jp.dejeuner ? carteGamelle(j, false) : '')}${ligneRepas(jp.diner, j, 'diner')}${lignesGourmandes(jp, false)}</article>`;
   }
   function semaineMobile() {
-    const t = aujourdhui();
-    const j = S.jourMobile != null ? S.jourMobile : t;
+    const t = aujPlan();
+    const j = S.jourMobile != null ? S.jourMobile : (t >= 0 ? t : debutSemaine());
     const liste = S.semaineEnListe;
     const ouvert = S.outilMobile || '';
     let repas = 0, couverts = 0;
@@ -1524,7 +1529,7 @@
   function ongletSemaine() {
     if (!S.plan) return '<p>Aucune semaine.</p>';
     if (mqMobile.matches) return semaineMobile();
-    const t = aujourdhui();
+    const t = aujPlan();
     const restants = 'Changez vos plats autant que vous voulez';
     // d'abord les repas et le budget ; les réglages détaillés (présences, gamelles, coach, bilan, budget détaillé) ensuite
     return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
@@ -2106,7 +2111,7 @@
   }
   function repasATraiter() {
     if (!S.plan) return [];
-    const t = aujourdhui(), h = new Date().getHours();
+    const t = aujPlan(), h = new Date().getHours();
     // la semaine commence le jour de sa création : seuls les repas des jours déjà passés depuis sont à traiter
     const res = [];
     const pt = posJour(t), ecart = S.planDu ? Math.round((new Date(ISO(new Date()) + 'T12:00:00') - new Date(S.planDu + 'T12:00:00')) / 864e5) : 0;
@@ -2482,11 +2487,36 @@
     choix.idees = E.propositions(S.plan, j, slot, S.profil, { ...optsMoteur(), n: enfants ? 2 : 5 });
   }
   /** « Déplacer » : choisir le jour et le moment ; si un plat y est prévu, les deux plats s'échangent. */
+  /** Tickets de caisse enregistrés pendant la semaine en cours (depuis son premier jour). */
+  function ticketsSemaineEnCours() {
+    if (!S.planDu) return [];
+    const auj = ISO(new Date());
+    return (S.tickets || []).filter((x) => x.d && x.d >= S.planDu && x.d <= auj);
+  }
+  /** Nouvelle semaine alors qu'une semaine existe : à partir de quel jour ? (et le ticket de l'ancienne semaine est effacé) */
+  function vueNouvelleSemaine() {
+    const n = S.nouvelleSemaine;
+    if (!n || !S.plan) return '';
+    const jours = [0, 1, 2, 3, 4, 5, 6].map((k) => { const d = new Date(); d.setDate(d.getDate() + k); return d; });
+    const nom = (d, k) => (k === 0 ? 'Aujourd’hui' : k === 1 ? 'Demain' : d.toLocaleDateString('fr-FR', { weekday: 'long' }).replace(/^./, (c) => c.toUpperCase()));
+    const tickets = ticketsSemaineEnCours();
+    const choisi = new Date(n.debut + 'T12:00:00');
+    const fin = new Date(choisi); fin.setDate(fin.getDate() + 6);
+    const court = (d) => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `<div class="voile" data-a="nouvelle-fond"><div class="fiche fenetre-nouvelle stack" role="dialog" aria-modal="true" aria-labelledby="nouvelle-titre" style="gap:14px">
+      <div class="spread" style="flex-wrap:nowrap"><h2 id="nouvelle-titre">Nouvelle semaine</h2><button class="btn btn-petit" data-a="nouvelle-annuler">Fermer</button></div>
+      <p style="margin:0"><strong>À partir de quel jour voulez-vous créer la semaine ?</strong></p>
+      <div class="choix-debut" role="radiogroup" aria-label="Premier jour de la semaine">${jours.map((d, k) => { const iso = ISO(d); const on = iso === n.debut; return `<button class="puce-debut ${on ? 'actif' : ''}" role="radio" aria-checked="${on}" data-a="nouvelle-jour" data-d="${iso}"><strong>${nom(d, k)}</strong><span class="small">${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></button>`; }).join('')}</div>
+      <p class="small muted" style="margin:0">Votre semaine ira du ${court(choisi)} au ${court(fin)}. Les plats de la semaine actuelle seront remplacés ; vos goûts, vos favoris et votre placard sont gardés.</p>
+      ${tickets.length ? `<div class="bandeau bandeau-info small" style="margin:0"><span>🧾 ${tickets.length > 1 ? `Les ${tickets.length} tickets de caisse` : 'Le ticket de caisse'} de la semaine actuelle (${tickets.map((x) => `${esc(x.nom)}, ${euros(x.paye)}`).join(' · ')}) ${tickets.length > 1 ? 'seront effacés' : 'sera effacé'} de l’historique. Les prix appris avec ${tickets.length > 1 ? 'eux' : 'lui'} sont gardés.</span></div>` : ''}
+      <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="nouvelle-ok">Créer la semaine</button><button class="btn" data-a="nouvelle-annuler">Annuler</button></div>
+    </div></div>`;
+  }
   function vueDeplacer() {
     const d = S.deplacer;
     if (!d || !S.plan || !S.plan.jours[d.j] || !S.plan.jours[d.j][d.s]) return '';
     const m = S.plan.jours[d.j][d.s], r = E.REC[m.recette];
-    const t = aujourdhui(), h = new Date().getHours();
+    const t = aujPlan(), h = new Date().getHours();
     const passe = (j, sl) => posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21));
     const cases = ordreJours().map((j) => `<div class="dep-jour"><strong>${E.JOURS[j]} <span class="muted num">${new Date(dateDuJour(j) + 'T12:00:00').getDate()}</span></strong>${E.SLOTS.map((sl) => {
       const x = S.plan.jours[j][sl], k = j + '-' + sl;
@@ -3829,7 +3859,7 @@
   function boutonGamelle(j) {
     const g = S.plan && S.plan.jours[j] && S.plan.jours[j].gamelles;
     if (!g || !g.n || !E.REC[g.recette]) return '';
-    if (posJour(j) > posJour(aujourdhui())) return '';
+    if (posJour(j) > posJour(aujPlan())) return '';
     return gamelleNotee(j)
       ? `<span class="small gamelle-notee">✓ Gamelle notée dans mon journal <button class="btn-lien small" data-a="gamelle-annuler" data-j="${j}">annuler</button></span>`
       : `<button class="btn btn-petit btn-mange" data-a="gamelle-mangee" data-j="${j}" title="Ajoute la gamelle au suivi des calories, sans changer le placard">🥡 J’ai mangé ma gamelle</button>`;
@@ -4504,7 +4534,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const labJour = (d) => { const x = new Date(d + 'T12:00:00'); return periode === '7' ? E.JOURS[(x.getDay() + 6) % 7].slice(0, 3) : String(x.getDate()); };
     const serie = (k) => liste.map(([d, v]) => ({ v: Math.round(v[k]), lab: labJour(d), vide: !v.repas.length && !v.ajouts.length, tip: `${new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${v.repas.length || v.ajouts.length ? `${nb(Math.round(v[k]))} ${LIB[k][1]} (${pluriel(v.repas.length, 'repas', 'repas')}${v.ajouts.length ? `, ${pluriel(v.ajouts.length, 'ajout')}` : ''})` : 'rien de noté'}` }));
     // repas de la semaine à confirmer
-    const t = aujourdhui(), h = new Date().getHours();
+    const t = aujPlan(), h = new Date().getHours();
     const aConfirmer = S.plan ? S.plan.jours.flatMap((jp, j) => E.SLOTS.map((sl) => ({ j, sl, m: jp[sl] }))).filter(({ j, sl, m }) => m && !S.deduits[j + '-' + sl] && (posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 12 : h >= 19)))) : [];
     // sources de protéines et Nutri-Score des repas mangés
     const sources = { 'Viande rouge': 0, Volaille: 0, Poisson: 0, 'Charcuterie': 0, 'Œufs et laitages': 0, 'Légumineuses et soja': 0, 'Céréales et autres': 0 };
@@ -4979,7 +5009,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach], ['plus', vuePlus]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['nouvelle', vueNouvelleSemaine], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach], ['plus', vuePlus]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -5005,7 +5035,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (avecSemaine && S.plan) S.plan.jours.forEach((jp) => E.SLOTS.forEach((sl) => { if (jp[sl] && jp[sl].recette) ids.push(jp[sl].recette); }));
     E.definirRecents(ids);
   }
-  function nouvellePlanification() {
+  function nouvellePlanification(debut) {
     majRecents(true);
     if (S.plan) S.tourEnfant++;
     const gardees = S.plan ? S.plan.jours.map((jp) => jp.gourmand || []) : null;
@@ -5016,7 +5046,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (manuelsGardes && manuelsGardes.length) S.plan.manuels = manuelsGardes;
     S.coches = {};
     S.ranges = {};
-    S.planDu = ISO(new Date());
+    S.planDu = debut && debut > ISO(new Date()) ? debut : ISO(new Date());
+    S.jourMobile = null;
     retirerRepasPasses();
     S.planAvantRefaire = null;
     S.deduits = {};
@@ -5031,7 +5062,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   /** Repas à ne pas changer : déjà mangés ou passés, choisis à la main, pris dehors. */
   function verrousSemaine() {
     if (!S.plan) return [];
-    const t = aujourdhui(), h = new Date().getHours(), out = [];
+    const t = aujPlan(), h = new Date().getHours(), out = [];
     S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => {
       const m = jp[sl], k = j + '-' + sl;
       if (!m) return;
@@ -5046,7 +5077,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     majRecents(true);
     const neuf = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     majRecents(false);
-    const t = aujourdhui(), h = new Date().getHours();
+    const t = aujPlan(), h = new Date().getHours();
     const garde = [];
     let n = 0;
     const jours = S.plan.jours.map((jp, j) => {
@@ -5226,7 +5257,23 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'refaire-ok': S.planAvantRefaire = null; break;
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
-        nouvellePlanification(); toast('Nouvelle semaine créée'); break;
+        if (!S.plan) { nouvellePlanification(); toast('Nouvelle semaine créée'); break; }
+        S.nouvelleSemaine = { debut: ISO(new Date()) }; break;   // une semaine existe : on demande le jour de départ
+      case 'nouvelle-jour': if (S.nouvelleSemaine) S.nouvelleSemaine.debut = el.dataset.d; break;
+      case 'nouvelle-annuler': case 'nouvelle-fond': if (el.dataset.a === 'nouvelle-fond' && ev.target !== el) return; S.nouvelleSemaine = null; break;
+      case 'nouvelle-ok': {
+        if (!S.nouvelleSemaine) break;
+        const debut = S.nouvelleSemaine.debut;
+        // le ticket de caisse de l'ancienne semaine est effacé de l'historique (les prix appris restent)
+        const anciens = ticketsSemaineEnCours();
+        if (anciens.length) S.tickets = (S.tickets || []).filter((x) => !anciens.includes(x));
+        S.ticket = null;
+        nouvellePlanification(debut);
+        S.nouvelleSemaine = null;
+        const j = new Date(debut + 'T12:00:00');
+        toast(`Nouvelle semaine créée, à partir ${debut === ISO(new Date()) ? 'd’aujourd’hui' : 'de ' + j.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}${anciens.length ? ' · ancien ticket effacé' : ''}`);
+        break;
+      }
       case 'changer': {
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         const j = +el.dataset.j, s = el.dataset.s;

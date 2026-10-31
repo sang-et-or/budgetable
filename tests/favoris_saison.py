@@ -42,7 +42,7 @@ with sync_playwright() as p:
     main.locator(f".etoile-fav[data-r='{rid}']").first.click()
     n = 0
     for _ in range(4):
-        clic("Nouvelle semaine")
+        clic("Nouvelle semaine"); clic("Créer la semaine")   # premier jour : aujourd’hui
         ids = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).plan.jours.flatMap(j => [j.dejeuner, j.diner]).filter(Boolean).map(m => m.recette)")
         n += rid in ids
     print("favori présent dans", n, "semaines sur 4"); assert n >= 3
