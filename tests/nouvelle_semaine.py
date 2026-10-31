@@ -33,14 +33,19 @@ with sync_playwright() as p:
         page.locator("[data-a=nouvelle]:visible").first.click()
         f = page.locator(".fenetre-nouvelle")
         assert "À partir de quel jour voulez-vous créer la semaine ?" in f.inner_text()
-        assert f.locator(".puce-debut").count() == 7
-        assert f.locator(".puce-debut[aria-checked=true]").inner_text().startswith("Aujourd’hui")
+        assert f.locator("[data-a=nouvelle-jour]").count() == 7
+        assert f.locator("[data-a=nouvelle-jour][aria-checked=true]").inner_text().startswith("Aujourd’hui")
         t = f.inner_text()
         assert "Le ticket de caisse de la semaine actuelle (Lidl, 23,40" in t and "sera effacé" in t and "Aldi" not in t, t
         # on choisit le surlendemain
         cible = auj + datetime.timedelta(days=2)
         f.locator(f".puce-debut[data-d='{cible.isoformat()}']").click()
         assert JOURS[cible.weekday()].lower() in page.locator(".fenetre-nouvelle").inner_text().lower()
+        # premier repas : le dîner
+        assert "Par quel repas commence-t-elle ?" in page.locator(".fenetre-nouvelle").inner_text()
+        page.locator("[data-a=nouvelle-repas][data-k=diner]").click()
+        assert page.locator("[data-a=nouvelle-repas][data-k=diner]").get_attribute("aria-checked") == "true"
+        assert "du dîner du" in page.locator(".fenetre-nouvelle").inner_text()
         page.screenshot(path=f"{OUT}/nouvelle_semaine_{nom}.png")
         page.locator("[data-a=nouvelle-ok]").click(); page.wait_for_timeout(300)
         assert page.locator(".fenetre-nouvelle").count() == 0
@@ -56,8 +61,12 @@ with sync_playwright() as p:
         else:
             sel = page.locator(".jour-puce[aria-selected=true]").inner_text()
             assert str(cible.day) in sel, sel
-        assert all(not (j.get("passes")) for j in etat["plan"]["jours"]), "pas de repas « passé » dans une semaine qui n'a pas commencé"
-        assert sum(1 for j in etat["plan"]["jours"] for s in ("dejeuner", "diner") if j.get(s)) >= 12
+        jours = etat["plan"]["jours"]; premier = jours[cible.weekday()]
+        assert premier["dejeuner"] is None and premier["diner"], "la semaine commence au dîner"
+        assert premier.get("passes") == ["dejeuner"] and premier.get("debutAuDiner")
+        assert all(not j.get("passes") for k, j in enumerate(jours) if k != cible.weekday()), "pas d'autre repas « passé »"
+        assert "La semaine commence au dîner" in page.locator("main").inner_text()
+        assert sum(1 for j in jours for s in ("dejeuner", "diner") if j.get(s)) >= 11
         assert page.locator(".bandeau-demarrer").count() == 1, "on peut toujours la faire démarrer aujourd'hui"
         # nouvelle semaine encore : plus de ticket à effacer ; « Aujourd'hui » par défaut
         page.locator("[data-a=nouvelle]:visible").first.click()
@@ -65,8 +74,14 @@ with sync_playwright() as p:
         page.locator("[data-a=nouvelle-annuler]").first.click()
         assert page.locator(".fenetre-nouvelle").count() == 0
         assert page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).planDu") == cible.isoformat(), "annuler ne change rien"
-        page.locator("[data-a=nouvelle]:visible").first.click(); page.locator("[data-a=nouvelle-ok]").click(); page.wait_for_timeout(300)
-        assert page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).planDu") == auj.isoformat()
+        page.locator("[data-a=nouvelle]:visible").first.click()
+        dej = page.locator("[data-a=nouvelle-repas][data-k=dejeuner]")
+        if datetime.datetime.now().hour >= 13: assert dej.is_disabled(), "le déjeuner d'aujourd'hui est passé"
+        else: assert dej.get_attribute("aria-checked") == "true"
+        page.locator("[data-a=nouvelle-ok]").click(); page.wait_for_timeout(300)
+        e2 = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
+        assert e2["planDu"] == auj.isoformat()
+        if datetime.datetime.now().hour < 13: assert e2["plan"]["jours"][auj.weekday()]["dejeuner"], "semaine au déjeuner : le déjeuner est prévu"
         page.close()
     nav.close()
 assert not erreurs, erreurs
