@@ -2375,6 +2375,42 @@
       <div class="sol" aria-hidden="true"></div>
     </section>${window.Cuisine3D && window.Cuisine3D.disponible() && three !== false ? '<button class="btn-lien small" data-a="cuisine-vue" data-v="3d">Voir la cuisine en 3D</button>' : ''}`;
   }
+  /** État des produits prévus dans les recettes de la semaine : nombre de repas, quantité, cuisiné, reste, placard. */
+  function etatProduitsSemaine() {
+    if (!S.plan) return [];
+    const par = {};
+    const q = (id, unite, v) => (unite === 'pièce' ? `${nb(Math.round(v * 4) / 4)} ${uniteCourte(id)}` : quantite(v, unite));
+    joursOrdonnes().forEach(([jp, j]) => {
+      const repas = E.SLOTS.map((sl) => ({ m: jp[sl], k: j + '-' + sl, lib: sl === 'dejeuner' ? 'midi' : 'soir' }))
+        .concat((jp.gourmand || []).filter((g) => E.REC[g.recette]).map((g) => ({ m: g, k: null, lib: momentLib(g.moment, g.slot).toLowerCase() })));
+      repas.forEach(({ m, k, lib }) => {
+        if (!m || !E.REC[m.recette]) return;
+        const fait = k && S.deduits[k] === 'cuisine';
+        E.consommationRepas(m).forEach(([id, v]) => {
+          const e = par[id] = par[id] || { id, fois: 0, total: 0, fait: 0, quand: [] };
+          e.fois++; e.total += v; if (fait) e.fait += v;
+          e.quand.push(`${JOURS_COURTS[j]} ${lib}${fait ? ' ✓' : ''}`);
+        });
+      });
+    });
+    const st = S.profil.stock || {};
+    return Object.values(par).map((e) => {
+      const i = E.ING[e.id], reste = Math.max(0, e.total - e.fait), stock = st[e.id] || 0;
+      return { ...e, nom: i.nom, rayon: i.rayon, reste, stock, manque: Math.max(0, reste - stock),
+        txt: { total: q(e.id, i.unite, e.total), fait: q(e.id, i.unite, e.fait), reste: q(e.id, i.unite, reste), stock: q(e.id, i.unite, stock), manque: q(e.id, i.unite, Math.max(0, reste - stock)) } };
+    }).sort((a, b) => b.fois - a.fois || a.nom.localeCompare(b.nom, 'fr'));
+  }
+  function blocEtatProduits() {
+    const l = etatProduitsSemaine();
+    if (!l.length) return '';
+    const fines = l;
+    return `<details class="stack etat-produits" ${S.etatProduitsOuvert ? 'open' : ''}><summary data-a="etat-produits-ouvrir"><strong>Produits des recettes de la semaine</strong> <span class="small muted">· ${pluriel(fines.length, 'produit')}, du plus utilisé au moins utilisé</span></summary>
+      <p class="small muted" style="margin:0">Pour chaque produit : dans combien de repas il est prévu, la quantité totale, ce qui est déjà cuisiné (✓, déduit du placard) et ce qui reste à cuisiner, comparé à votre placard.</p>
+      <ul class="liste-etat">${fines.map((e) => `<li><div class="spread" style="flex-wrap:nowrap;align-items:baseline"><strong>${esc(e.nom)}</strong><span class="tag ${e.fois > 2 ? 'tag-ok' : ''}">${pluriel(e.fois, 'repas', 'repas')}</span></div>
+        <span class="small muted">${esc(e.quand.join(' · '))}</span>
+        <span class="small etat-chiffres"><span>Prévu <strong>${e.txt.total}</strong></span><span>Cuisiné <strong>${e.txt.fait}</strong></span><span>Reste <strong>${e.txt.reste}</strong></span><span>Au placard <strong>${e.txt.stock}</strong></span>${e.manque > 0 && e.reste > 0 ? `<span class="muted">à acheter ${e.txt.manque}</span>` : e.reste > 0 ? '<span class="muted">✓ assez au placard</span>' : ''}</span></li>`).join('')}</ul>
+    </details>`;
+  }
   function ongletPlacard() {
     const st = S.profil.stock || {};
     const ids = Object.keys(st).filter((id) => E.ING[id]);
@@ -2417,6 +2453,7 @@
         ${ids.length ? Object.entries(par).sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([rayon, l]) => `<div class="stack" style="gap:4px"><span class="eyebrow">${esc(rayon)}</span><ul class="liste-stock">${l.sort((a, b) => E.ING[a].nom.localeCompare(E.ING[b].nom, 'fr')).map(ligne).join('')}</ul></div>`).join('')
           : '<p class="small">Votre placard est vide pour Budgétable. Ajoutez ce que vous avez déjà ci-dessous : vos menus l’utiliseront en premier.</p>'}
       </div></details>
+      ${blocEtatProduits()}
       <section class="carte stack" style="gap:10px"><h2>Ajouter ce que j’ai déjà</h2>
         <p class="small muted">Touchez un produit : un paquet entier est ajouté. Ajustez ensuite avec − et +.</p>
         <div class="row puces-ajout">${PLACARD_RAPIDE.filter((id) => !st[id]).map((id) => `<button class="chip puce-ajout" data-a="stock-ajouter" data-id="${id}">+ ${esc(E.ING[id].nom)}</button>`).join('')}</div>
@@ -6160,6 +6197,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       case 'cuisine-vue': S.vue3d = el.dataset.v === '3d'; break;
       case 'cuisine-ouvrir': S.cuisine = S.cuisine === el.dataset.z ? null : el.dataset.z; S.stockSel = null; break;
       case 'stock-sel': S.stockSel = S.stockSel === el.dataset.id ? null : el.dataset.id; break;
+      case 'etat-produits-ouvrir': S.etatProduitsOuvert = !el.parentElement.open; return;
       case 'liste-stock-ouvrir': S.listeStockOuverte = !el.parentElement.open; return;
       case 'drives-ouvrir': S.drivesOuverts = !el.parentElement.open; return;
       case 'stock-ajouter': {
