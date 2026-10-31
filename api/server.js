@@ -147,7 +147,19 @@ function lireCorps(req, max) {
   });
 }
 // un appel au modèle : messages [{ role, content }], image facultative (base64 JPEG) → texte de la réponse
-async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, max = 800, json = true, temperature = 0.4, imageEnTete = false, delai = 45000 } = {}) {
+/* ---------- compteur des demandes à l'IA (pour comparer avec la facture Mistral) ----------
+ * Une ligne par appel au modèle : type (chat, photo, ticket, ocr), modèle, jetons d'entrée et de sortie, pages (OCR).
+ * Aucune donnée personnelle (ni question, ni réponse, ni adresse IP). Table « usage_ia » : voir supabase/usage_ia.sql. */
+const SUPA_URL = (process.env.SUPABASE_URL || 'https://wrcxlvdyegfjawmwtozk.supabase.co').replace(/\/+$/, '');
+const SUPA_CLE = process.env.SUPABASE_ANON_KEY || 'sb_publishable_86qxUeodYl3N0Ey3jhFwfg_l3lnzvqW';
+function noterUsage(usage, modele, entree = 0, sortie = 0, pages = 0) {
+  if (process.env.SANS_COMPTEUR_IA) return;
+  try {
+    fetch(SUPA_URL + '/rest/v1/usage_ia', { method: 'POST', signal: AbortSignal.timeout(8000), headers: { apikey: SUPA_CLE, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ usage, modele: String(modele || '').slice(0, 60), entree: Math.max(0, entree | 0), sortie: Math.max(0, sortie | 0), pages: Math.max(0, pages | 0) }) }).catch(() => {});
+  } catch (e) { /* le compteur ne doit jamais gêner l'assistant */ }
+}
+async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, max = 800, json = true, temperature = 0.4, imageEnTete = false, delai = 45000, usage = 'chat' } = {}) {
   let url, entetes, corps;
   const avecImage = (k) => image && k === (imageEnTete ? 0 : messages.length - 1);
   if (FOURNISSEUR === 'mistral') {
@@ -169,6 +181,8 @@ async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, ma
   if (rep.status === 429) throw Object.assign(new Error('L’assistant est très sollicité : réessayez dans quelques minutes'), { code: 429 });
   if (!rep.ok) throw Object.assign(new Error('L’assistant ne répond pas pour le moment'), { code: 502 });
   const j = await rep.json();
+  const u = j.usage || {};
+  noterUsage(usage, j.model || modele, u.prompt_tokens != null ? u.prompt_tokens : u.input_tokens, u.completion_tokens != null ? u.completion_tokens : u.output_tokens);
   return FOURNISSEUR === 'mistral' ? String(((j.choices || [])[0] || {}).message?.content || '') : (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
 }
 const extraireJSON = (texte) => { const m = /\{[\s\S]*\}/.exec(texte || ''); if (!m) return null; try { return JSON.parse(m[0]); } catch (e) { return null; } };
@@ -194,7 +208,7 @@ Ne devine pas ce qui est caché. Réponds UNIQUEMENT en JSON, sans texte autour 
 {"produits":[{"id":"<id du catalogue>","quantite":<nombre>,"confiance":<0 à 1>}],"autres":["<aliment hors catalogue>"]}
 Catalogue :
 ${liste}`;
-  const o = extraireJSON(await appelerModele([{ role: 'user', content: consigne }], { image: base64, modele: MODELE_VISION, max: 1200 }));
+  const o = extraireJSON(await appelerModele([{ role: 'user', content: consigne }], { image: base64, modele: MODELE_VISION, max: 1200, usage: 'photo' }));
   if (!o) return { produits: [], autres: [] };
   const ids = new Map(CATALOGUE.map((i) => [i.id, i]));
   const vus = new Set();
@@ -211,13 +225,14 @@ async function ocrMistral(document) {
   const rep = await fetch('https://api.mistral.ai/v1/ocr', { method: 'POST', signal: AbortSignal.timeout(40000), headers: { 'content-type': 'application/json', authorization: 'Bearer ' + CLE_API }, body: JSON.stringify({ model: MODELE_OCR, document }) });
   if (!rep.ok) throw new Error('ocr ' + rep.status);
   const j = await rep.json();
+  noterUsage('ocr', j.model || MODELE_OCR, 0, 0, (j.usage_info && j.usage_info.pages_processed) || (j.pages || []).length);
   return (j.pages || []).map((p) => p.markdown || '').join('\n');
 }
 /** Ticket de caisse (photo, PDF ou texte collé) → articles vérifiés contre le total, voir ticket-agent.js. */
 function lireTicket(entree) {
   return lireTicketAgent(entree, {
     ocr: FOURNISSEUR === 'mistral' ? ocrMistral : null,
-    chat: (messages, { image }) => appelerModele(messages, { image, modele: MODELE_TICKET, max: 8000, temperature: 0, imageEnTete: true, delai: 60000 }),
+    chat: (messages, { image }) => appelerModele(messages, { image, modele: MODELE_TICKET, max: 8000, temperature: 0, imageEnTete: true, delai: 60000, usage: 'ticket' }),
     catalogue: CATALOGUE_TICKET,
   });
 }

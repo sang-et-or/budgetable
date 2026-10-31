@@ -908,6 +908,22 @@
     stats.charge = false; rendre();
   }
   const NOMS_SOURCES = { direct: 'Accès direct', google: 'Google', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', pinterest: 'Pinterest', flyer: 'Flyer', seo: 'Pages recettes', site: 'Pages du site', x: 'X (Twitter)', youtube: 'YouTube', whatsapp: 'WhatsApp', bing: 'Bing', qwant: 'Qwant', ecosia: 'Ecosia', duckduckgo: 'DuckDuckGo', linkedin: 'LinkedIn', 'autre site': 'Autres sites', '': 'Inconnue' };
+  /** Statistiques : demandes à l'assistant IA (comptées par le serveur à chaque appel à Mistral), avec les jetons facturés. */
+  function blocStatsIA(ia, tuile) {
+    const titre = '<h3 style="margin:0">🤖 Assistant IA</h3>';
+    if (ia === null || ia === undefined) return `<div class="stack" style="gap:6px">${titre}<p class="small" style="margin:0">Le compteur des demandes à l’IA n’est pas encore activé. Dans Supabase : <strong>SQL Editor</strong> → <strong>New query</strong> → collez le fichier <code>supabase/usage_ia.sql</code> du projet → <strong>Run</strong>. Les demandes seront comptées à partir de ce moment.</p></div>`;
+    const n = (x) => Number(x) || 0, somme = (f, l = ia) => l.reduce((t, x) => t + n(x[f]), 0);
+    const NOMS = { chat: '💬 Coach, goûts et aide', photo: '📷 Photo du placard', ticket: '🧾 Lecture de ticket', ocr: '📄 Lecture de PDF (pages)', autre: 'Autre' };
+    const parType = {}; ia.forEach((x) => { const k = x.usage; parType[k] = parType[k] || { appels: 0, entree: 0, sortie: 0, pages: 0 }; ['appels', 'entree', 'sortie', 'pages'].forEach((f) => { parType[k][f] += n(x[f]); }); });
+    const parModele = {}; ia.forEach((x) => { const k = x.modele || '?'; parModele[k] = parModele[k] || { appels: 0, entree: 0, sortie: 0, pages: 0 }; ['appels', 'entree', 'sortie', 'pages'].forEach((f) => { parModele[k][f] += n(x[f]); }); });
+    const mil = (v) => v.toLocaleString('fr-FR');
+    return `<div class="stack" style="gap:8px">${titre}
+      <div class="stat-tuiles">${tuile(somme('appels'), 'demandes à l’IA', `${stats.jours} derniers jours`)}${tuile(somme('entree'), 'jetons envoyés', 'questions, consignes, images')}${tuile(somme('sortie'), 'jetons reçus', 'réponses')}${somme('pages') ? tuile(somme('pages'), 'pages lues (OCR)') : ''}</div>
+      ${Object.keys(parType).length ? `<table class="stat-table"><thead><tr><th>Type</th><th class="num">Demandes</th><th class="num">Jetons envoyés</th><th class="num">Jetons reçus</th></tr></thead><tbody>${Object.entries(parType).sort((a, b) => b[1].appels - a[1].appels).map(([k, v]) => `<tr><td>${esc(NOMS[k] || k)}</td><td class="num">${mil(v.appels)}</td><td class="num">${mil(v.entree)}</td><td class="num">${mil(v.sortie)}${v.pages ? ` · ${mil(v.pages)} p.` : ''}</td></tr>`).join('')}</tbody></table>
+      <table class="stat-table"><thead><tr><th>Modèle (comme sur la facture)</th><th class="num">Demandes</th><th class="num">Jetons envoyés</th><th class="num">Jetons reçus</th></tr></thead><tbody>${Object.entries(parModele).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${mil(v.appels)}</td><td class="num">${mil(v.entree)}</td><td class="num">${mil(v.sortie)}${v.pages ? ` · ${mil(v.pages)} p.` : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted" style="margin:0">Aucune demande à l’IA sur la période.</p>'}
+      <p class="small muted" style="margin:0">Pour vérifier la facture : console Mistral → <strong>Usage</strong>, mêmes jours et mêmes modèles. Mistral facture au nombre de jetons (envoyés et reçus, tarif différent selon le modèle) et l’OCR à la page. Les demandes refusées (quota, erreur) ne sont pas facturées et ne sont pas comptées.</p>
+    </div>`;
+  }
   function vueStats() {
     if (!stats.ouvert) return '';
     const d = stats.donnees, L = d ? d.lignes : [];
@@ -926,6 +942,7 @@
       <div class="stack" style="gap:6px"><h3 style="margin:0">D’où viennent les visiteurs</h3>${Object.keys(sources).length ? `<table class="stat-table"><tbody>${Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td>${esc(NOMS_SOURCES[k] || k)}</td><td class="num">${n}</td><td class="num muted">${pct(n, ouv + pag)}</td></tr>`).join('')}</tbody></table>` : '<p class="small muted">Pas encore de visite enregistrée.</p>'}</div>
       ${Object.keys(appareils).length ? `<p class="small">📱 Téléphone : <strong>${appareils.mobile || 0}</strong> · 💻 Ordinateur : <strong>${appareils.ordinateur || 0}</strong></p>` : ''}
       ${d.pages.length ? `<div class="stack" style="gap:6px"><h3 style="margin:0">Pages recettes les plus vues</h3><table class="stat-table"><tbody>${d.pages.map((x) => `<tr><td>${esc(x.page)}</td><td class="num">${x.nombre}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${blocStatsIA(d.ia, tuile)}
       <p class="small muted" style="margin:0">Compteur anonyme : ni cookie, ni adresse IP, ni identifiant. Les ouvertures comptent chaque chargement du site.</p>`;
     return `<div class="voile" data-a="stats-fermer"><div class="fiche fenetre-stats" role="dialog" aria-modal="true" aria-label="Statistiques du site">
       <div class="spread"><h2 style="margin:0">📊 Statistiques</h2><button class="btn btn-petit" data-a="stats-fermer-btn">Fermer</button></div>
