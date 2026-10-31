@@ -1137,6 +1137,11 @@ html:has(.carte-swipe), body:has(.carte-swipe) { overflow-x: hidden; }
 .liste-etat { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .liste-etat li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--trait); }
 .etat-chiffres { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+/* ticket : produits payés plus cher */
+.plus-chers { padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--tomate) 7%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tomate) 30%, transparent); }
+.liste-plus-chers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.liste-plus-chers li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--trait); }
+.liste-plus-chers .num { text-align: right; white-space: nowrap; }
 /* aide et contact */
 .aide-equipe { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 12px; background: var(--papier); }
 .aide-equipe.mise-en-avant { background: var(--moutarde-pale); box-shadow: inset 0 0 0 2px var(--moutarde); }

@@ -3464,6 +3464,7 @@
       <div class="resume-ticket"><div><span class="small muted">Total des lignes</span><strong class="num">${euros(totalLignes)}</strong>${t.total && Math.abs(t.total - totalLignes) > 0.05 ? `<span class="small muted">ticket : ${euros(t.total)}</span>` : ''}</div>
         <div><span class="small muted">${pluriel(prises.length, 'produit reconnu', 'produits reconnus')} : payé</span><strong class="num">${euros(payeReconnu)}</strong></div>
         <div><span class="small muted">Estimation de l’appli</span><strong class="num">${euros(estim)}</strong><span class="small ${payeReconnu > estim ? 'alerte-ing' : 'muted'}">${estim ? (payeReconnu > estim ? `+${euros(payeReconnu - estim)} plus cher` : `${euros(estim - payeReconnu)} moins cher`) : ''}</span></div></div>
+      ${t.enseigne ? blocPlusChers(produitsPlusChers(t)) : ''}
       ${blocImprevus(t)}
       <label class="case small"><input type="checkbox" data-a="ticket-ranger" ${t.ranger ? 'checked' : ''}><span>Ranger dans mon placard les produits prévus dans ma liste</span></label>
       <label class="case small"><input type="checkbox" data-a="ticket-utiliser" ${t.utiliser ? 'checked' : ''}><span>Utiliser les prix de ce magasin pour mes menus et ma liste de courses</span></label>
@@ -3473,6 +3474,7 @@
       corps = `${tete('C’est noté, merci !')}
       <div class="chiffres-calc"><div><span class="small muted">Prix enregistrés</span><strong class="num repere-final">${f.n}</strong><span class="small muted">chez ${esc(f.nom)}</span></div><div><span class="small muted">Payé (produits reconnus)</span><strong class="num">${euros(f.paye)}</strong></div><div><span class="small muted">Estimation de l’appli</span><strong class="num">${euros(f.estim)}</strong></div></div>
       <p style="margin:0">${f.paye > f.estim ? `Vos courses ont coûté <strong>${euros(f.paye - f.estim)} de plus</strong> que l’estimation : vos menus et votre liste utilisent maintenant les vrais prix de ${esc(f.nom)}.` : `Vos courses ont coûté <strong>${euros(f.estim - f.paye)} de moins</strong> que l’estimation : bien joué !`}${f.ranges ? ` ${pluriel(f.ranges, 'produit rangé', 'produits rangés')} dans votre placard.` : ''}</p>
+      ${blocPlusChers(f.plusChers)}
       ${f.nImprevus ? `<p style="margin:0">🛒 <strong>${euros(f.imprevus)}</strong> d’achats imprévus (${pluriel(f.nImprevus, 'article')} hors de votre liste).</p>` : '<p style="margin:0">✓ Aucun achat imprévu : bravo, vous avez suivi votre liste.</p>'}
       <p class="small muted" style="margin:0">Scannez aussi les tickets d’autres magasins ou drives : la page Courses comparera le prix de votre liste partout.</p>
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="ticket-fermer">Voir ma liste de courses</button><button class="btn" data-a="ticket-ouvrir">Scanner un autre ticket</button></div>`;
@@ -3491,10 +3493,43 @@
       <ul class="liste-imprevus">${imp.map(({ l, i }) => { const ing = l.id && !l.ignore && E.ING[l.id]; return `<li><span>${esc(ing ? ing.nom.replace(/\s*\([^)]*\)\s*$/, '') : l.libelle)}${!ing ? ` <span class="small muted">· ${l.ignore ? 'non alimentaire' : 'produit non reconnu'}</span>` : ''}</span><span class="num">${euros(l.prix)}</span>${ing ? `<label class="case small"><input type="checkbox" data-a="ticket-imprevu-placard" data-i="${i}" ${t.imprevusPlacard[i] !== false ? 'checked' : ''}><span>Au placard</span></label>` : '<span></span>'}</li>`; }).join('')}</ul>
       ${alim.length ? `<span class="small muted">Les produits cochés « Au placard » y seront ajoutés : vos menus les utiliseront en premier.</span>` : ''}</section>`;
   }
+  /**
+   * Produits du ticket payés plus cher : par rapport au prix estimé par Budgétable (même paquet) et, s'il existe,
+   * au dernier prix payé dans ce magasin. Du plus gros écart au plus petit.
+   */
+  function produitsPlusChers(t) {
+    const cle = cleMagasin(t.enseigne, t.type);
+    const anciens = ((S.prixMagasins || {})[cle] || {}).prix || {};
+    const parId = {};
+    for (const l of t.lignes) {
+      if (!l.id || l.ignore || !E.ING[l.id]) continue;
+      const pp = TK.prixPaquet(l, E.ING[l.id]);
+      if (pp && TK.plausible(pp, E.prixReference(l.id))) (parId[l.id] = parId[l.id] || []).push(pp);
+    }
+    const res = [];
+    for (const [id, l] of Object.entries(parId)) {
+      const paye = Math.round(l.reduce((x, v) => x + v, 0) / l.length * 100) / 100;
+      const ref = E.prixReference(id), av = anciens[id] && anciens[id].d !== t.date ? anciens[id] : null;
+      const vsEstim = ref ? paye - ref : 0, vsAvant = av ? paye - av.p : 0;
+      const plusEstim = vsEstim >= 0.1 && vsEstim / ref >= 0.05, plusAvant = vsAvant >= 0.05;
+      if (plusEstim || plusAvant) res.push({ id, nom: E.ING[id].nom, cond: E.ING[id].condLabel, paye, ref, ecart: Math.max(plusEstim ? vsEstim : 0, plusAvant ? vsAvant : 0), pct: ref ? Math.round(vsEstim / ref * 100) : 0, plusEstim, avant: plusAvant ? av : null });
+    }
+    return res.sort((a, b) => b.ecart - a.ecart);
+  }
+  function blocPlusChers(l) {
+    if (!l || !l.length) return '<div class="bandeau bandeau-ok small"><span>✓ Aucun produit payé plus cher que prévu.</span></div>';
+    const dateCourte = (d) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return `<section class="plus-chers stack" style="gap:8px"><strong>📈 Plus cher que prévu <span class="small muted">· ${pluriel(l.length, 'produit')}</span></strong>
+      <ul class="liste-plus-chers">${l.map((x) => `<li><div class="stack" style="gap:1px;min-width:0"><span><strong>${esc(x.nom.replace(/\s*\([^)]*\)\s*$/, ''))}</strong> <span class="small muted">· ${esc(x.cond)}</span></span>
+        <span class="small muted">${x.plusEstim ? `estimé ${euros(x.ref)} (+${x.pct} %)` : ''}${x.plusEstim && x.avant ? ' · ' : ''}${x.avant ? `${euros(x.avant.p)} la dernière fois (${dateCourte(x.avant.d)})` : ''}</span></div>
+        <span class="num"><strong>${euros(x.paye)}</strong><br><span class="small alerte-ing">+${euros(x.ecart)}</span></span></li>`).join('')}</ul>
+      <span class="small muted">Prix d’un paquet. Pour payer moins : comparez avec un autre magasin (scannez aussi ses tickets) ou regardez les promos.</span></section>`;
+  }
   function enregistrerTicket() {
     const t = S.ticket, p = S.profil;
     const cle = cleMagasin(t.enseigne, t.type), nom = nomMagasin(t.enseigne, t.type);
     S.prixMagasins = S.prixMagasins || {};
+    const plusChers = produitsPlusChers(t);
     const mag = S.prixMagasins[cle] = S.prixMagasins[cle] || { nom, enseigne: t.enseigne, type: t.type, prix: {} };
     const date = t.date || ISO(new Date());
     const parId = {};
@@ -3519,10 +3554,10 @@
       return estImprevu(l, prevus) ? (t.imprevusPlacard || {})[i] !== false : t.ranger;
     });
     if (aRanger.length) { const aj = aRanger.map((l) => [l.id, nbPaquets(l, E.ING[l.id]) * E.ING[l.id].cond]); p.stock = E.ajouterAuStock(p.stock, aj); ranges = aj.length; }
-    S.tickets = [{ d: date, mag: cle, nom, total: t.total || paye, paye, estim, n: prises.length, imprevus: totalImprevus, nImprevus: imprevus.length, detailImprevus: imprevus.slice(0, 30).map(({ l }) => [l.id && !l.ignore && E.ING[l.id] ? E.ING[l.id].nom : l.libelle, l.prix]) }].concat(S.tickets || []).slice(0, 60);
+    S.tickets = [{ d: date, mag: cle, nom, total: t.total || paye, paye, estim, n: prises.length, imprevus: totalImprevus, nImprevus: imprevus.length, detailImprevus: imprevus.slice(0, 30).map(({ l }) => [l.id && !l.ignore && E.ING[l.id] ? E.ING[l.id].nom : l.libelle, l.prix]), plusChers: plusChers.slice(0, 20).map((x) => [x.nom, x.paye, Math.round(x.ecart * 100) / 100]) }].concat(S.tickets || []).slice(0, 60);
     if (t.utiliser) S.magasinActif = cle;
     appliquerPrixMagasin();
-    t.fin = { n: Object.keys(parId).length, nom, paye, estim, ranges, imprevus: totalImprevus, nImprevus: imprevus.length };
+    t.fin = { n: Object.keys(parId).length, nom, paye, estim, ranges, imprevus: totalImprevus, nImprevus: imprevus.length, plusChers };
     t.etape = 'fin';
   }
   /** Les achats imprévus du mois : total et produits qui reviennent le plus. */
