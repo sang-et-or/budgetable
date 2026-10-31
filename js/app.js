@@ -107,7 +107,7 @@
       delete p.programme;
       delete p.sport;
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, prixPerso: S.prixPerso || {}, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, prixPerso: S.prixPerso || {}, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null, semainePrecedente: S.semainePrecedente || null };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -152,7 +152,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, prixPerso: a.prixPerso && typeof a.prixPerso === 'object' ? a.prixPerso : {}, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, prixPerso: a.prixPerso && typeof a.prixPerso === 'object' ? a.prixPerso : {}, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null, semainePrecedente: a.semainePrecedente || null });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
@@ -622,7 +622,7 @@
     <g fill="var(--moutarde)" stroke="var(--encre)" stroke-width="2.5"><ellipse cx="352" cy="232" rx="22" ry="7"/><ellipse cx="352" cy="222" rx="22" ry="7"/><ellipse cx="352" cy="212" rx="22" ry="7"/></g>
   </svg>`;
 
-  const PIED = '<nav class="pied small" aria-label="Informations légales"><a href="/recettes/">Recettes</a><a href="/conseils/">Conseils</a><a href="https://www.youtube.com/@Budgetablecoach" target="_blank" rel="noopener">YouTube</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
+  const PIED = '<nav class="pied small" aria-label="Informations légales"><button class="btn-lien small" data-a="aide-ouvrir">💬 Aide et contact</button><a href="/recettes/">Recettes</a><a href="/conseils/">Conseils</a><a href="https://www.youtube.com/@Budgetablecoach" target="_blank" rel="noopener">YouTube</a><a href="mentions-legales.html">Mentions légales</a><a href="confidentialite.html">Confidentialité</a><a href="conditions.html">Conditions d’utilisation</a></nav>';
   /* ---------- comptes : fenêtre de connexion / inscription et synchronisation ---------- */
   const C = window.Compte || { actif: () => false, connecte: () => false, utilisateur: () => null };
   let compte = { vue: null, msg: '', erreur: '', charge: false, sync: null, voir: false };
@@ -1202,6 +1202,7 @@
           <details><summary>Et mes allergies ?</summary><p>Budgétable écarte des menus les recettes dont un ingrédient contient un allergène que vous avez signalé, et signale les produits qui peuvent en contenir selon la marque (bouillon, épices, charcuterie…). Il ne connaît pas la composition exacte de chaque produit ni les risques de traces : vérifiez toujours la liste des ingrédients et les mentions « peut contenir » sur l’étiquette. En cas d’allergie sévère, suivez l’avis de votre médecin. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
         </div>
       </section>
+      <p class="small" style="margin:-24px 0 0;text-align:center">Une autre question ? <button class="btn-lien small" data-a="aide-ouvrir">💬 Discutez avec notre assistant</button></p>
       <section class="appel-final"><h2>Prêt pour une semaine plus simple ?</h2>${S.plan ? '<button class="btn btn-plein btn-grand btn-hero" data-a="compte-reprendre">Retrouver ma semaine</button>' : `<button class="btn btn-plein btn-grand btn-hero" data-a="commencer">${connecte ? '🍽️ Préparer ma semaine' : '🍽️ Tester gratuitement sans compte'}</button>${connecte ? '' : '<p class="small" style="margin:0;opacity:.85">Sans inscription · 7 jours d’essai gratuit dès la création du compte</p>'}`}</section>
       ${PIED}
     </div>`;
@@ -1220,7 +1221,7 @@
     return `<div class="voile" data-a="menu-plus-fond"><div class="fiche fenetre-plus" role="dialog" aria-modal="true" aria-labelledby="plus-titre">
       <div class="spread" style="flex-wrap:nowrap"><h2 id="plus-titre">Toutes les fonctions</h2><button class="btn btn-petit" data-a="menu-plus">Fermer</button></div>
       ${GROUPES_NAV.map(([titre, ks]) => `<section class="stack" style="gap:6px"><span class="eyebrow">${titre}</span><div class="grille-plus">${ks.map((k) => `<button class="tuile-plus" data-a="onglet" data-k="${k}" style="--c:${COULEURS_NAV[k]}" ${S.onglet === k ? 'aria-current="page"' : ''}><span class="nav-ic">${ICONES[k]}</span><span class="stack" style="gap:0;min-width:0;text-align:left"><strong>${(ONGLETS.find((x) => x[0] === k) || [k, k])[1]}</strong><span class="small muted">${DESCR_NAV[k] || ''}</span></span>${k === 'promos' && promos && promos.offres && offresActuelles().length ? `<em class="nav-badge">${offresActuelles().length}</em>` : ''}</button>`).join('')}</div></section>`).join('')}
-      <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="parrain-voir">🎁 Invitez une amie : 1 mois offert</button><button class="btn btn-petit" data-a="accueil">Page d’accueil</button></div>
+      <div class="row" style="gap:8px"><button class="btn btn-petit btn-plein" data-a="parrain-voir">🎁 Invitez une amie : 1 mois offert</button><button class="btn btn-petit" data-a="aide-ouvrir">💬 Aide et contact</button><button class="btn btn-petit" data-a="accueil">Page d’accueil</button></div>
     </div></div>`;
   }
   function vueApp() {
@@ -1472,7 +1473,7 @@
       ['budget', '💶', 'Budget', a.ok ? `${euros(a.estimation)} · il reste ${euros(-a.ecart)}` : `${euros(a.estimation)} · ${euros(a.ecart)} de trop`, () => blocBudget() + moyenneAssiette()]
     ].concat(C.connecte() ? [] : [['sauvegarde', '💾', 'Sauvegarde', resumeSauvegarde(), blocSauvegarde]]);
     const jours = joursOrdonnes().map(([jp, x]) => `<button class="jour-puce ${x === t ? 'auj' : ''}" role="tab" data-a="jour-mobile" data-j="${x}" aria-selected="${!liste && x === j}"><span>${JOURS_COURTS[x]}</span><strong>${new Date(dateDuJour(x) + 'T12:00:00').getDate()}</strong></button>`).join('');
-    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
+    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}${blocAvantNouvelle()}
       <div class="entete-semaine-m"><div><p class="eyebrow">Au menu</p><h1>Ma semaine</h1></div><button class="btn btn-petit" data-a="semaine-liste" aria-pressed="${!!liste}">${liste ? 'Un jour à la fois' : 'Toute la semaine'}</button></div>
       ${bandeauCoachs()}
       ${S.plan.alertes.map((x) => `<div class="bandeau bandeau-demo small">${esc(x)}</div>`).join('')}
@@ -1532,7 +1533,7 @@
     const t = aujPlan();
     const restants = 'Changez vos plats autant que vous voulez';
     // d'abord les repas et le budget ; les réglages détaillés (présences, gamelles, coach, bilan, budget détaillé) ensuite
-    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}
+    return `${bandeauSensible()}${bandeauSansCompte()}${bandeauAbo()}${blocAvantNouvelle()}
       <div class="ardoise ardoise-titre"><span class="craie-petit">Au menu cette semaine</span><h1 class="craie">7 déjeuners, 7 dîners</h1><span class="craie-ligne">fait maison, petit prix, zéro gaspi</span></div>
       ${bandeauMonotone()}${resumeBudgetSemaine()}
       ${boutonDemarrer()}${carteMinceurSemaine()}
@@ -2493,6 +2494,59 @@
     const auj = ISO(new Date());
     return (S.tickets || []).filter((x) => x.d && x.d >= S.planDu && x.d <= auj);
   }
+  /** Date (AAAA-MM-JJ) du jour j (0 = lundi) dans une semaine qui commence le jour « du ». */
+  const dateDansSemaine = (du, j) => { const b = new Date(du + 'T12:00:00'); const d0 = (b.getDay() + 6) % 7; const d = new Date(b); d.setDate(b.getDate() + (j - d0 + 7) % 7); return ISO(d); };
+  /** Repas prévu dans l'ancienne semaine à une date donnée (s'il y en avait un). */
+  function repasAncien(sp, iso, slot) {
+    if (!sp || !sp.plan || !sp.planDu) return null;
+    const j = (new Date(iso + 'T12:00:00').getDay() + 6) % 7;
+    if (dateDansSemaine(sp.planDu, j) !== iso) return null;
+    const m = sp.plan.jours[j] && sp.plan.jours[j][slot];
+    return m && m.recette && E.REC[m.recette] ? m : null;
+  }
+  /** Nouvelle semaine qui démarre aujourd'hui : les plats déjà prévus aujourd'hui restent (si on le souhaite). */
+  function garderPlatsAujourdhui(sp, garder, auDiner) {
+    const iso = ISO(new Date()), jp = S.plan.jours[aujourdhui()];
+    const passes = jp.passes || [];
+    ['dejeuner', 'diner'].forEach((sl) => {
+      const m = repasAncien(sp, iso, sl);
+      if (!m) return;
+      const passe = sl === 'dejeuner' ? new Date().getHours() >= 13 : new Date().getHours() >= 21;
+      if (passe) return;
+      // au dîner, le déjeuner d'aujourd'hui appartient à l'ancienne semaine : on le garde toujours
+      if (garder || (sl === 'dejeuner' && auDiner)) { jp[sl] = JSON.parse(JSON.stringify(m)); jp[sl].manuel = true; jp.passes = passes.filter((x) => x !== sl); if (sl === 'dejeuner') delete jp.debutAuDiner; }
+    });
+    if (jp.passes && !jp.passes.length) delete jp.passes;
+    E.organiserRestes(S.plan, S.profil);
+  }
+  /** Repas de l'ancienne semaine encore à venir avant le début de la nouvelle (semaine qui démarre plus tard). */
+  function repasAvantNouvelle() {
+    const sp = S.semainePrecedente;
+    if (!sp || !S.planDu || !semaineFuture()) return [];
+    const res = [], h = new Date().getHours();
+    const debutAuDiner = S.plan && S.plan.jours[debutSemaine()] && S.plan.jours[debutSemaine()].debutAuDiner;
+    for (let d = new Date(); ISO(d) <= S.planDu; d.setDate(d.getDate() + 1)) {
+      const iso = ISO(d), estAuj = iso === ISO(new Date());
+      const slots = ['dejeuner', 'diner'].filter((sl) => (iso < S.planDu || (sl === 'dejeuner' && debutAuDiner)) && !(estAuj && (sl === 'dejeuner' ? h >= 14 : h >= 21)));
+      const repas = slots.map((sl) => ({ sl, m: repasAncien(sp, iso, sl) })).filter((x) => x.m);
+      if (repas.length) res.push({ iso, repas });
+    }
+    return res;
+  }
+  /** Semaine qui démarre plus tard : les plats de l'ancienne semaine d'ici là, et le retour possible à l'ancienne semaine. */
+  function blocAvantNouvelle() {
+    const sp = S.semainePrecedente;
+    if (!sp || !sp.plan || !S.plan) return '';
+    const avant = repasAvantNouvelle();
+    const recent = sp.creeLe && Date.now() - Date.parse(sp.creeLe) < 2 * 86400000;
+    if (!avant.length && (!recent || sp.vu)) return '';
+    const jour = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' }).replace(/^./, (c) => c.toUpperCase());
+    return `<section class="carte stack avant-nouvelle ecran-seul" style="gap:8px">
+      ${avant.length ? `<h2>D’ici votre nouvelle semaine</h2><p class="small muted" style="margin:0">Les plats prévus dans votre semaine précédente restent au menu jusqu’au début de la nouvelle.</p>
+      <ul class="liste-avant">${avant.map(({ iso, repas }) => `<li><strong>${jour(iso)}</strong>${repas.map(({ sl, m }) => `<button class="btn-lien" data-a="fiche-g" data-r="${m.recette}" data-n="${m.portions || ''}"><span class="small muted">${sl === 'dejeuner' ? 'Midi' : 'Soir'} :</span> ${esc(E.REC[m.recette].nom)}</button>`).join('')}</li>`).join('')}</ul>` : '<p class="small" style="margin:0">Nouvelle semaine créée.</p>'}
+      <div class="row" style="gap:8px"><button class="btn btn-petit" data-a="semaine-precedente">↩︎ Revenir à la semaine précédente</button>${avant.length ? '' : '<button class="btn-lien small" data-a="semaine-precedente-ok">Masquer</button>'}</div>
+    </section>`;
+  }
   /** Le déjeuner du jour choisi peut-il encore être le premier repas ? (pas aujourd'hui après 13 h) */
   const dejeunerPossible = (iso) => !(iso === ISO(new Date()) && new Date().getHours() >= 13);
   /** La semaine commence au dîner : pas de déjeuner le premier jour (ni de gamelle), comme un repas déjà passé. */
@@ -2521,7 +2575,8 @@
       <div class="choix-debut" role="radiogroup" aria-label="Premier jour de la semaine">${jours.map((d, k) => { const iso = ISO(d); const on = iso === n.debut; return `<button class="puce-debut ${on ? 'actif' : ''}" role="radio" aria-checked="${on}" data-a="nouvelle-jour" data-d="${iso}"><strong>${nom(d, k)}</strong><span class="small">${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></button>`; }).join('')}</div>
       <p style="margin:0"><strong>Par quel repas commence-t-elle ?</strong></p>
       <div class="choix-debut choix-repas" role="radiogroup" aria-label="Premier repas">${[['dejeuner', '☀️ Le déjeuner'], ['diner', '🌙 Le dîner']].map(([k, lab]) => { const on = n.repas === k, off = k === 'dejeuner' && !dejeunerPossible(n.debut); return `<button class="puce-debut ${on ? 'actif' : ''}" role="radio" aria-checked="${on}" data-a="nouvelle-repas" data-k="${k}" ${off ? 'disabled title="Déjà passé aujourd’hui"' : ''}><strong>${lab}</strong><span class="small">${off ? 'déjà passé' : k === 'dejeuner' ? 'midi et soir dès le 1er jour' : 'pas de déjeuner le 1er jour'}</span></button>`; }).join('')}</div>
-      <p class="small muted" style="margin:0">Votre semaine ira du ${n.repas === 'diner' ? 'dîner du ' : ''}${court(choisi)} au ${court(fin)}. Les plats de la semaine actuelle seront remplacés ; vos goûts, vos favoris et votre placard sont gardés.</p>
+      ${(() => { const auj = ISO(new Date()); if (n.debut !== auj) return `<p class="small" style="margin:0">✓ D’ici là, les plats déjà prévus restent au menu (vous les retrouverez en haut de la semaine).</p>`; const sp = { plan: S.plan, planDu: S.planDu }; const h = new Date().getHours(); const m = ['dejeuner', 'diner'].filter((sl) => !(sl === 'dejeuner' ? h >= 13 : h >= 21)).map((sl) => [sl, repasAncien(sp, auj, sl)]).filter((x) => x[1]); if (!m.length) return ''; return `<label class="case-garder small"><input type="checkbox" data-a="nouvelle-garder" ${n.garderAuj !== false ? 'checked' : ''}> Garder les plats déjà prévus aujourd’hui : ${m.map(([sl, x]) => `${sl === 'dejeuner' ? 'midi' : 'soir'} « ${esc(E.REC[x.recette].nom)} »`).join(', ')}</label>`; })()}
+      <p class="small muted" style="margin:0">Votre semaine ira du ${n.repas === 'diner' ? 'dîner du ' : ''}${court(choisi)} au ${court(fin)}. Votre semaine actuelle est gardée : vous pourrez y revenir. Vos goûts, vos favoris et votre placard ne changent pas.</p>
       ${tickets.length ? `<div class="bandeau bandeau-info small" style="margin:0"><span>🧾 ${tickets.length > 1 ? `Les ${tickets.length} tickets de caisse` : 'Le ticket de caisse'} de la semaine actuelle (${tickets.map((x) => `${esc(x.nom)}, ${euros(x.paye)}`).join(' · ')}) ${tickets.length > 1 ? 'seront effacés' : 'sera effacé'} de l’historique. Les prix appris avec ${tickets.length > 1 ? 'eux' : 'lui'} sont gardés.</span></div>` : ''}
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="nouvelle-ok">Créer la semaine</button><button class="btn" data-a="nouvelle-annuler">Annuler</button></div>
     </div></div>`;
@@ -3601,6 +3656,7 @@
       <p class="small muted" style="margin:0">Version de l’appli : ${esc(VERSION_APP)} (utile si vous nous signalez un problème)</p>
       ${window.Photos ? `<details class="carte"><summary><strong>Crédits photos</strong> <span class="small muted">· photos d’illustration sous licence libre, via Wikimedia Commons</span></summary>
         <ul class="credits">${window.Photos.credits().map((ph) => `<li><a href="${esc(ph.page)}" target="_blank" rel="noopener">${esc(decodeURIComponent(ph.page.split('File:')[1]).replace(/_/g, ' '))}</a> — ${esc(ph.auteur)} — ${ph.licenceUrl ? `<a href="${esc(ph.licenceUrl)}" target="_blank" rel="noopener">${esc(ph.licence)}</a>` : esc(ph.licence)}</li>`).join('')}</ul></details>` : ''}
+      <section class="carte stack bloc-aide" style="gap:8px"><div class="spread"><h2>💬 Aide et contact</h2></div><p class="small" style="margin:0">Une question sur l’appli, votre compte ou l’abonnement ? L’assistant vous répond tout de suite ; s’il ne sait pas, vous pouvez écrire à l’équipe.</p><div><button class="btn btn-petit btn-plein" data-a="aide-ouvrir">Poser une question</button></div></section>
       ${blocParrainage()}
       ${blocAbonnement()}
       ${blocConflit()}${blocCompte()}${blocSauvegarde()}
@@ -4883,6 +4939,85 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     }
     coachChat.attente = false; rendre(); defilerChat();
   }
+  /* ---------- aide et contact : assistant IA (hébergé par le site), avec relais vers l'équipe par e-mail ---------- */
+  const aide = { ouvert: false, tours: [], attente: false, transmettre: false, message: '' };
+  const CONTACT = 'contact@budgetable.fr';
+  const QUESTIONS_AIDE = ['Combien coûte l’abonnement ?', 'Comment résilier ?', 'Mes menus sont-ils enregistrés ?', 'J’ai oublié mon mot de passe', 'Les prix sont-ils ceux de mon magasin ?'];
+  function consignesAide() {
+    const d = droitsAbo(), connecte = C.connecte();
+    const situation = `${connecte ? 'connectée à son compte' : 'sans compte'} ; abonnement : ${d.mode === 'abonne' ? 'abonnée' : d.mode === 'essai' ? `essai gratuit, ${d.reste} jour(s) restant(s)` : d.mode === 'expire' ? 'essai terminé, pas abonnée' : 'paiement pas encore ouvert'} ; ${S.plan ? 'une semaine de menus est créée' : 'pas encore de semaine'}`;
+    return `Tu es l’assistant du service client de Budgétable (budgetable.fr), une application française qui prépare les menus de la semaine (déjeuners et dîners) selon les goûts, le budget et le foyer, avec les recettes et la liste de courses.
+Situation de la personne : ${situation}.
+Ce que tu sais (ne dis rien d’autre, n’invente jamais) :
+- Essai gratuit de 7 jours, compté à partir de la création du compte (ou du premier jour d’utilisation sans compte). Ensuite ${PRIX_ABO} par mois, sans engagement, paiement sécurisé par Stripe.
+- Résilier : onglet « Mon profil », rubrique « Abonnement », bouton « Gérer mon abonnement (carte, factures, résiliation) », puis suivre la page sécurisée Stripe. Sans engagement.
+- Après l’essai sans abonnement : la semaine en cours, la liste de courses, le placard et les recettes restent consultables ; préparer de nouvelles semaines, refaire les plats et parler aux coachs demandent l’abonnement.
+- Sans compte, on peut tout essayer mais rien n’est enregistré : la semaine s’efface à la fermeture. Le compte gratuit garde menus, liste et recettes sur tous les appareils (bouton « Créer un compte », puis cliquer le lien reçu par e-mail).
+- Mot de passe oublié : « Se connecter », puis « Mot de passe oublié ? » ; un lien arrive par e-mail. On peut aussi recevoir un lien de connexion.
+- Supprimer son compte : « Mon profil », « Mon compte », « Supprimer mon compte ». Sauvegarde des données : « Mon profil », « Sauvegarde ».
+- Nouvelle semaine : bouton « Nouvelle semaine », on choisit le jour et le premier repas. « Refaire les plats » change les plats en gardant ce qui est mangé ou choisi. On peut changer un plat d’un geste.
+- Prix : estimations de Budgétable, pas les prix du magasin ; scanner un ticket de caisse ou coller un panier drive permet d’utiliser ses vrais prix. Les promotions viennent des sites des enseignes, à vérifier en magasin.
+- Allergies : les recettes avec un allergène signalé sont écartées, mais il faut toujours vérifier les étiquettes ; en cas d’allergie sévère, suivre l’avis du médecin.
+- Parrainage : « Invitez une amie », un mois offert à toutes les deux quand l’amie crée son compte et confirme son e-mail.
+- Installer l’appli : bouton « Installer l’appli » (sur iPhone : Partager, puis « Sur l’écran d’accueil »).
+- Les coachs (nutrition, minceur, sport) donnent des conseils de bon sens, pas un avis médical.
+- Contact de l’équipe : ${CONTACT} (réponse par e-mail).
+Règles :
+- Réponds en français, en vouvoyant, en 4 phrases maximum, simplement, avec au plus un émoji.
+- Si tu ne sais pas, ou si la demande concerne un cas personnel que tu ne peux pas régler (problème de paiement, remboursement, facture, bug, compte bloqué, données à supprimer, réclamation), dis-le honnêtement et propose d’écrire à l’équipe : mets alors "transmettre": true.
+- Ne demande jamais de mot de passe ni de numéro de carte.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre": false}`;
+  }
+  /** Réponse sans IA (assistant indisponible ou très sollicité) : la FAQ. */
+  function reponseLocaleAide(q) {
+    const t = TK && TK.norm ? TK.norm(q) : String(q).toLowerCase();
+    if (/resili|annul|desabonn|arret/.test(t)) return { reponse: `Pour résilier : onglet « Mon profil », rubrique « Abonnement », bouton « Gérer mon abonnement », puis suivez la page sécurisée. C’est sans engagement.`, transmettre: false };
+    if (/prix|cout|combien|tarif|abonnement|payer|essai|gratuit/.test(t)) return { reponse: `La première semaine est un essai gratuit (7 jours dès la création du compte). Ensuite, ${PRIX_ABO} par mois, sans engagement, résiliable à tout moment.`, transmettre: false };
+    if (/mot de passe|connect|identifi/.test(t)) return { reponse: 'Touchez « Se connecter », puis « Mot de passe oublié ? » : un lien pour en choisir un nouveau arrive par e-mail. Pensez à regarder vos courriers indésirables.', transmettre: false };
+    if (/enregistr|sauvegard|perdu|efface|compte/.test(t)) return { reponse: 'Sans compte, rien n’est enregistré : la semaine s’efface quand vous fermez Budgétable. Avec un compte gratuit, vos menus, votre liste et vos recettes sont gardés sur tous vos appareils.', transmettre: false };
+    if (/magasin|prix reel|ticket|promo/.test(t)) return { reponse: 'Les prix sont des estimations de Budgétable. Scannez un ticket de caisse ou collez votre panier drive : l’appli utilisera vos vrais prix. Les promos sont à vérifier en magasin.', transmettre: false };
+    if (/allerg/.test(t)) return { reponse: 'Les recettes contenant un allergène signalé sont écartées, mais vérifiez toujours les étiquettes. En cas d’allergie sévère, suivez l’avis de votre médecin.', transmettre: false };
+    return { reponse: `Je n’ai pas de réponse sûre à cette question. Le plus simple : écrivez à l’équipe (${CONTACT}), qui vous répondra par e-mail.`, transmettre: true };
+  }
+  async function envoyerAide(question) {
+    const texte = String(question || '').trim().slice(0, 500);
+    if (!texte || aide.attente) return;
+    aide.tours.push({ role: 'user', content: texte }); aide.message = '';
+    const secours = reponseLocaleAide(texte);
+    const finir = (r) => { aide.tours.push({ role: 'assistant', content: String(r.reponse || secours.reponse).slice(0, 1500) }); aide.transmettre = aide.transmettre || !!r.transmettre; aide.attente = false; rendre(); defilerChat(); };
+    aide.attente = true; rendre(); defilerChat();
+    if (!iaDispo) { setTimeout(() => finir(secours), 600); return; }
+    try {
+      const r = await iaDispo.json([{ role: 'user', content: consignesAide() }, ...aide.tours.slice(-8)], { cache: false });
+      finir(r && typeof r.reponse === 'string' && r.reponse.trim() ? r : secours);
+    } catch (e) {
+      if (e && e.code === 'rate_limited') aide.message = 'L’assistant est très sollicité : voici une réponse rapide.';
+      finir(secours);
+    }
+  }
+  /** E-mail prêt à envoyer à l'équipe, avec l'échange (ouvert dans la messagerie de la personne). */
+  function lienContact() {
+    const u = C.connecte() && C.utilisateur ? C.utilisateur() : null;
+    const fil = aide.tours.slice(-6).map((t) => `${t.role === 'user' ? 'Moi' : 'Assistant'} : ${t.content}`).join('\n').slice(0, 1400);
+    const corps = `Bonjour,\n\n[Écrivez votre message ici]\n\n${fil ? `--- Mon échange avec l’assistant ---\n${fil}\n\n` : ''}${u && u.email ? `Compte : ${u.email}\n` : ''}Version de l’appli : ${typeof VERSION_APP !== 'undefined' ? VERSION_APP : ''}`;
+    return `mailto:${CONTACT}?subject=${encodeURIComponent('Budgétable : ma question')}&body=${encodeURIComponent(corps)}`;
+  }
+  function vueAide() {
+    if (!aide.ouvert) return '';
+    const bulles = [{ role: 'assistant', content: 'Bonjour ! Je suis l’assistant de Budgétable 👋 Posez-moi votre question sur l’appli, votre compte ou l’abonnement. Si je ne sais pas, vous pourrez écrire à l’équipe.' }].concat(aide.tours);
+    return `<div class="voile" data-a="aide-fond"><div class="fiche fenetre-chat fenetre-aide" role="dialog" aria-modal="true" aria-label="Aide et contact">
+      <header class="chat-tete"><span class="chat-avatar" aria-hidden="true">💬</span><div class="stack" style="gap:0;min-width:0;flex:1"><strong>Aide et contact</strong><small>Assistant Budgétable · ${iaDispo ? 'répond tout de suite' : 'réponses rapides'}</small></div><button class="btn btn-petit" data-a="aide-fermer">Fermer</button></header>
+      <div class="chat-fil" aria-live="polite">
+        ${bulles.map((t) => `<div class="chat-ligne ${t.role === 'user' ? 'moi' : 'coach'}"><div class="chat-bulle">${esc(t.content)}</div></div>`).join('')}
+        ${aide.attente ? '<div class="chat-ligne coach"><div class="chat-bulle chat-frappe" aria-label="L’assistant écrit"><i></i><i></i><i></i></div></div>' : ''}
+        ${aide.tours.length ? '' : `<div class="chat-suggestions">${QUESTIONS_AIDE.map((q) => `<button class="chip" data-a="aide-question" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+      </div>
+      ${aide.message ? `<p class="small muted" style="margin:0">${esc(aide.message)}</p>` : ''}
+      <div class="aide-equipe ${aide.transmettre ? 'mise-en-avant' : ''}"><span class="small">${aide.transmettre ? 'Cette question est pour l’équipe :' : 'Besoin d’une personne ?'}</span><a class="btn btn-petit ${aide.transmettre ? 'btn-plein' : ''}" href="${esc(lienContact())}" data-a="aide-mail">✉️ Écrire à l’équipe</a></div>
+      <form class="chat-saisie" data-form="aide-chat"><label class="visuellement-cache" for="aide-texte">Votre question</label><input id="aide-texte" type="text" maxlength="500" placeholder="Écrivez votre question…" autocomplete="off" ${aide.attente ? 'disabled' : ''}><button class="btn btn-plein chat-envoyer" type="submit" aria-label="Envoyer" ${aide.attente ? 'disabled' : ''}>➤</button></form>
+      <p class="small muted" style="margin:0">Réponses automatiques : ne donnez jamais votre mot de passe ni votre numéro de carte. L’équipe répond par e-mail à ${CONTACT}.</p>
+    </div></div>`;
+  }
   function defilerChat() { setTimeout(() => { const f = document.querySelector('.chat-fil'); if (f) f.scrollTop = f.scrollHeight; }, 30); }
   function vueChatCoach() {
     if (!coachChat.ouvert) return '';
@@ -5023,7 +5158,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const haut = avant ? avant.scrollTop : 0;
     const memeFiche = avant && avant.dataset.cle === cleFiche();
     // chaque fenêtre est construite à part : une erreur dans l'une ne doit jamais figer toute l'appli
-    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['nouvelle', vueNouvelleSemaine], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach], ['plus', vuePlus]];
+    const fenetres = [['choix', vueChoix], ['courses', vueCourses], ['au-menu', vueAuMenu], ['fiche', vueFiche], ['edition', vueEdition], ['ajout-gourmand', vueAjoutGourmand], ['coach', vueCoach], ['budget', vueBudget], ['presence', vuePresence], ['bilan', vueBilan], ['ameliorer', vueAmeliorer], ['calc-kcal', vueCalcKcal], ['affiche', vueAffiche], ['gamelles', vueGamelles], ['envoi', vueEnvoi], ['compte', vueCompte], ['prospectus', vueProspectus], ['aide-install', vueAideInstall], ['seance', vueSeance], ['deplacer', vueDeplacer], ['nouvelle', vueNouvelleSemaine], ['ticket', vueTicket], ['complement', vueComplement], ['abonnement', vueAbonnement], ['tuto', vueTuto], ['stats', vueStats], ['chat', vueChatCoach], ['aide', vueAide], ['plus', vuePlus]];
     app.innerHTML = html + fenetres.map(([nom, f]) => { try { return f(); } catch (e) { return fenetreEnErreur(nom, e); } }).join('');
     if (document.getElementById('scene-cuisine')) monter3D();
     const modeAffiche = !!(S.afficheOuverte && S.plan && S.vue === 'app');
@@ -5272,19 +5407,34 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'nouvelle':
         if (S.sensibleNonEnregistre) { allerQuestion('allergies'); break; }
         if (!S.plan) { nouvellePlanification(); toast('Nouvelle semaine créée'); break; }
-        S.nouvelleSemaine = { debut: ISO(new Date()), repas: new Date().getHours() >= 13 ? 'diner' : 'dejeuner' }; break;   // une semaine existe : on demande le jour et le repas de départ
+        S.nouvelleSemaine = { debut: ISO(new Date()), repas: new Date().getHours() >= 13 ? 'diner' : 'dejeuner', garderAuj: true }; break;   // une semaine existe : on demande le jour et le repas de départ
       case 'nouvelle-jour': if (S.nouvelleSemaine) { S.nouvelleSemaine.debut = el.dataset.d; if (!dejeunerPossible(el.dataset.d)) S.nouvelleSemaine.repas = 'diner'; } break;
+      case 'semaine-precedente': {
+        const sp = S.semainePrecedente;
+        if (!sp || !sp.plan) break;
+        Object.assign(S, { plan: sp.plan, planDu: sp.planDu, coches: sp.coches || {}, ranges: sp.ranges || {}, deduits: sp.deduits || {} });
+        if (sp.tickets && sp.tickets.length) S.tickets = sp.tickets.concat(S.tickets || []).slice(0, 60);
+        S.semainePrecedente = null; S.jourMobile = null; S.planAvantRefaire = null;
+        toast('Semaine précédente retrouvée, avec tous ses plats');
+        break;
+      }
+      case 'semaine-precedente-ok': if (S.semainePrecedente) S.semainePrecedente.vu = true; break;
+      case 'nouvelle-garder': if (S.nouvelleSemaine) S.nouvelleSemaine.garderAuj = el.checked; break;
       case 'nouvelle-repas': if (S.nouvelleSemaine && (el.dataset.k === 'diner' || dejeunerPossible(S.nouvelleSemaine.debut))) S.nouvelleSemaine.repas = el.dataset.k; break;
       case 'nouvelle-annuler': case 'nouvelle-fond': if (el.dataset.a === 'nouvelle-fond' && ev.target !== el) return; S.nouvelleSemaine = null; break;
       case 'nouvelle-ok': {
         if (!S.nouvelleSemaine) break;
-        const debut = S.nouvelleSemaine.debut, auDiner = S.nouvelleSemaine.repas === 'diner';
+        const debut = S.nouvelleSemaine.debut, auDiner = S.nouvelleSemaine.repas === 'diner', garderAuj = S.nouvelleSemaine.garderAuj !== false;
+        // l'ancienne semaine n'est jamais perdue : elle est gardée (plats encore à venir, et retour possible)
+        const ancienne = JSON.parse(JSON.stringify({ plan: S.plan, planDu: S.planDu, coches: S.coches, ranges: S.ranges, deduits: S.deduits }));
         // le ticket de caisse de l'ancienne semaine est effacé de l'historique (les prix appris restent)
         const anciens = ticketsSemaineEnCours();
         if (anciens.length) S.tickets = (S.tickets || []).filter((x) => !anciens.includes(x));
         S.ticket = null;
         nouvellePlanification(debut);
         if (auDiner) commencerAuDiner();
+        S.semainePrecedente = { ...ancienne, tickets: anciens, creeLe: new Date().toISOString() };
+        if (debut === ISO(new Date())) garderPlatsAujourdhui(ancienne, garderAuj, auDiner);
         S.nouvelleSemaine = null;
         const j = new Date(debut + 'T12:00:00');
         toast(`Nouvelle semaine créée, à partir ${auDiner ? 'du dîner ' : 'du déjeuner '}${debut === ISO(new Date()) ? 'd’aujourd’hui' : 'de ' + j.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}${anciens.length ? ' · ancien ticket effacé' : ''}`);
@@ -5811,6 +5961,11 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
       case 'coach-voir': coachChat.ouvert = false; S.coachVoir = el.dataset.k; break;
       case 'chat-ouvrir': S.coachVoir = null; coachChat.ouvert = true; defilerChat(); setTimeout(() => { const c = document.getElementById('coach-chat-texte'); if (c && window.matchMedia('(min-width: 700px)').matches) c.focus(); }, 60); break;
       case 'chat-fermer': coachChat.ouvert = false; break;
+      case 'aide-ouvrir': aide.ouvert = true; S.menuPlus = false; coachChat.ouvert = false; defilerChat(); setTimeout(() => { const c = document.getElementById('aide-texte'); if (c && window.matchMedia('(min-width: 700px)').matches) c.focus(); }, 60); break;
+      case 'aide-fermer': aide.ouvert = false; break;
+      case 'aide-fond': if (ev.target !== el) return; aide.ouvert = false; break;
+      case 'aide-question': envoyerAide(el.dataset.q); return;
+      case 'aide-mail': return;   // lien mailto : la messagerie s'ouvre
       case 'chat-fond': if (ev.target !== el) return; coachChat.ouvert = false; break;
       case 'chat-question': envoyerCoachChat(el.dataset.q); return;
       case 'chat-ameliorer': coachChat.ouvert = false; lancerAmeliorations(); break;
@@ -6076,6 +6231,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   window.addEventListener('resize', () => ajusterAffiche());
   window.addEventListener('hashchange', () => { traiterRetourCompte(); rendre(); });
   document.addEventListener('submit', (ev) => { const f = ev.target.closest('[data-form]'); if (!f) return; ev.preventDefault(); if (f.dataset.form === 'coach-chat') { const c = document.getElementById('coach-chat-texte'); const v = c ? c.value : ''; if (c) c.value = ''; envoyerCoachChat(v); return; }
+    if (f.dataset.form === 'aide-chat') { const c = document.getElementById('aide-texte'); const v = c ? c.value : ''; if (c) c.value = ''; envoyerAide(v); return; }
     if (f.dataset.form === 'prix') { const id = f.dataset.id, c = document.getElementById('prix-' + id); const v = parseFloat(String(c ? c.value : '').replace(',', '.').replace(/[^0-9.]/g, '')); if (!(v > 0 && v < 1000)) { toast('Indiquez un prix en euros, par exemple 2,49'); if (c) c.focus(); return; } S.prixPerso = { ...(S.prixPerso || {}), [id]: Math.round(v * 100) / 100 }; editionPrix = null; appliquerPrixMagasin(); sauver(); rendre(); toast('Prix enregistré'); return; }
     if (f.dataset.form === 'alerte') { const c = document.getElementById('alerte-mot'); ajouterAlerte(c ? c.value : ''); rendre(); const c2 = document.getElementById('alerte-mot'); if (c2) c2.focus(); return; } soumettreCompte(f); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && minuterieSync) envoyerSync(); });
