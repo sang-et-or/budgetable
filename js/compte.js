@@ -110,7 +110,8 @@
       fetch(URL_BASE + '/rest/v1/visites', { method: 'POST', keepalive: true, headers: { apikey: CLE, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ evenement, page: page ? String(page).slice(0, 80) : null, source: source ? String(source).slice(0, 30) : null, appareil }) }).catch(() => {});
     } catch (e) { /* le compteur ne doit jamais gêner l'appli */ }
   }
-  async function estAdmin() { const j = await jetonValide(); if (!j) return false; try { return (await appel('/rest/v1/rpc/est_admin', { jeton: j, corps: {} })) === true; } catch (e) { return false; } }
+  // true / false, ou null si on n'a pas pu vérifier (réseau, session en cours de renouvellement) : on réessaiera
+  async function estAdmin() { let j = null; try { j = await jetonValide(); } catch (e) { return null; } if (!j) return null; try { return (await appel('/rest/v1/rpc/est_admin', { jeton: j, corps: {} })) === true; } catch (e) { return null; } }
   async function statistiques(jours) {
     const j = await jetonValide(); if (!j) throw new Error('Session expirée : reconnectez-vous.');
     const [lignes, pages, ia] = await Promise.all([appel('/rest/v1/rpc/stats_visites', { jeton: j, corps: { jours } }), appel('/rest/v1/rpc/stats_pages', { jeton: j, corps: { jours } }).catch(() => []),

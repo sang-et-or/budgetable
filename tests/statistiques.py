@@ -14,7 +14,12 @@ LIGNES = [
 def supa(route):
     u = route.request.url; h = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*"}
     if route.request.method == "OPTIONS": return route.fulfill(status=200, headers=h)
-    if u.endswith("/rpc/est_admin"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(admin["v"]))
+    if u.endswith("/rpc/est_admin"):
+        if admin.get("panne", 0) > 0: admin["panne"] -= 1; return route.fulfill(status=503, headers=h, content_type="application/json", body="{}")
+        return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(admin["v"]))
+    if "/auth/v1/token" in u: return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps({"access_token": "jeton", "refresh_token": "r", "expires_in": 3600, "user": {"id": "u-1", "email": "moi@exemple.fr"}}))
+    if "/auth/v1/user" in u: return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps({"id": "u-1", "email": "moi@exemple.fr", "user_metadata": {}}))
+    if "/auth/v1/logout" in u: return route.fulfill(status=204, headers=h, body="")
     if u.endswith("/rpc/stats_visites"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(LIGNES))
     if u.endswith("/rpc/stats_ia"):
         if IA["v"] is None: return route.fulfill(status=404, headers=h, content_type="application/json", body=json.dumps({"code": "PGRST202"}))
@@ -71,6 +76,15 @@ with sync_playwright() as p:
     page.screenshot(path="/tmp/claude-0/-home-claude/e7ca5389-2d6a-596d-9613-ea14ab557a7b/scratchpad/stats.png")
     page.locator("[data-a=stats-fermer-btn]").click(); page.wait_for_timeout(200)
     assert page.locator(".fenetre-stats").count() == 0
+    # déconnexion puis reconnexion : le bouton revient (même si la 1re vérification échoue : on réessaie)
+    page.locator("[data-a=compte-deconnecter]").first.click(); page.wait_for_timeout(600)
+    assert page.locator("[data-a=stats-ouvrir]").count() == 0
+    admin["panne"] = 1
+    page.locator("[data-a=compte-ouvrir][data-k=connexion]:visible").first.click()
+    page.fill("#c-email", "moi@exemple.fr"); page.fill("form[data-form=connexion] input[type=password]", "motdepasse1")
+    page.locator("form[data-form=connexion] button[type=submit]").click(); page.wait_for_timeout(1500)
+    if not page.locator("nav button[data-k=profil][aria-current=page]").count(): page.locator("nav button[data-k=profil]:visible").click()
+    page.wait_for_selector("[data-a=stats-ouvrir]", timeout=12000)
     nav.close()
 assert not erreurs, erreurs
 print("OK statistiques")

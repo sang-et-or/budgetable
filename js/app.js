@@ -656,6 +656,7 @@
   function garderSecours() { try { const l = localStorage.getItem(CLE); if (l) { localStorage.setItem('budgetable.secours', l); localStorage.setItem('budgetable.secours.date', String(Date.now())); } } catch (e) { /* mémoire pleine */ } }
   // à la connexion : jamais d'écrasement silencieux. Si l'appareil et le compte ont chacun des données, on demande lesquelles garder.
   async function synchroniserConnexion() {
+    stats.verifie = false; stats.admin = false;
     try {
       await C.moi();
       const distant = await C.lireDonnees();
@@ -899,8 +900,12 @@
   /* ---------- statistiques du site (comptes administrateurs seulement) ---------- */
   const stats = { admin: false, verifie: false, ouvert: false, jours: 30, charge: false, erreur: '', donnees: null };
   async function verifierAdmin() {
-    if (stats.verifie || !C.connecte || !C.connecte() || !C.estAdmin) return;
-    stats.verifie = true; stats.admin = await C.estAdmin(); if (stats.admin) rendre();
+    if (stats.verifie || stats.enCours || !C.connecte || !C.connecte() || !C.estAdmin) return;
+    stats.enCours = true;
+    const r = await C.estAdmin();
+    stats.enCours = false;
+    if (r === null) { setTimeout(() => { if (S.onglet === 'profil') verifierAdmin(); }, 4000); return; }   // vérification impossible : on réessaie
+    stats.verifie = true; stats.admin = r; if (r) rendre();
   }
   async function chargerStats() {
     stats.charge = true; stats.erreur = ''; rendre();
