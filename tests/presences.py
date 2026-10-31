@@ -20,7 +20,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name=re.compile("semaine", re.I)).last.click()
     page.evaluate("""() => { const a = JSON.parse(localStorage.getItem('budgetable.v1')); a.profil.foyer = { adultes: 2, enfants: ['6-10', '3-5'] }; a.profil.prenomsEnfants = ['Léa', 'Tom']; localStorage.setItem('budgetable.v1', JSON.stringify(a)); }""")
     page.reload()
-    clic("Nouvelle semaine")
+    clic("Nouvelle semaine"); clic("Créer la semaine")   # premier jour : aujourd’hui
     etat = lambda: page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
     main = page.locator("main")
     pres = main.locator(".presences")
@@ -53,7 +53,7 @@ with sync_playwright() as p:
     # garder pour les semaines suivantes
     pres.locator("input[data-a=presences-garder]").check()
     assert etat()["profil"]["presences"]["0-dejeuner"]["e"] == [False, False]
-    clic("Nouvelle semaine")
+    clic("Nouvelle semaine"); clic("Créer la semaine")   # premier jour : aujourd’hui
     j = etat()["plan"]["jours"]
     assert j[0]["dejeuner"]["portions"] < j[2]["dejeuner"]["portions"], "habitudes non reprises"
     print("Erreurs JS :", erreurs or "aucune")
