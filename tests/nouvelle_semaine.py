@@ -68,20 +68,31 @@ with sync_playwright() as p:
         assert "La semaine commence au dîner" in page.locator("main").inner_text()
         assert sum(1 for j in jours for s in ("dejeuner", "diner") if j.get(s)) >= 11
         assert page.locator(".bandeau-demarrer").count() == 1, "on peut toujours la faire démarrer aujourd'hui"
-        # nouvelle semaine encore : plus de ticket à effacer ; « Aujourd'hui » par défaut
+        # l'ancienne semaine n'est pas perdue : ses plats d'ici là restent affichés, et on peut y revenir
+        h = datetime.datetime.now().hour
+        bloc = page.locator(".avant-nouvelle")
+        assert bloc.count() == 1 and "D’ici votre nouvelle semaine" in bloc.inner_text(), "plats d'ici là"
+        nom_demain = page.evaluate("""(j) => { const s = JSON.parse(localStorage.getItem('budgetable.v1')); const m = s.semainePrecedente.plan.jours[j].diner; return m ? Engine.REC[m.recette].nom : ''; }""", (auj + datetime.timedelta(days=1)).weekday())
+        if nom_demain: assert nom_demain in bloc.inner_text(), "le dîner de demain (ancienne semaine) reste au menu"
+        page.locator("[data-a=semaine-precedente]").click(); page.wait_for_timeout(300)
+        etat = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
+        assert etat["planDu"] == auj.isoformat() and etat["semainePrecedente"] is None
+        assert [x["nom"] for x in etat["tickets"]] == ["Lidl", "Aldi"], "le ticket revient avec la semaine"
+        midi_avant = etat["plan"]["jours"][auj.weekday()]["dejeuner"]
+        # nouvelle semaine à partir d'aujourd'hui : les plats prévus aujourd'hui sont gardés (case cochée par défaut)
         page.locator("[data-a=nouvelle]:visible").first.click()
-        assert "ticket de caisse" not in page.locator(".fenetre-nouvelle").inner_text()
-        page.locator("[data-a=nouvelle-annuler]").first.click()
-        assert page.locator(".fenetre-nouvelle").count() == 0
-        assert page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1')).planDu") == cible.isoformat(), "annuler ne change rien"
-        page.locator("[data-a=nouvelle]:visible").first.click()
+        f = page.locator(".fenetre-nouvelle")
+        assert "ticket de caisse" in f.inner_text()
         dej = page.locator("[data-a=nouvelle-repas][data-k=dejeuner]")
-        if datetime.datetime.now().hour >= 13: assert dej.is_disabled(), "le déjeuner d'aujourd'hui est passé"
+        if h >= 13: assert dej.is_disabled(), "le déjeuner d'aujourd'hui est passé"
         else: assert dej.get_attribute("aria-checked") == "true"
+        if midi_avant and h < 13:
+            assert "Garder les plats déjà prévus aujourd’hui" in f.inner_text() and f.locator("[data-a=nouvelle-garder]").is_checked()
         page.locator("[data-a=nouvelle-ok]").click(); page.wait_for_timeout(300)
         e2 = page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
-        assert e2["planDu"] == auj.isoformat()
-        if datetime.datetime.now().hour < 13: assert e2["plan"]["jours"][auj.weekday()]["dejeuner"], "semaine au déjeuner : le déjeuner est prévu"
+        assert e2["planDu"] == auj.isoformat() and e2["semainePrecedente"]["plan"]
+        if midi_avant and h < 13: assert e2["plan"]["jours"][auj.weekday()]["dejeuner"]["recette"] == midi_avant["recette"], "le plat de ce midi est gardé"
+        assert page.locator("[data-a=semaine-precedente]").count() == 1, "retour possible juste après"
         page.close()
     nav.close()
 assert not erreurs, erreurs
