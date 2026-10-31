@@ -16,9 +16,13 @@ def supa(route):
     if route.request.method == "OPTIONS": return route.fulfill(status=200, headers=h)
     if u.endswith("/rpc/est_admin"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(admin["v"]))
     if u.endswith("/rpc/stats_visites"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(LIGNES))
+    if u.endswith("/rpc/stats_ia"):
+        if IA["v"] is None: return route.fulfill(status=404, headers=h, content_type="application/json", body=json.dumps({"code": "PGRST202"}))
+        return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(IA["v"]))
     if u.endswith("/rpc/stats_pages"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps([{"page": "/recettes/gateau-au-yaourt.html", "nombre": 7}]))
     if "/rest/v1/profils" in u: return route.fulfill(status=200, headers=h, content_type="application/json", body="[]")
     return route.fulfill(status=200, headers=h, content_type="application/json", body="{}")
+IA = {"v": None}   # None : compteur IA pas encore installé dans Supabase
 erreurs = []
 with sync_playwright() as p:
     nav = p.chromium.launch(); page = nav.new_page(viewport={"width": 390, "height": 844})
@@ -49,6 +53,19 @@ with sync_playwright() as p:
     assert "Facebook" in f and "Google" in f and "Accès direct" in f, f
     assert "gateau-au-yaourt" in f
     assert "20 %" in f, f                            # 8 semaines sur 40 ouvertures
+    assert "compteur des demandes à l’IA n’est pas encore activé" in f and "usage_ia.sql" in f, "explication tant que la table n'existe pas"
+    # compteur IA installé : demandes et jetons par type et par modèle
+    IA["v"] = [{"jour": "2026-10-30", "usage": "chat", "modele": "mistral-small-latest", "appels": 30, "entree": 45000, "sortie": 6000, "pages": 0},
+               {"jour": "2026-10-31", "usage": "chat", "modele": "mistral-small-latest", "appels": 12, "entree": 18000, "sortie": 2400, "pages": 0},
+               {"jour": "2026-10-31", "usage": "ticket", "modele": "mistral-medium-latest", "appels": 2, "entree": 9000, "sortie": 3000, "pages": 0},
+               {"jour": "2026-10-31", "usage": "ocr", "modele": "mistral-ocr-latest", "appels": 2, "entree": 0, "sortie": 0, "pages": 3}]
+    page.locator(".fenetre-stats [data-a=stats-jours][data-k='30']").click(); page.wait_for_timeout(400)
+    f = page.locator(".fenetre-stats").inner_text()
+    assert "46" in f and "demandes à l’IA" in f, f       # 30 + 12 + 2 + 2
+    assert "72 000" in f.replace("\u202f", " ").replace("\xa0", " "), "jetons envoyés"
+    assert "mistral-small-latest" in f and "mistral-medium-latest" in f and "Lecture de ticket" in f and "pages lues" in f
+    assert "console Mistral" in f
+    page.locator(".fenetre-stats").screenshot(path="/tmp/claude-0/-home-claude/e7ca5389-2d6a-596d-9613-ea14ab557a7b/scratchpad/stats_ia.png")
     page.locator(".fenetre-stats [data-a=stats-jours][data-k='7']").click(); page.wait_for_timeout(300)
     assert page.locator(".fenetre-stats .stat-barres span").count() == 7
     page.screenshot(path="/tmp/claude-0/-home-claude/e7ca5389-2d6a-596d-9613-ea14ab557a7b/scratchpad/stats.png")

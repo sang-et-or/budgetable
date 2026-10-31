@@ -113,8 +113,9 @@
   async function estAdmin() { const j = await jetonValide(); if (!j) return false; try { return (await appel('/rest/v1/rpc/est_admin', { jeton: j, corps: {} })) === true; } catch (e) { return false; } }
   async function statistiques(jours) {
     const j = await jetonValide(); if (!j) throw new Error('Session expirée : reconnectez-vous.');
-    const [lignes, pages] = await Promise.all([appel('/rest/v1/rpc/stats_visites', { jeton: j, corps: { jours } }), appel('/rest/v1/rpc/stats_pages', { jeton: j, corps: { jours } }).catch(() => [])]);
-    return { lignes: Array.isArray(lignes) ? lignes : [], pages: Array.isArray(pages) ? pages : [] };
+    const [lignes, pages, ia] = await Promise.all([appel('/rest/v1/rpc/stats_visites', { jeton: j, corps: { jours } }), appel('/rest/v1/rpc/stats_pages', { jeton: j, corps: { jours } }).catch(() => []),
+      appel('/rest/v1/rpc/stats_ia', { jeton: j, corps: { jours } }).catch(() => null)]);   // null : compteur IA pas encore installé (supabase/usage_ia.sql)
+    return { lignes: Array.isArray(lignes) ? lignes : [], pages: Array.isArray(pages) ? pages : [], ia: Array.isArray(ia) ? ia : null };
   }
   root.Compte = { compter, estAdmin, statistiques, jetonValide, actif, connecte: () => !!session, utilisateur: () => (session && session.user) || null, inscrire, connecter, lienMagique, motDePasseOublie, changerMotDePasse, deconnecter, lireRetour, moi, lireDonnees, ecrireDonnees, supprimerCompte, traduire };
 })(typeof window !== 'undefined' ? window : globalThis);
