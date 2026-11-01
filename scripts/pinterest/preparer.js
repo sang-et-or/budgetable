@@ -11,9 +11,10 @@ const txt = (s) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#3
 const ld = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => { try { return JSON.parse(m[1]); } catch (e) { return null; } }).filter(Boolean);
 
 /* recettes */
+const AIR = 'Recettes air fryer';
 const TABLEAUX = { 'Plat principal': 'Repas pas chers', Entrée: 'Entrées faciles et pas chères', Dessert: 'Desserts maison pas chers', 'Petit-déjeuner': 'Petits-déjeuners et goûters' };
-const TAG = { 'Repas pas chers': 'Repas pas cher', 'Recettes de saison pas chères': 'Recette de saison', 'Desserts maison pas chers': 'Dessert maison', 'Entrées faciles et pas chères': 'Entrée facile', 'Petits-déjeuners et goûters': 'Petit-déj maison' };
-const MOTS = { 'Repas pas chers': 'repas pas cher, recette facile, recette économique, dîner rapide', 'Recettes de saison pas chères': 'recette de saison, recette d’automne, recette d’hiver, repas pas cher', 'Desserts maison pas chers': 'dessert facile, dessert maison, dessert pas cher, goûter', 'Entrées faciles et pas chères': 'entrée facile, entrée pas chère, recette facile', 'Petits-déjeuners et goûters': 'petit-déjeuner, brunch, goûter maison' };
+const TAG = { 'Repas pas chers': 'Repas pas cher', 'Recettes de saison pas chères': 'Recette de saison', 'Desserts maison pas chers': 'Dessert maison', 'Entrées faciles et pas chères': 'Entrée facile', 'Petits-déjeuners et goûters': 'Petit-déj maison', [AIR]: 'Air fryer' };
+const MOTS = { 'Repas pas chers': 'repas pas cher, recette facile, recette économique, dîner rapide', 'Recettes de saison pas chères': 'recette de saison, recette d’automne, recette d’hiver, repas pas cher', 'Desserts maison pas chers': 'dessert facile, dessert maison, dessert pas cher, goûter', 'Entrées faciles et pas chères': 'entrée facile, entrée pas chère, recette facile', 'Petits-déjeuners et goûters': 'petit-déjeuner, brunch, goûter maison', [AIR]: 'recette air fryer, air fryer facile, friteuse à air, repas pas cher' };
 const recettes = [];
 for (const f of fs.readdirSync(path.join(dist, 'recettes')).filter((f) => f !== 'index.html')) {
   const html = lire('recettes/' + f);
@@ -23,7 +24,7 @@ for (const f of fs.readdirSync(path.join(dist, 'recettes')).filter((f) => f !== 
   const saison = ((html.match(/De saison : ([^<]+)</) || [])[1] || '').trim();
   const fil = (html.match(/<nav class="fil">[\s\S]*?›\s*([^<]+)<\/nav>/) || [])[1] || '';
   const vege = /Végétarien/.test(html), portions = parseInt(r.recipeYield, 10) || 4;
-  const tableau = fil.includes('saison') ? 'Recettes de saison pas chères' : (TABLEAUX[r.recipeCategory] || 'Repas pas chers');
+  const tableau = /air fryer/i.test(fil) ? AIR : fil.includes('saison') ? 'Recettes de saison pas chères' : (TABLEAUX[r.recipeCategory] || 'Repas pas chers');
   recettes.push({ slug: f.replace('.html', ''), nom: r.name, prix, tag: TAG[tableau], tableau, saison,
     infos: [`⏱ ${minutes} min`, `🍽 ${portions} pers.`].concat(vege ? ['🌱 Végétarien'] : []),
     lien: `${SITE}/recettes/${f}`,
@@ -75,6 +76,28 @@ const listes = [];
     mots: 'menu de la semaine, menu pas cher, planning repas, organisation repas, liste de courses' });
 }
 
+{
+  const html = lire('recettes-air-fryer-pas-cheres.html');
+  const l = [...html.matchAll(/<li><a href="\/recettes\/[^"]+">([^<]+)<\/a> <span class="petit">· ≈ ([0-9,]+) € la part/g)].map((x) => ['', txt(x[1]).replace(/ à l’air fryer$/, ''), x[2] + ' €']);
+  const moy = (html.match(/environ ([0-9,]+) € la part en moyenne/) || [])[1] || '';
+  listes.push({ slug: 'recettes-air-fryer-pas-cheres', nom: `${l.length} repas pas chers à l’air fryer`, prix: moy, unite: 'la part', tag: 'Air fryer', tableau: AIR,
+    lignes: l.slice(0, 6), note: `… et ${l.length - 6} autres recettes`, lien: `${SITE}/recettes-air-fryer-pas-cheres.html`,
+    titre: `${l.length} recettes air fryer pas chères : repas complets à environ ${moy} € la part`,
+    description: `${l.length} repas faciles et économiques à l’air fryer : ${l.slice(0, 4).map((x) => x[1].toLowerCase()).join(', ')}… Avec le coût par part et les astuces pour bien cuisiner à la friteuse à air.`,
+    mots: 'recette air fryer, air fryer pas cher, friteuse à air, idées repas air fryer' });
+}
+if (process.env.SEUL === 'airfryer') {   // lot à part pour les recettes air fryer (les autres lots sont déjà importés)
+  const l = listes.filter((p) => p.tableau === AIR).concat(recettes.filter((p) => p.tableau === AIR));
+  const debut = new Date(process.env.DEBUT || Date.now() + 86400000); debut.setUTCHours(0, 0, 0, 0);
+  l.forEach((p, k) => { p.date = new Date(debut.getTime() + k * 86400000).toISOString().slice(0, 10) + 'T13:15:00'; });
+  const champ = (v) => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lignes = [['Title', 'Media URL', 'Pinterest board', 'Thumbnail', 'Description', 'Link', 'Publish date', 'Keywords']]
+    .concat(l.map((p) => [p.titre.slice(0, 100), `${SITE}/pinterest/${p.slug}.jpg`, p.tableau, '', p.description.slice(0, 500), p.lien, p.date, p.mots]));
+  fs.writeFileSync(path.join(sortie, 'pinterest-air-fryer.csv'), '\ufeff' + lignes.map((x) => x.map(champ).join(',')).join('\r\n') + '\r\n');
+  fs.writeFileSync(path.join(sortie, 'epingles-air-fryer.json'), JSON.stringify(l));
+  console.log({ airfryer: l.length, debut: l[0].date, fin: l[l.length - 1].date });
+  process.exit(0);
+}
 /* ordre de publication : listes d'abord, puis recettes de saison (novembre, décembre), puis les autres en alternant les tableaux */
 const deSaison = (r) => /novembre|décembre/.test(r.saison);
 const parTableau = {};

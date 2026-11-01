@@ -126,6 +126,7 @@
     E.ajouterIngredients([].concat(G ? G.INGREDIENTS : [], Sa ? Sa.INGREDIENTS : [], extra ? extra.INGREDIENTS : [], PD ? PD.INGREDIENTS : []));
     if (window.Nutrition) for (const src of [Sa && Sa.NUTRITION, extra && extra.NUTRITION, PD && PD.NUTRITION]) for (const [k, v] of Object.entries(src || {})) if (!window.Nutrition.TABLE[k]) window.Nutrition.TABLE[k] = v;
     if (extra && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(extra.MOTS, extra.Q);
+    if (window.AirFryer && E.ajouterRecettes) E.ajouterRecettes(window.AirFryer.INGREDIENTS, window.AirFryer.RECETTES);   // recettes air fryer : proposées si « Friteuse à air » est cochée
     if (PD && window.Saisie && window.Saisie.etendre) window.Saisie.etendre(PD.MOTS, { graines_chia: 10, muesli: 50, proteine_poudre: 25 });
   })();
   /** Recettes disparues (renommées ou retirées par une mise à jour) dans la semaine enregistrée : remplacées par une
@@ -1965,6 +1966,7 @@
     const four = (r.equip || []).includes('four');
     if (four && eq.includes('airfryer') && !eq.includes('four')) l.push('🍟 Sans four, à la friteuse à air : 180 °C, environ 20 % de temps en moins, dans un plat qui rentre dans le panier (en deux fois si besoin).');
     else if (four && eq.includes('airfryer')) l.push('🍟 Possible à la friteuse à air pour une ou deux parts : 180 °C, environ 20 % de temps en moins.');
+    if ((r.equip || []).includes('airfryer')) l.push(eq.includes('airfryer') ? '🍟 Recette pour air fryer : ne remplissez pas trop le panier et secouez-le à mi-cuisson. Les temps varient selon le modèle.' : '🍟 Recette pour air fryer. Sans air fryer : au four à 210 °C sur une plaque, environ 10 min de plus, en retournant à mi-cuisson.');
     if (eq.includes('autocuiseur') && ['mijote', 'veloute'].includes(r.modele)) l.push('♨️ À l’autocuiseur : après la mise en pression, comptez environ un tiers du temps de mijotage.');
     if (eq.includes('robot') && r.modele === 'veloute') l.push('🤖 Au robot cuiseur : tout dans le bol, programme soupe, puis mixez.');
     return l.length ? `<div class="bandeau bandeau-info small"><div class="stack" style="gap:4px">${l.map((x) => `<span>${esc(x)}</span>`).join('')}</div></div>` : '';

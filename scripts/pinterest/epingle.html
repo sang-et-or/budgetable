@@ -44,6 +44,7 @@ body.sans-prix .prix{display:none} body.sans-prix h1{right:70px}
 <script src="http://localhost:8766/js/entrees.js"></script>
 <script src="http://localhost:8766/js/petitdej.js"></script>
 <script src="http://localhost:8766/js/saison.js"></script>
+<script src="http://localhost:8766/js/airfryer.js"></script>
 <script src="http://localhost:8766/js/visuels.js"></script>
 <script>
 window.dessiner = (p) => {
@@ -63,8 +64,8 @@ window.dessiner = (p) => {
   document.getElementById('note').textContent = 'Fait maison, facile et pas cher ✓';
   document.querySelector('.prix span').textContent = 'la part'; document.querySelector('.prix i').textContent = 'environ';
   const E = window.Engine;
-  const EXTRA = {}; for (const m of ['Saison', 'Entrees', 'Gourmand', 'PetitDej', 'Catalogue']) for (const i of ((window[m] || {}).INGREDIENTS || [])) if (i && i.id) EXTRA[i.id] = i;
-  const tout = [].concat(MENU_DATA.recettes, (window.Saison||{}).RECETTES||[], (window.Entrees||{}).RECETTES||[], (window.Gourmand||{}).RECETTES||[], (window.PetitDej||{}).RECETTES||[]);
+  const EXTRA = {}; for (const m of ['Saison', 'Entrees', 'Gourmand', 'PetitDej', 'CatalogueExtra']) for (const i of ((window[m] || {}).INGREDIENTS || [])) if (i && i.id) EXTRA[i.id] = i;
+  const tout = [].concat(MENU_DATA.recettes, (window.Saison||{}).RECETTES||[], (window.Entrees||{}).RECETTES||[], (window.Gourmand||{}).RECETTES||[], (window.PetitDej||{}).RECETTES||[], (window.AirFryer||{}).RECETTES||[]);
   const rec = tout.find((r) => r.nom === p.nom);
   document.getElementById('tag').textContent = p.tag;
   const t = document.getElementById('titre'); t.textContent = p.nom; t.className = p.nom.length > 40 ? 's' : p.nom.length > 24 ? 'm' : '';
