@@ -2567,6 +2567,21 @@
     }));
     return res;
   }
+  /** Pour chaque ingrédient : les repas de la semaine qui le réutilisent après ce repas (pas encore cuisinés).
+   *  Sans jour (idée hors semaine) : tous les repas de la semaine pas encore cuisinés. */
+  function usagesApres(j, sl) {
+    const out = {};
+    if (!S.plan) return out;
+    const pj = j == null ? -1 : posJour(j);
+    ordreJours().forEach((x) => E.SLOTS.forEach((s2) => {
+      const m = S.plan.jours[x] && S.plan.jours[x][s2];
+      if (!m || !E.REC[m.recette] || S.deduits[x + '-' + s2] === 'cuisine') return;
+      if (j != null && !(posJour(x) > pj || (x === j && s2 === 'diner' && sl === 'dejeuner'))) return;
+      const lib = `${JOURS_COURTS[x]} ${s2 === 'dejeuner' ? 'midi' : 'soir'}`;
+      new Set(E.consommationRepas(m).map(([id]) => id)).forEach((id) => (out[id] = out[id] || []).push(lib));
+    }));
+    return out;
+  }
   /** Retire du placard ce qu'un repas a utilisé ; les produits frais entamés qui ne servent plus sont finis. */
   function deduireDuPlacard(j, sl, m) {
     const p = S.profil;
@@ -3837,7 +3852,11 @@
       ${blocQuantites(m)}
       ${r.variante ? (() => { const d = E.differences(r); const lib = (l) => l.map((id) => E.ING[id].nom.toLowerCase()).join(', '); return `<div class="bandeau bandeau-ok small"><div class="stack" style="gap:4px"><strong>✏️ Ma version de ce plat${S.versionsPreferees && S.versionsPreferees[r.base] === r.id ? ' (à chaque fois)' : ''}</strong><span>${[d.ajouts.length ? 'ajouté : ' + lib(d.ajouts) : '', d.retraits.length ? 'retiré : ' + lib(d.retraits) : '', d.quantites.length ? 'quantités changées : ' + lib(d.quantites) : ''].filter(Boolean).join(' · ') || 'quantités ajustées'}</span>${!fiche.recette ? '<div><button class="btn-lien small" data-a="plat-origine">Revenir à la recette d’origine</button></div>' : ''}</div></div>`; })() : ''}
       ${!fiche.recette && !m.deRestes ? blocAmeliorer(m, r) : ''}
-      <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(portionsAffichees(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), 'portion')}</span></h3><ul>${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantiteRecette(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite, id)}</span></li>`).join('')}</ul></div>
+      <div class="stack" style="gap:8px"><h3>Ingrédients <span class="small muted">· pour ${pluriel(portionsAffichees(fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), 'portion')}</span></h3>${(() => {
+        const u = usagesApres(fiche.recette ? null : fiche.jour, fiche.slot);
+        const n = r.ing.filter(([id]) => u[id]).length;
+        return `${n ? `<p class="small muted" style="margin:0">↻ ${fiche.recette ? 'Ingrédient aussi prévu dans d’autres repas de votre semaine' : 'Ingrédient réutilisé plus tard dans la semaine : gardez le reste'}.</p>` : ''}<ul class="liste-ing-fiche">${r.ing.map(([id, q]) => `<li>${esc(E.ING[id].nom)} : <span class="num">${E.ING[id].perso ? 'selon la recette' : quantiteRecette(q * (fiche.recette || m.deRestes ? m.portions : E.aCuisiner(m)), E.ING[id].unite, id)}</span>${u[id] ? `<span class="reutil">↻ ${fiche.recette ? 'dans' : 'encore'} ${u[id].length} ${u[id].length > 1 ? 'repas' : 'repas'} cette semaine · ${esc(u[id].slice(0, 4).join(', '))}${u[id].length > 4 ? '…' : ''}</span>` : ''}</li>`).join('')}</ul>`;
+      })()}</div>
       ${blocAssietteMinceur(r, fiche.jour, fiche.slot)}
       <div class="stack" style="gap:8px"><h3>Préparation</h3><ol>${r.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol></div>
       ${r.perso ? '' : `<p class="small"><a class="lien-externe" href="https://www.marmiton.org/recettes/recherche.aspx?aqt=${encodeURIComponent(termeMarmiton(r.nom))}" target="_blank" rel="noopener">Voir des recettes similaires sur Marmiton ↗</a><br><span class="muted">Site extérieur, sans lien avec Budgétable. Les quantités et le prix affichés ici ne s'y appliquent pas.</span></p>`}
