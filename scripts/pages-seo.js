@@ -14,7 +14,7 @@ function charger(racine) {
   const g = globalThis;
   const avant = g.window;
   g.window = g;
-  for (const f of ['catalogue', 'saison', 'gourmand', 'entrees', 'petitdej']) {
+  for (const f of ['catalogue', 'saison', 'gourmand', 'entrees', 'petitdej', 'airfryer']) {
     delete require.cache[require.resolve(path.join(racine, 'js', f + '.js'))];
     require(path.join(racine, 'js', f + '.js'));
   }
@@ -31,7 +31,8 @@ function charger(racine) {
       { cle: 'saison', titre: 'Recettes de saison', recettes: g.Saison.RECETTES.map((r) => ({ ...r, portions: 4, categorie: 'Plat principal' })) },
       { cle: 'entrees', titre: 'Entrées', recettes: g.Entrees.RECETTES.filter((r) => r.type === 'entree').map((r) => ({ ...r, portions: 4, categorie: 'Entrée' })) },
       { cle: 'desserts', titre: 'Desserts et goûters', recettes: g.Entrees.RECETTES.filter((r) => r.type !== 'entree').concat(g.Gourmand.RECETTES).map((r) => ({ ...r, portions: r.parts > 1 ? r.parts : 4, categorie: 'Dessert' })) },
-      { cle: 'petitdej', titre: 'Petits-déjeuners', recettes: g.PetitDej.RECETTES.map((r) => ({ ...r, portions: r.parts > 1 ? r.parts : 2, categorie: 'Petit-déjeuner' })) }
+      { cle: 'petitdej', titre: 'Petits-déjeuners', recettes: g.PetitDej.RECETTES.map((r) => ({ ...r, portions: r.parts > 1 ? r.parts : 2, categorie: 'Petit-déjeuner' })) },
+      { cle: 'airfryer', titre: 'Recettes à l’air fryer', recettes: g.AirFryer.RECETTES.map((r) => ({ ...r, portions: 4, categorie: 'Plat principal' })) }
     ]
   };
   g.window = avant;
@@ -88,7 +89,7 @@ nav.fil{font-size:.88rem;color:var(--doux);margin-top:14px}nav.pied{margin-top:4
 .cartes-articles{list-style:none;padding:0;display:grid;gap:14px}.cartes-articles li{background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:14px 18px}.cartes-articles a{font-weight:700;font-size:1.1rem}`;
 
 const MARQUE = '<a class="marque" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="5" opacity=".85"/><circle cx="25" cy="7" r="6" fill="#d9a420"/></svg>Budgétable</a>';
-const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/conseils/">Conseils</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="https://www.youtube.com/@Budgetablecoach" rel="noopener">YouTube</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
+const PIED = `<nav class="pied" aria-label="Plan du site"><a href="/">Préparer ma semaine</a><a href="/recettes/">Toutes les recettes</a><a href="/conseils/">Conseils</a><a href="/planificateur-de-repas.html">Planificateur de repas</a><a href="/menu-semaine-pas-cher.html">Menu de la semaine pas cher</a><a href="/planning-repas-semaine.html">Planning des repas</a><a href="/liste-de-courses.html">Liste de courses</a><a href="/menus-de-saison.html">Menus de saison</a><a href="/recettes-air-fryer-pas-cheres.html">Recettes air fryer</a><a href="https://www.youtube.com/@Budgetablecoach" rel="noopener">YouTube</a><a href="/mentions-legales.html">Mentions légales</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></nav>`;
 const APPEL = (txt) => `<div class="appel"><p><strong>${txt}</strong></p><p>Budgétable prépare vos déjeuners et dîners de la semaine selon vos goûts, la saison et votre budget, puis fait la liste de courses par rayon. Une semaine d’essai gratuite.</p><a class="btn" href="/?source=seo">Préparer ma semaine</a></div>`;
 
 const CONF = (() => { try { const t = fs.readFileSync(path.join(__dirname, '..', 'js', 'config.js'), 'utf8'); return { url: (t.match(/url:\s*'([^']+)'/) || [])[1], cle: (t.match(/cle:\s*'([^']+)'/) || [])[1] }; } catch (e) { return {}; } })();
@@ -256,6 +257,28 @@ ${MOIS.map((m, k) => { const l = groupes[1].recettes.filter((r) => (r.mois || []
 ${APPEL('Des menus de saison chaque semaine')}`, ld: []
     }
   ];
+  {
+    const af = groupes.find((g) => g.cle === 'airfryer').recettes.slice().sort((a, b) => cout(a, ING) - cout(b, ING));
+    const moy = af.reduce((t, r) => t + cout(r, ING), 0) / af.length;
+    theme.push({
+      fichier: 'recettes-air-fryer-pas-cheres.html', titre: `Recettes air fryer pas chères : ${af.length} repas faciles à moins de ${euros(Math.ceil(Math.max(...af.map((r) => cout(r, ING))) * 10) / 10)} | Budgétable`,
+      description: `${af.length} recettes faciles et économiques à l’air fryer (friteuse à air) : poulet croustillant, nuggets maison, falafels, légumes rôtis, frites de patate douce… avec le coût estimé par part.`,
+      h1: 'Recettes air fryer pas chères', corps: `<p class="chapo">L’air fryer (ou friteuse à air) chauffe vite et moins longtemps qu’un grand four, et fait du croustillant avec une cuillère d’huile. Voici ${af.length} repas complets pensés pour lui, à environ ${euros(moy)} la part en moyenne.</p>
+<h2>Les ${af.length} recettes</h2>
+<ul>${af.map((r) => `<li>${lien(r)} <span class="petit">· ≈ ${euros(cout(r, ING))} la part · ${r.temps} min</span></li>`).join('')}</ul>
+<p class="petit">Coûts estimés à partir de prix moyens en supermarché, par portion adulte. Temps et températures indicatifs : ils varient selon le modèle d’air fryer.</p>
+<h2>Nos astuces pour bien cuisiner à l’air fryer</h2>
+<ul><li><strong>Ne surchargez pas le panier</strong> : l’air doit circuler. Pour 4, cuisez en deux fois plutôt qu’en une.</li>
+<li><strong>Secouez à mi-cuisson</strong> : frites, légumes et nuggets dorent de tous les côtés.</li>
+<li><strong>Une cuillère d’huile suffit</strong> : mélangez les légumes avec l’huile dans un saladier avant de les mettre dans le panier.</li>
+<li><strong>Coupez en morceaux de même taille</strong> pour une cuisson régulière.</li>
+<li><strong>Séchez bien</strong> pois chiches et pommes de terre : ils deviennent plus croustillants.</li></ul>
+<h2>Des menus qui pensent à votre air fryer</h2>
+<p>Dans Budgétable, cochez « Friteuse à air » dans votre équipement : vos menus de la semaine proposent 2 ou 3 de ces recettes, et les plats au four affichent la version air fryer.</p>
+${APPEL('Vos menus de la semaine, avec votre air fryer')}`,
+      ld: [faq([['Est-ce que l’air fryer consomme moins qu’un four ?', 'Il chauffe un volume plus petit et cuit plus vite, donc pour une ou deux portions il consomme en général moins qu’un grand four. Pour une grande famille, il faut parfois cuire en deux fois.'], ['Quelles recettes pas chères faire à l’air fryer ?', `Cuisses de poulet et frites, nuggets maison, falafels, croquettes de thon, légumes rôtis, chou-fleur pané ou frites de patate douce : des repas complets autour de ${euros(moy)} la part.`]])]
+    });
+  }
   for (const t of theme) {
     fs.writeFileSync(path.join(dist, t.fichier), page({ url: '/' + t.fichier, titre: t.titre, description: t.description, h1: t.h1, corps: `<h1>${esc(t.h1)}</h1>\n${t.corps}`, ld: t.ld }));
     urls.push('/' + t.fichier);

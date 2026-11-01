@@ -145,6 +145,19 @@
     if (n) { cacheCompat.clear(); }
     return n;
   }
+  /** Recettes du catalogue ajoutées par un fichier à part (air fryer…) : proposées comme les autres, selon l'équipement. */
+  function ajouterRecettes(ingredients, recettes) {
+    ajouterIngredients(ingredients);
+    let n = 0;
+    for (const r0 of recettes || []) {
+      if (!r0 || !r0.id || !r0.nom || REC[r0.id] || !(r0.ing || []).every(([id]) => ING[id])) continue;
+      const r = { ...r0, tags: (r0.tags || []).slice(), equip: r0.equip || [], niveau: r0.niveau || 1, modele: r0.modele || 'maison', sig: r0.sig || r0.id };
+      r.prot = (r.ing.find(([id]) => ING[id].groupe === 'P') || [])[0];
+      RECETTES.push(r); REC[r.id] = r; cacheCout.delete(r.id); n++;
+    }
+    if (n) { versionPerso++; cacheCompat.clear(); }
+    return n;
+  }
   /* ---------- idées de saison : recettes du catalogue, proposées dans les menus quand on les garde ---------- */
   let SAISON = [], SAISON_ACTIF = [];
   function definirSaison(ingredients, recettes) {
@@ -642,6 +655,8 @@
     let b = 0;
     const nbFour = ctx.nbFour || 0;
     if (auFour && (eq.includes('four') || eq.includes('airfryer'))) b += nbFour < 2 ? 3 : nbFour < 3 ? 1 : -1;
+    // recettes pensées pour l'air fryer : 2 ou 3 dans la semaine quand on en a un
+    if ((rec.equip || []).includes('airfryer') && eq.includes('airfryer')) { const n = ctx.nbAir || 0; b += n < 2 ? 3 : n < 3 ? 1 : -1.5; }
     if ((eq.includes('autocuiseur') || eq.includes('robot')) && ['mijote', 'veloute'].includes(rec.modele)) b += 1.2;
     if (eq.includes('robot') && rec.modele === 'gratin') b += 0.5;
     return b;
@@ -789,6 +804,7 @@
     const f = feculentDe(rec); if (f) ctx.fecs[f] = (ctx.fecs[f] || 0) + 1;
     ctx.cuisines[rec.cuisine] = (ctx.cuisines[rec.cuisine] || 0) + 1;
     if ((rec.equip || []).includes('four')) ctx.nbFour = (ctx.nbFour || 0) + 1;
+    if ((rec.equip || []).includes('airfryer')) ctx.nbAir = (ctx.nbAir || 0) + 1;
   }
   // légumes qui donnent son caractère au plat (pas l'oignon ni l'ail), et féculent principal : pour varier la semaine
   const LEG_DISCRETS = new Set(['oignon', 'ail', 'citron', 'citron_vert', 'persil', 'echalote', 'tomates_concassees', 'coulis_tomate', 'puree_tomate', 'concentre_tomate']);
@@ -1691,7 +1707,7 @@
     regime: { aucun: 'Aucun', flexitarien: 'Flexitarien (3 repas avec viande max.)', vegetarien: 'Végétarien', vegetalien: 'Végétalien', sans_porc: 'Sans porc', halal: 'Halal (sans porc ; viande certifiée à choisir en magasin)' },
     allergies: { gluten: 'Gluten', lait: 'Protéines de lait', lactose: 'Lactose', oeuf: 'Œuf', arachide: 'Arachide', fruits_coque: 'Fruits à coque', poisson: 'Poisson', crustaces: 'Crustacés', soja: 'Soja', sesame: 'Sésame', celeri: 'Céleri', moutarde: 'Moutarde' },
     niveau: { debutant: 'Débutant', alaise: 'À l’aise', passionne: 'Passionné' },
-    equipement: { plaque: 'Plaques de cuisson', four: 'Four', micro: 'Micro-ondes', robot: 'Robot cuiseur', airfryer: 'Friteuse à air', autocuiseur: 'Autocuiseur' },
+    equipement: { plaque: 'Plaques de cuisson', four: 'Four', micro: 'Micro-ondes', robot: 'Robot cuiseur', airfryer: 'Friteuse à air (air fryer)', autocuiseur: 'Autocuiseur' },
     cuisines: { francaise: 'Française', italienne: 'Italienne', asiatique: 'Asiatique', indienne: 'Indienne', orientale: 'Orientale', mexicaine: 'Mexicaine', espagnole: 'Espagnole' },
     refus: { poisson: 'Poisson', champignons: 'Champignons', epinards: 'Épinards', poivrons: 'Poivrons', aubergine: 'Aubergine', lentilles: 'Lentilles', tofu: 'Tofu', fromage: 'Fromage', courge: 'Courge', epice: 'Plats épicés' },
     ages: { '0-2': 'moins de 3 ans', '3-5': '3–5 ans', '6-10': '6–10 ans', '11-14': '11–14 ans', '15-17': '15–17 ans' }
@@ -1703,7 +1719,7 @@
     THEMES, rituelsSuggeres, propositions, choisirRepas, pourquoi,
     definirPerso, definirGourmand, gourmandises, rechercherPlats, placerRecette, idExtra, motsDe, norm, slug,
     ajouterAuStock, retirerDuStock, consommationRepas, consommationAvecFin, achatArticle, recettesAvecStock, nettoyerStock,
-    definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, preferencesDepuisTexte, fusionPreferences, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
+    ajouterRecettes, definirPrixMagasin, prixReference, sourcePrix, nombreRecettes, definirRecents, preferencesDepuisTexte, fusionPreferences, aVerifier, PEUT_CONTENIR, ressemblance, tropProches, joursMonotones, repetitions, penaliteVariete, saisonRecette, saisonCuisine, styleRecette, moisCourant, definirMois, CALENDRIER, assietteMinceur, recetteAdaptee, enfantsPresents, programmeActif, profilParDefaut, ameliorerSemaine, dedoublonner, definirVariantes, differences, memePlat, portions, organiserRestes, ajouterIngredients, definirSaison, saisonActives, ideesSaison, aCuisiner, nbGamelles, platsGamelle, presence, presenceParDefaut, appliquerPresences, ingredientInterdit, recetteCompatible, recettesCompatibles,
     coutPortion, equilibre, genererSemaine, remplacerRepas, listeCourses, analyseBudget,
     ajusterAuBudget, ceSoir, bonusCoach, bilanCoach, optimiserDrives, magasinsDemo, contientViande, coutRepas
   };
