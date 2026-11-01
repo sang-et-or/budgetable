@@ -264,7 +264,7 @@ ${APPEL('Des menus de saison chaque semaine')}`, ld: []
   {
     let CAL = {};
     try { CAL = require(path.join(racine, 'js', 'engine.js')).CALENDRIER || {}; } catch (e) { CAL = {}; }
-    const arts = require('./articles.js')({ plats: groupes[0].recettes, saison: groupes[1].recettes, ING, CALENDRIER: CAL, cout: (r) => cout(r, ING), lien, esc });
+    const arts = require('./articles.js')({ plats: groupes[0].recettes, saison: groupes[1].recettes, toutes, ING, CALENDRIER: CAL, cout: (r) => cout(r, ING), lien, esc });
     fs.mkdirSync(path.join(dist, 'conseils'), { recursive: true });
     const dateFr = (d) => new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     for (const a of arts) {
