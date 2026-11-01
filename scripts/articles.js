@@ -11,7 +11,64 @@ const euros = (x) => x.toFixed(2).replace('.', ',') + ' €';
  */
 module.exports = function articles(c) {
   const { plats, saison, ING, CALENDRIER, cout, lien, esc } = c;
+  const toutes = c.toutes || plats.concat(saison);
   const liste = [];
+  const par = (s) => toutes.find((r) => r.slug === s);
+  const part = (r) => cout(r);   // coût d'une portion (comme sur les pages recettes)
+
+  /* Noël : 3 menus complets choisis dans le catalogue (le coût se recalcule si les prix changent) */
+  {
+    const MENUS = [
+      ['Le menu classique', 'Une volaille rôtie et ses légumes d’hiver : le goût des fêtes, sans le prix du chapon.', ['veloute-de-courge-et-chataignes', 'cuisses-de-poulet-roties-panais-et-carottes', 'poire-au-chocolat']],
+      ['Le menu saumon', 'Le saumon reste la star de Noël. Cuisiné en fondue de poireaux, il en faut bien moins qu’en tranches.', ['poireaux-vinaigrette-et-oeufs-mimosa', 'saumon-a-la-fondue-de-poireaux', 'mousse-au-chocolat']],
+      ['Le menu végétarien', 'Champignons et risotto crémeux : un repas de fête généreux, qui plaît aussi aux non-végétariens.', ['veloute-de-champignons-et-croutons', 'risotto-cremeux-aux-champignons', 'crumble-aux-pommes']]
+    ].map(([titre, intro, l]) => ({ titre, intro, plats: l.map(par).filter(Boolean) })).filter((m) => m.plats.length === 3);
+    const total = (m) => m.plats.reduce((t, r) => t + part(r), 0);
+    const ROLES = ['Entrée', 'Plat', 'Dessert'];
+    if (MENUS.length) liste.push({
+      slug: 'menu-de-noel-pas-cher', date: '2026-11-01',
+      titre: `Menu de Noël pas cher : ${MENUS.length} menus complets à petit prix`,
+      description: `${MENUS.length} menus de Noël faits maison, entrée, plat et dessert, avec le coût estimé par personne. Des idées de repas de fêtes pour régaler toute la famille sans exploser le budget.`,
+      corps: `<p class="chapo">Un beau repas de Noël n’a pas besoin de foie gras ni de chapon. Avec des produits d’hiver, un plat mijoté ou rôti et un dessert maison, on régale toute la table pour une fraction du prix habituel.</p>
+${MENUS.map((m) => `<h2>${esc(m.titre)} · ≈ ${euros(total(m))} par personne</h2>
+<p>${esc(m.intro)}</p>
+<ul>${m.plats.map((r, k) => `<li><strong>${ROLES[k]}</strong> : ${lien(r)} <span class="petit">· ≈ ${euros(part(r))} la part</span></li>`).join('')}</ul>`).join('\n')}
+<p class="petit">Coûts estimés à partir de prix moyens en supermarché, par portion adulte. Le prix réel dépend de votre magasin et des marques choisies.</p>
+<h2>Nos astuces pour un Noël moins cher</h2>
+<ul><li><strong>Choisissez une volaille simple</strong> : un poulet fermier ou des cuisses rôties font un très beau plat de fête, pour bien moins cher qu’un chapon ou une dinde aux marrons.</li>
+<li><strong>Utilisez les produits chers comme des touches</strong> : un peu de saumon fumé sur des toasts, quelques noix ou un trait de crème suffisent à faire « fête ».</li>
+<li><strong>Faites le dessert vous-même</strong> : une mousse ou un fondant au chocolat maison coûte bien moins cher qu’une bûche de pâtissier, et se prépare la veille.</li>
+<li><strong>Misez sur les légumes d’hiver</strong> : courge, châtaigne, panais, poireau et champignons sont de saison et donnent des plats généreux.</li>
+<li><strong>Faites vos courses tôt</strong> : achetez les produits secs et surgelés dès début décembre, avant la cohue des fêtes.</li></ul>
+<h2>Préparer à l’avance pour profiter du réveillon</h2>
+<p>Les veloutés, la mousse au chocolat et les crumbles se préparent la veille. Le jour J, il ne reste que le plat à réchauffer ou à enfourner : vous passez la soirée à table, pas en cuisine.</p>`
+    });
+  }
+
+  /* Repas de fêtes petit budget : méthode + recettes à préparer la veille */
+  {
+    const veille = ['veloute-de-potiron', 'veloute-de-chou-fleur-au-curry', 'gratin-dauphinois-et-salade-d-endives-aux-noix', 'blanquette-de-poulet-aux-champignons', 'fondant-au-chocolat', 'tarte-aux-pommes'].map(par).filter(Boolean);
+    liste.push({
+      slug: 'repas-de-fetes-petit-budget', date: '2026-11-01',
+      titre: 'Repas de fêtes petit budget : 8 astuces pour bien recevoir sans se ruiner',
+      description: 'Comment organiser un repas de fêtes à petit budget : fixer un budget par personne, partager les plats, choisir des produits de saison et cuisiner à l’avance. Avec des recettes faciles.',
+      corps: `<p class="chapo">Noël et le Nouvel An pèsent lourd sur le budget courses. Avec un peu d’organisation, on peut pourtant recevoir généreusement sans y laisser son mois.</p>
+<h2>8 astuces pour des fêtes moins chères</h2>
+<ol class="liste-num"><li><strong>Fixez un budget par personne</strong> avant de faire le menu : c’est lui qui guide les choix, pas l’inverse.</li>
+<li><strong>Partagez les plats</strong> : chaque invité apporte l’entrée, le fromage ou le dessert. Moins de dépense pour chacun, et plus de convivialité.</li>
+<li><strong>Un apéritif maison</strong> : légumes à croquer, houmous, toasts et cakes salés coûtent bien moins cher que les petits fours tout prêts.</li>
+<li><strong>Un seul produit « luxe »</strong> plutôt que trois : du saumon, ou des huîtres, ou un bon fromage, mais pas tout.</li>
+<li><strong>Les produits de saison</strong> : courges, châtaignes, poireaux, endives, clémentines et pommes sont au meilleur prix en décembre.</li>
+<li><strong>Le plat mijoté</strong> : blanquette, volaille rôtie ou gratin nourrissent beaucoup de monde pour peu cher, et se réchauffent très bien.</li>
+<li><strong>La liste de courses complète</strong> faite à l’avance, pour ne rien acheter en double et éviter l’achat de panique du 24 décembre.</li>
+<li><strong>Les restes prévus</strong> : un plat de fête doublé devient le repas du lendemain, et rien ne se perd.</li></ol>
+<h2>Des recettes à préparer la veille</h2>
+<ul>${veille.map((r) => `<li>${lien(r)} <span class="petit">· ≈ ${euros(part(r))} la part</span></li>`).join('')}</ul>
+<p class="petit">Coûts estimés à partir de prix moyens en supermarché. Le prix réel dépend de votre magasin.</p>
+<h2>Et pour le menu complet ?</h2>
+<p>Retrouvez nos <a href="/conseils/menu-de-noel-pas-cher.html">menus de Noël pas chers</a> (entrée, plat, dessert), avec le coût estimé par personne.</p>`
+    });
+  }
 
   /* 1. dîners à moins de 2 € */
   {
