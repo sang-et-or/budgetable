@@ -7,6 +7,7 @@
  * Variables d'environnement (Render) : STRIPE_SECRET_KEY (obligatoire pour vendre), SUPABASE_URL, SUPABASE_ANON_KEY
  * (publique), PRIX_CENTIMES (299), ESSAI_JOURS (7), SITE (https://budgetable.fr),
  * COMPTES_OFFERTS (adresses e-mail séparées par des virgules : accès complet sans payer, adresse confirmée exigée).
+ * Les comptes administrateurs (table admins de Supabase, vérifiée avec le jeton de la personne) ont aussi l'accès offert.
  */
 'use strict';
 
@@ -20,6 +21,15 @@ const actif = () => /^(sk|rk)_(live|test)_/.test(cleStripe());
 
 // comptes offerts (propriétaire, testeurs) : lus dans Render, jamais écrits dans le code
 const offert = (u) => u.confirme && !!u.email && String(process.env.COMPTES_OFFERTS || '').toLowerCase().split(',').map((x) => x.trim()).filter(Boolean).includes(u.email.toLowerCase());
+
+// compte administrateur ? (fonction est_admin de Supabase, appelée avec le jeton de la personne : impossible à usurper)
+async function estAdmin(jeton, f) {
+  try {
+    const r = await f(SUPA_URL + '/rest/v1/rpc/est_admin', { method: 'POST', headers: { apikey: SUPA_CLE, Authorization: 'Bearer ' + jeton, 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(8000) });
+    return r.ok && (await r.json().catch(() => false)) === true;
+  } catch (e) { return false; }
+}
+const offertA = async (u, jeton, f) => offert(u) || estAdmin(jeton, f);
 
 const erreur = (msg, code) => Object.assign(new Error(msg), { code });
 
@@ -66,7 +76,7 @@ async function etat(jeton, f = fetch, _site) {
   const u = await utilisateur(jeton, f);
   let finEssai = u.cree + ESSAI_JOURS * 86400000;
   const base = () => ({ disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false });
-  if (offert(u)) return { ...base(), abonne: true, offert: true, statut: 'offert' };
+  if (await offertA(u, jeton, f)) return { ...base(), abonne: true, offert: true, statut: 'offert' };
   const c = cache.get(u.id);
   if (c && Date.now() - c.t < 120000) { finEssai = Math.max(finEssai, c.finEssai || 0); return { ...base(), ...c.v }; }
   const client = await clientDe(u, false, f);
@@ -90,7 +100,7 @@ async function paiement(jeton, f = fetch, site = SITE) {
   site = site || SITE;
   if (!actif()) throw erreur('L’abonnement ouvre très bientôt', 503);
   const u = await utilisateur(jeton, f);
-  if (offert(u)) throw erreur('Votre accès est offert : rien à payer', 400);
+  if (await offertA(u, jeton, f)) throw erreur('Votre accès est offert : rien à payer', 400);
   const client = await clientDe(u, true, f);
   const resteEssai = Math.floor((Math.max(u.cree + ESSAI_JOURS * 86400000, accesOffert(client)) - Date.now()) / 86400000);
   const s = await stripe('/checkout/sessions', { methode: 'POST', corps: {
