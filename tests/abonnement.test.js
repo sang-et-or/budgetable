@@ -10,7 +10,8 @@ function faux({ creeIlYa = 2, clients = [], abonnements = [] } = {}) {
   const f = async (url, o = {}) => {
     appels.push({ url, o });
     const rep = (j, status = 200) => ({ ok: status < 400, status, json: async () => j });
-    if (url.includes('/auth/v1/user')) return o.headers.Authorization === 'Bearer bon' ? rep({ id: 'u-1', email: 'moi@exemple.fr', created_at: new Date(Date.now() - creeIlYa * JOUR).toISOString() }) : rep({}, 401);
+    if (url.includes('/auth/v1/user')) return ['Bearer bon', 'Bearer admin'].includes(o.headers.Authorization) ? rep({ id: 'u-1', email: 'moi@exemple.fr', created_at: new Date(Date.now() - creeIlYa * JOUR).toISOString() }) : rep({}, 401);
+    if (url.includes('/rpc/est_admin')) return rep(o.headers.Authorization === 'Bearer admin');
     if (url.includes('/customers/search')) return rep({ data: clients });
     if (url.endsWith('/customers')) return rep({ id: 'cus_nouveau' });
     if (url.includes('/subscriptions')) return rep({ data: abonnements });
@@ -85,4 +86,15 @@ test('compte offert (COMPTES_OFFERTS) : accès complet sans Stripe, seulement si
   const e2 = await A.etat('bon', faux({ creeIlYa: 30 }).f);
   assert.notStrictEqual(e2.offert, true);
   delete process.env.COMPTES_OFFERTS;
+});
+
+test('compte administrateur (table admins) : accès offert sans Stripe ni réglage dans Render', async () => {
+  A._viderCache();
+  const { f, appels } = faux({ creeIlYa: 30 });
+  const e = await A.etat('admin', f);
+  assert.strictEqual(e.abonne, true); assert.strictEqual(e.offert, true);
+  assert.ok(!appels.some((x) => x.url.includes('stripe.com')), 'aucun appel à Stripe');
+  await assert.rejects(A.paiement('admin', f), /offert/);
+  const e2 = await A.etat('bon', faux({ creeIlYa: 30 }).f);   // compte ordinaire, essai fini : pas offert
+  assert.notStrictEqual(e2.offert, true);
 });
