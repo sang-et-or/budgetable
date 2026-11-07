@@ -4532,7 +4532,8 @@ Règles :
 - Jamais de régime extrême, de jeûne prolongé, de « brûle-graisses », de médicament ou de complément ; jamais moins de 1 200 kcal par jour.
 - Aucun jugement sur le corps ou le poids. Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, conseille avec douceur d’en parler à son médecin et cite Anorexie Boulimie Info Écoute (09 69 325 900).
 - Pour une question médicale (maladie, traitement, grossesse), renvoie vers le médecin.
-Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
+- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats, mets "changer": true et résume ses critères dans "criteres" (quelques mots, avec les jours s’il y en a) ; l’application refait les plats et affiche la vraie liste : dis seulement que c’est fait, en une phrase, sans citer de plats. Sinon "changer": false. N’écris jamais toi-même un menu de la semaine.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": ""}`;
   }
   async function envoyerCoachMinceur(question) {
     const texte = String(question || '').trim().slice(0, 500);
@@ -4541,16 +4542,17 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const secours = P.repondreLocal(texte, { cible, repartition: P.repartition(cible), collations: P.collations(S.profil.gouts) });
     coachMinceur.tours.push({ role: 'user', content: texte });
     coachMinceur.attente = true; coachMinceur.message = ''; rendre();
-    const action = demandeChangement(texte) ? await changerSemaineSelonDemande(texte) : null;
-    if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
-    if (!iaDispo) { coachMinceur.tours.push({ role: 'assistant', content: action ? 'C’est fait ! Vos portions restent adaptées à votre programme.' : secours }); coachMinceur.attente = false; rendre(); return; }
-    try {
-      const r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() + consigneAction(action) }, ...coachMinceur.tours.filter((t) => t.role !== 'action').slice(-8)]);
-      coachMinceur.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
-    } catch (e) {
-      if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.';
-      coachMinceur.tours.push({ role: 'assistant', content: secours });
+    const changer = demandeChangement(texte);
+    let r = null;
+    if (iaDispo) {
+      try { r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() }, ...coachMinceur.tours.filter((t) => t.role !== 'action').slice(-8)]); }
+      catch (e) { if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.'; }
     }
+    const action = S.plan && (changer || (r && r.changer === true)) ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
+    const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
+    const court = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
+    coachMinceur.tours.push({ role: 'assistant', content: (action ? (action.n ? (r ? court(rep) : 'C’est fait ! Vos portions restent adaptées à votre programme.') : 'Je n’ai rien pu changer cette fois.') : rep).slice(0, 1500) });
+    if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
     coachMinceur.attente = false; rendre();
   }
 
@@ -5039,7 +5041,8 @@ Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
 - Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
 - Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
-- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats (même sans le mot « changer » : « mets du poisson mardi », « des plats plus rapides », « pas de pâtes cette semaine »), mets "changer": true et résume ses critères dans "criteres" (en quelques mots, avec les jours s’il y en a) ; l’application refait aussitôt les plats concernés et affiche le résultat juste après ton message, donc dis simplement que c’est fait. Sinon "changer": false.
+- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats (même sans le mot « changer » : « mets du poisson mardi », « des plats plus rapides », « pas de pâtes cette semaine »), mets "changer": true et résume ses critères dans "criteres" (en quelques mots, avec les jours s’il y en a) ; l’application refait aussitôt les plats concernés et affiche le résultat juste après ton message, donc dis simplement que c’est fait, en une phrase, SANS citer de plats : l’application choisit parmi ses propres recettes et affiche la vraie liste. Sinon "changer": false.
+- N’écris jamais toi-même un menu de la semaine ou une liste de plats « pour sa semaine » : seuls les plats choisis par l’application comptent. Pour une idée de recette, une ou deux suffisent.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
 - Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
@@ -5088,13 +5091,14 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": f
   }
   function criteresLocaux(texte) {
     const t = sansAccents(texte);
-    const c = { prefs: E.preferencesDepuisTexte(texte), tempsMax: null, vegetarien: false, moinsCher: false, leger: false, legumes: false, exclure: [] };
+    const c = { prefs: E.preferencesDepuisTexte(texte), tempsMax: null, vegetarien: false, moinsCher: false, leger: false, legumes: false, airfryer: false, exclure: [] };
     const m = t.match(/(\d{1,3})\s*(min|mn)/);
     if (m && +m[1] >= 5 && +m[1] <= 120) c.tempsMax = +m[1]; else if (/rapide|vite|presse|express/.test(t)) c.tempsMax = 20;
     if (/vegetarien|veggie|sans viande|pas de viande/.test(t)) c.vegetarien = true;
     if (/moins cher|pas cher|econom|petit budget|budget serre|moins couteu/.test(t)) c.moinsCher = true;
     if (/leger|light|moins gras|moins calori/.test(t)) c.leger = true;
     if (/(plus de|davantage de|beaucoup de) legumes/.test(t)) c.legumes = true;
+    if (/air ?fryer|friteuse a air|airfryer/.test(t)) c.airfryer = true;
     // « pas de pâtes », « sans champignons » : écartés pour cette fois (« trop de… » baisse seulement).
     // Le mot doit correspondre exactement (« pâtes » n'écarte ni le pâté ni la pâte à pizza).
     const mots = new Set(t.split(/[^a-z]+/).filter(Boolean));
@@ -5124,7 +5128,8 @@ Utilise UNIQUEMENT ces identifiants. Ingrédients : ${ings}. Cuisines : ${cuis}.
 Poids de -3 (à éviter) à 3 (à mettre en avant). « exclure » : ingrédients que la personne ne veut PAS DU TOUT cette semaine. N’invente rien : ne mets que ce que la demande dit.
 Ne déduis jamais d’allergie ni de régime médical.
 Réponds uniquement avec un objet JSON de cette forme :
-{"ingredients": {"saumon": 2}, "cuisines": {"asiatique": 1}, "modeles": {"poelee": -2}, "exclure": ["champignon"], "tempsMax": 20, "vegetarien": false, "moinsCher": false, "leger": false, "legumes": false}`;
+« viande » = poulet_filet, cuisses_poulet, boeuf_hache, jambon, saucisse ; « airfryer » : true si la personne veut des plats à l’air fryer (friteuse à air).
+{"ingredients": {"saumon": 2}, "cuisines": {"asiatique": 1}, "modeles": {"poelee": -2}, "exclure": ["champignon"], "tempsMax": 20, "vegetarien": false, "moinsCher": false, "leger": false, "legumes": false, "airfryer": false}`;
   }
   /** Applique la demande : nouveaux plats sur les repas pas encore mangés ni choisis, avec un retour possible. */
   async function changerSemaineSelonDemande(texte) {
@@ -5134,7 +5139,7 @@ Réponds uniquement avec un objet JSON de cette forme :
         const r = await iaDispo.json([{ role: 'user', content: consignesChangement() }, { role: 'user', content: String(texte).slice(0, 500) }], { cache: false, modelTier: 'quick' });
         if (r && typeof r === 'object') {
           c.prefs = E.fusionPreferences(r, c.prefs);
-          for (const k of ['vegetarien', 'moinsCher', 'leger', 'legumes']) if (r[k] === true) c[k] = true;
+          for (const k of ['vegetarien', 'moinsCher', 'leger', 'legumes', 'airfryer']) if (r[k] === true) c[k] = true;
           const tm = Number(r.tempsMax); if (Number.isFinite(tm) && tm >= 5 && tm <= 120) c.tempsMax = c.tempsMax ? Math.min(c.tempsMax, tm) : tm;
           for (const id of Array.isArray(r.exclure) ? r.exclure : []) if (E.ING[id] && !c.exclure.includes(id)) c.exclure.push(id);
         }
@@ -5151,12 +5156,13 @@ Réponds uniquement avec un objet JSON de cette forme :
     if (c.tempsMax) p.temps = { semaine: Math.min(p.temps.semaine, c.tempsMax), weekend: Math.min(p.temps.weekend, c.tempsMax) };
     if (c.vegetarien && ['aucun', 'flexitarien', 'sans_porc', 'halal'].includes(p.regime)) p.regime = 'vegetarien';
     if (c.moinsCher && !p.objectifs.includes('economies')) p.objectifs = p.objectifs.concat('economies');
-    p.envie = { leger: c.leger, legumes: c.legumes };
+    p.envie = { leger: c.leger, legumes: c.legumes, airfryer: c.airfryer };
+    if (c.airfryer && !p.equipement.includes('airfryer')) p.equipement = p.equipement.concat('airfryer');   // elle demande des plats à l'air fryer : elle en a un
     p.exclure = c.exclure;
     const compris = resumePreferences({ ...c.prefs, ingredients: Object.fromEntries(Object.entries(c.prefs.ingredients || {}).filter(([k]) => !c.exclure.includes(k))) })
       .filter((x) => !/^moins de /.test(x) || !c.exclure.some((id) => x.includes(sansAccents(E.ING[id].nom).split(' ')[0].slice(0, 4))))
       .concat([...new Set(c.exclure.map((id) => 'sans ' + E.ING[id].nom.replace(/\s*\([^)]*\)/, '').toLowerCase().split(/\s+/)[0]))])
-      .concat(c.tempsMax ? [`${c.tempsMax} min maximum`] : [], c.vegetarien ? ['végétarien'] : [], c.moinsCher ? ['moins cher'] : [], c.leger ? ['plus léger'] : [], c.legumes ? ['plus de légumes'] : []);
+      .concat(c.tempsMax ? [`${c.tempsMax} min maximum`] : [], c.vegetarien ? ['végétarien'] : [], c.moinsCher ? ['moins cher'] : [], c.leger ? ['plus léger'] : [], c.legumes ? ['plus de légumes'] : [], c.airfryer ? ['à l’air fryer'] : []);
     const cibles = repasVises(texte);
     if (!compris.length) compris.push(cibles ? 'd’autres plats' : 'plus de variété');   // « change mes plats » : d'autres plats, simplement
     if (E.recettesCompatibles(p).length < 20) return { n: 0, compris, impossible: true };
@@ -5201,7 +5207,8 @@ Réponds uniquement avec un objet JSON de cette forme :
     const action = aChanger ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Je n’ai rien pu changer cette fois.') : reponseLocaleCoach(texte);
     const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
-    coachChat.tours.push({ role: 'assistant', content: (action && !action.n ? secours : rep).slice(0, 1500) });
+    const premierePhrase = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
+    coachChat.tours.push({ role: 'assistant', content: (action ? (action.n ? premierePhrase(rep) : secours) : rep).slice(0, 1500) });
     if (action) coachChat.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
     coachChat.attente = false; rendre(); defilerChat();
   }

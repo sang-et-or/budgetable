@@ -8,7 +8,9 @@ def ia(route):
     if route.request.url.endswith("/ia"):
         corps = route.request.post_data or ""; appels.append(corps)
         dernier = json.loads(corps)["messages"][-1]["content"]
-        if "Tu traduis une demande" in corps and "poisson" in dernier: rep = {"ingredients": {"saumon": 3, "colin": 3, "thon": 3}}
+        if "Tu traduis une demande" in corps and "air fryer" in dernier: rep = {"airfryer": True, "leger": True, "ingredients": {"poulet_filet": 2, "boeuf_hache": 2}}
+        elif "ces plats" in dernier: rep = {"reponse": "Voici votre nouvelle semaine avec des plats à l’air fryer. Lundi – Nuggets inventés ; Mardi – Brochettes inventées ; Mercredi – Œufs cocotte inventés.", "changer": True, "criteres": "plats à l’air fryer avec de la viande, légers"}
+        elif "Tu traduis une demande" in corps and "poisson" in dernier: rep = {"ingredients": {"saumon": 3, "colin": 3, "thon": 3}}
         elif "Tu traduis une demande" in corps: rep = {"ingredients": {"poulet_filet": 3, "cuisses_poulet": 3}}
         elif "assez de ces menus" in dernier: rep = {"reponse": "C’est fait, plus de poulet !", "changer": True, "criteres": "plus de poulet"}
         else: rep = {"reponse": "D’accord.", "changer": False, "criteres": ""}
@@ -47,6 +49,13 @@ with sync_playwright() as p:
     envoyer("Est-ce que c’est équilibré ?")
     assert page.locator(".chat-action").count() == nb, (nb, page.locator(".chat-fil").inner_text()[-300:])
     assert json.dumps(lire()["jours"], sort_keys=True) == avant, (avant[:300], json.dumps(lire()["jours"], sort_keys=True)[:300])
+    # « Change ma semaine avec ces plats » (plats cités avant par le coach) : vraie semaine, pas de liste inventée
+    envoyer("Change ma semaine avec ces plats"); page.wait_for_timeout(500)
+    fil = page.locator(".chat-fil").inner_text()
+    assert "inventé" not in fil, fil[-500:]
+    assert "à l’air fryer" in page.locator(".chat-action").last.inner_text()
+    naf = page.evaluate("(plan) => plan.jours.flatMap((jp) => ['dejeuner', 'diner'].map((s) => jp[s])).filter((m) => m && String(m.recette).startsWith('af-')).length", lire())
+    assert naf >= 3, naf
     nav.close()
 assert not erreurs, erreurs
 print("OK coach + IA : changements compris et ciblés")
