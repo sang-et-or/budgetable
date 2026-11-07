@@ -38,6 +38,15 @@ with sync_playwright() as p:
     assert len(sans) == len(lignes) - len(attendu), (attendu, lignes)
     if attendu: assert "réutilisé plus tard dans la semaine" in page.locator(".fiche").inner_text()
     page.locator(".liste-ing-fiche").scroll_into_view_if_needed(); page.locator(".liste-ing-fiche").locator("xpath=..").screenshot(path=f"{OUT}/reutilisation.png")
+    # « Ven soir » est cliquable : il ouvre la recette de ce repas, qui contient bien l'ingrédient
+    lien = page.locator(".liste-ing-fiche .lien-repas").first
+    if lien.count():
+        jj, ss = int(lien.get_attribute("data-j")), lien.get_attribute("data-s")
+        ing = lien.locator("xpath=ancestor::li").inner_text().split(" :")[0]
+        lien.click(); page.wait_for_timeout(400)
+        nom = page.evaluate("([j, s]) => Engine.REC[JSON.parse(localStorage.getItem('budgetable.v1')).plan.jours[j][s].recette].nom", [jj, ss])
+        assert nom in page.locator(".fiche").inner_text(), nom
+        assert ing in page.locator(".liste-ing-fiche").inner_text(), ing
     nav.close()
 assert not erreurs, erreurs
 print("OK réutilisation des ingrédients", len(attendu), "sur", len(lignes))
