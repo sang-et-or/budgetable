@@ -32,7 +32,7 @@ const MODELE_VISION = process.env.MODELE_VISION || (FOURNISSEUR === 'mistral' ? 
 const MODELE_TICKET = process.env.MODELE_TICKET || (FOURNISSEUR === 'mistral' ? 'mistral-medium-latest' : 'claude-sonnet-5-5');
 const MODELE_OCR = process.env.MODELE_OCR || 'mistral-ocr-latest';
 const MAX_IA_JOUR = +(process.env.MAX_IA_JOUR || 2000);
-const MAX_IA_HEURE_IP = +(process.env.MAX_IA_HEURE_IP || 60);
+const MAX_IA_HEURE_IP = +(process.env.MAX_IA_HEURE_IP || 150);   // un échange avec le coach peut faire 2 appels (réponse, puis recettes)
 const MAX_PHOTOS_JOUR = +(process.env.MAX_PHOTOS_JOUR || 300);
 const MAX_PHOTOS_HEURE_IP = +(process.env.MAX_PHOTOS_HEURE_IP || 12);
 let CATALOGUE = [];
@@ -186,6 +186,19 @@ async function appelerModele(messages, { image = null, modele = MODELE_TEXTE, ma
   return FOURNISSEUR === 'mistral' ? String(((j.choices || [])[0] || {}).message?.content || '') : (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
 }
 const extraireJSON = (texte) => { const m = /\{[\s\S]*\}/.exec(texte || ''); if (!m) return null; try { return JSON.parse(m[0]); } catch (e) { return null; } };
+// réponse coupée (trop longue) : on garde les objets complets d'une liste, par exemple les premières recettes
+function extraireJSONCoupe(texte) {
+  const o = extraireJSON(texte); if (o) return o;
+  const t = String(texte || ''); const d = t.indexOf('{'); if (d < 0) return null;
+  for (let fin = t.lastIndexOf('}'); fin > d; fin = t.lastIndexOf('}', fin - 1)) {
+    const morceau = t.slice(d, fin + 1);
+    const ouv = (morceau.match(/\[/g) || []).length - (morceau.match(/\]/g) || []).length;
+    const acc = (morceau.match(/\{/g) || []).length - (morceau.match(/\}/g) || []).length;
+    if (ouv < 0 || acc < 0) continue;
+    try { return JSON.parse(morceau + ']'.repeat(ouv) + '}'.repeat(acc)); } catch (e) { /* on recule d'un objet */ }
+  }
+  return null;
+}
 // conversations : les deux rôles alternent, en commençant par la personne (exigence des fournisseurs)
 function nettoyerMessages(liste) {
   const res = [];
@@ -270,7 +283,7 @@ const serveur = http.createServer(async (req, res) => {
       const refus = quotaIA(ip);
       if (refus) return repondre(res, 429, { erreur: refus }, origine);
       // « long » : le coach écrit plusieurs recettes complètes (ingrédients et étapes) d'un coup
-      const o = extraireJSON(await appelerModele(msgs, corps.long === true ? { max: 3000, delai: 60000 } : { max: 700 }));
+      const o = corps.long === true ? extraireJSONCoupe(await appelerModele(msgs, { max: 4000, delai: 65000 })) : extraireJSON(await appelerModele(msgs, { max: 700 }));
       return repondre(res, 200, o || { reponse: '' }, origine);
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);

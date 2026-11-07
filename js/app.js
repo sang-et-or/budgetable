@@ -5292,13 +5292,19 @@ Réponds uniquement avec un objet JSON de cette forme :
     const conv = tours.filter((t) => t.role === 'user' || t.role === 'assistant').slice(-8).map((t) => `${t.role === 'user' ? 'La personne' : 'Le coach'} : ${t.content}`).join('\n\n');
     try {
       const r = await iaDispo.json([{ role: 'user', content: consignesCreation() }, ...listeIngredientsIA().map((c) => ({ role: 'user', content: c })), { role: 'user', content: `Conversation :\n${conv.slice(-5000)}` }], { long: true });
-      return creerPlatsCoach(r && r.plats);
-    } catch (e) { return { n: 0, refuses: [], lignes: [], erreur: true }; }
+      if (!r || !Array.isArray(r.plats) || !r.plats.length) return { n: 0, refuses: [], lignes: [], creation: true, vide: true };
+      return creerPlatsCoach(r.plats);
+    } catch (e) {
+      const code = e && e.code;
+      const raison = code === 'rate_limited' ? (e.message || 'beaucoup de demandes cette heure-ci') : code === 'reseau' ? 'connexion interrompue ou réponse trop longue' : code === 'not_granted' ? 'coach en ligne pas configuré' : 'le coach en ligne n’a pas répondu';
+      return { n: 0, refuses: [], lignes: [], erreur: true, raison };
+    }
   }
   /** Bulle « c'est fait » dans le chat, et ce que l'IA doit savoir pour répondre. */
   function texteAction(a) {
     if (a.creation || a.sansIA || a.erreur) {
       if (a.sansIA) return 'Le coach en ligne n’est pas disponible pour écrire les recettes : réessayez dans un moment.';
+      if (a.erreur) return `Je n’ai pas pu écrire les recettes (${a.raison}). Votre semaine n’a pas bougé : réessayez dans une minute en écrivant « crée ces plats ».`;
       if (!a.n) return a.refuses && a.refuses.length ? `Je n’ai pas pu ajouter ces plats : ${a.refuses.join(' ; ')}.` : 'Je n’ai pas trouvé de nouveaux plats proposés dans notre discussion. Demandez-moi d’abord des idées (par exemple « propose-moi 5 plats à l’air fryer avec de la viande »), puis « crée ces plats ».';
       return `J’ai créé ${a.n} recette${a.n > 1 ? 's' : ''} et ${a.n > 1 ? 'les ai mises' : 'l’ai mise'} dans votre semaine :\n${a.lignes.join('\n')}${a.refuses.length ? `\nPas ajouté (incompatible avec votre profil) : ${a.refuses.join(' ; ')}` : ''}\nRetrouvez-les aussi dans Mes recettes, avec les ingrédients et les étapes.`;
     }
