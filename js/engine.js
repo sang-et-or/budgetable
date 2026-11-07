@@ -658,7 +658,7 @@
     const nbFour = ctx.nbFour || 0;
     if (auFour && (eq.includes('four') || eq.includes('airfryer'))) b += nbFour < 2 ? 3 : nbFour < 3 ? 1 : -1;
     // recettes pensées pour l'air fryer : 2 ou 3 dans la semaine quand on en a un
-    if ((rec.equip || []).includes('airfryer') && eq.includes('airfryer')) { const n = ctx.nbAir || 0; b += n < 2 ? 3 : n < 3 ? 1 : -1.5; }
+    if ((rec.equip || []).includes('airfryer') && eq.includes('airfryer')) { const n = ctx.nbAir || 0; b += p.envie && p.envie.airfryer ? (n < 6 ? 5 : 0) : n < 2 ? 3 : n < 3 ? 1 : -1.5; }
     if ((eq.includes('autocuiseur') || eq.includes('robot')) && ['mijote', 'veloute'].includes(rec.modele)) b += 1.2;
     if (eq.includes('robot') && rec.modele === 'gratin') b += 0.5;
     return b;
