@@ -264,11 +264,13 @@ const serveur = http.createServer(async (req, res) => {
     if (origine && !ORIGINES.includes(origine) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origine)) return repondre(res, 403, { erreur: 'Origine refusée' }, origine);
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     try {
-      const msgs = nettoyerMessages(JSON.parse(await lireCorps(req, 64 * 1024)).messages);
+      const corps = JSON.parse(await lireCorps(req, 64 * 1024));
+      const msgs = nettoyerMessages(corps.messages);
       if (!msgs || !msgs.length) return repondre(res, 400, { erreur: 'Question illisible' }, origine);
       const refus = quotaIA(ip);
       if (refus) return repondre(res, 429, { erreur: refus }, origine);
-      const o = extraireJSON(await appelerModele(msgs, { max: 700 }));
+      // « long » : le coach écrit plusieurs recettes complètes (ingrédients et étapes) d'un coup
+      const o = extraireJSON(await appelerModele(msgs, corps.long === true ? { max: 3000, delai: 60000 } : { max: 700 }));
       return repondre(res, 200, o || { reponse: '' }, origine);
     } catch (e) {
       const code = Number.isInteger(e.code) ? e.code : (e.name === 'TimeoutError' ? 504 : 502);
