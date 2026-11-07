@@ -984,7 +984,9 @@
       leger: (x) => { const N = NUTRI(); const v = N && N.de(x, ING); return v ? v.kcal <= 520 : (x.tags || []).includes('leger'); },
       vege: (x) => !contientViande(x) && !x.ing.some(([id]) => (ING[id].tags || []).includes('poisson')),
       favoris: (x) => (opts.classiques || []).includes(x.id),
-      chaud: (x) => styleRecette(x) === 'chaud'
+      chaud: (x) => styleRecette(x) === 'chaud',
+      // recettes air fryer du catalogue, et les vôtres (ou celles du coach) faites à l'air fryer
+      airfryer: (x) => (x.equip || []).includes('airfryer') || /air ?fryer|friteuse [àa] air/i.test(x.nom + ' ' + (x.perso ? (x.etapes || []).join(' ') : ''))
     };
     const filtre = FILTRES[opts.filtre];
     const autreSlot = slot === 'dejeuner' ? 'diner' : 'dejeuner';

@@ -2696,7 +2696,9 @@
         <button class="btn btn-petit" data-a="deplacer-fermer">Fermer</button></div>
       <div class="grille-deplacer">${cases}</div></div></div>`;
   }
-  const FILTRES_CHOIX = [['', 'Toutes les idées'], ['saison', '🍂 De saison'], ['chaud', '🍲 Plat chaud'], ['rapide', '⏱ Rapide (20 min)'], ['pascher', '💶 Petit prix'], ['leger', '🥗 Léger'], ['vege', '🌱 Végétarien'], ['favoris', '⭐ Mes favoris']];
+  // filtre « Air fryer » : on montre ces recettes même si « Friteuse à air » n'est pas cochée dans le profil
+  const profilFiltreChoix = (p) => (choix && choix.filtre === 'airfryer' && !p.equipement.includes('airfryer') ? { ...p, equipement: p.equipement.concat('airfryer') } : p);
+  const FILTRES_CHOIX = [['', 'Toutes les idées'], ['saison', '🍂 De saison'], ['chaud', '🍲 Plat chaud'], ['rapide', '⏱ Rapide (20 min)'], ['pascher', '💶 Petit prix'], ['leger', '🥗 Léger'], ['vege', '🌱 Végétarien'], ['airfryer', '🍟 Air fryer'], ['favoris', '⭐ Mes favoris']];
   function vueChoix() {
     if (!choix || !S.plan) return '';
     const m = S.plan.jours[choix.jour][choix.slot];
@@ -5224,7 +5226,8 @@ Réponds uniquement avec un objet JSON de cette forme :
         const [id, q] = Array.isArray(it) ? it : [it && it.id, it && it.q];
         const ig = E.ING[id], n = Number(q);
         if (!ig || ig.perso || !(n > 0)) continue;
-        const max = ig.unite === 'pièce' ? 6 : 600;
+        // quantités pour UNE portion adulte, plafonnées pour éviter un plat hors de prix (viande 180 g, féculents 120 g…)
+        const max = ig.unite === 'pièce' ? 3 : ({ P: 180, F: 120, L: 300, D: 150 })[ig.groupe] || 60;
         if (!ing.some((y) => y[0] === id)) ing.push([id, Math.min(max, Math.round(n * 100) / 100)]);
       }
       if (ing.length < 2) continue;
@@ -6034,13 +6037,13 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       }
       case 'choix-filtre': {
         choix.filtre = el.dataset.k; choix.exclure = []; choix.tour = 0;
-        choix.idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), n: 5, filtre: choix.filtre || undefined });
+        choix.idees = E.propositions(S.plan, choix.jour, choix.slot, profilFiltreChoix(p), { ...optsMoteur(), n: 5, filtre: choix.filtre || undefined });
         break;
       }
       case 'autres-idees': {
         choix.exclure.push(...choix.idees);
         choix.tour++;
-        const idees = E.propositions(S.plan, choix.jour, choix.slot, p, { ...optsMoteur(), exclure: choix.exclure, tour: choix.tour, n: choix.enfants ? 2 : 5, filtre: choix.filtre || undefined });
+        const idees = E.propositions(S.plan, choix.jour, choix.slot, profilFiltreChoix(p), { ...optsMoteur(), exclure: choix.exclure, tour: choix.tour, n: choix.enfants ? 2 : 5, filtre: choix.filtre || undefined });
         if (!idees.length) { toast('Pas d’autre plat compatible pour ce repas'); return; }
         choix.idees = idees;
         S.plan = { ...S.plan, remplacements: S.plan.remplacements + 1 };

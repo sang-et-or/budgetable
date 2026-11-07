@@ -24,3 +24,10 @@ test('avec une friteuse à air : 1 à 4 recettes air fryer par semaine', () => {
   const n = [0, 1, 2, 3, 4, 5].map((k) => af(E.genererSemaine(p, { graine: 20 + k })).length);
   assert.ok(n.every((x) => x >= 1 && x <= 4), JSON.stringify(n));
 });
+test('autres propositions, filtre « Air fryer » : que des recettes air fryer', () => {
+  const p = E.profilParDefaut(); p.equipement = ['plaque', 'airfryer'];
+  const s = E.genererSemaine(p, { seed: 4 });
+  const ids = E.propositions(s, 1, 'diner', p, { n: 5, filtre: 'airfryer' });
+  assert.ok(ids.length >= 3, JSON.stringify(ids));
+  for (const id of ids) assert.ok((E.REC[id].equip || []).includes('airfryer'), id);
+});
