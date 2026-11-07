@@ -15,6 +15,7 @@ def ia(route):
     if route.request.url.endswith("/ia/etat"): return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps({"disponible": True}))
     if route.request.url.endswith("/ia"):
         corps = json.loads(route.request.post_data or "{}"); dernier = corps["messages"][-1]["content"]; tout = json.dumps(corps, ensure_ascii=False)
+        if "remplace mes dîners" in dernier.lower(): return route.fulfill(status=502, headers=h, content_type="application/json", body="{}")
         if "Tu écris des recettes" in tout:
             longs.append(corps.get("long")); assert "Nuggets inventés" in tout, "la conversation est transmise"
             rep = PLATS
@@ -63,6 +64,11 @@ with sync_playwright() as p:
     n = page.locator(".chat-action").count()
     envoyer("Change ma semaine avec des plats à l’air fryer")
     assert page.locator(".chat-action").count() == n + 1 and "J’ai créé" in page.locator(".chat-action").last.inner_text()
+    # le coach en ligne ne répond pas : pas de plats du site à la place, et on le dit
+    avant = json.dumps(etat()["plan"]["jours"], sort_keys=True); n = page.locator(".chat-action").count()
+    envoyer("Remplace mes dîners de la semaine")
+    assert page.locator(".chat-action").count() == n and json.dumps(etat()["plan"]["jours"], sort_keys=True) == avant
+    assert "réessayez dans une minute" in page.locator(".chat-fil").inner_text()
     nav.close()
 assert not erreurs, erreurs
 print("OK le coach crée ses plats et les met dans la semaine")
