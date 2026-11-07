@@ -5039,11 +5039,11 @@ Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
 - Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
 - Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
-- Quand la personne te demande de changer ses plats (plus de poisson, plus rapide, sans pâtes…), l’application refait les plats de sa semaine selon sa demande : invite-la à préciser ses critères si besoin.
+- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats (même sans le mot « changer » : « mets du poisson mardi », « des plats plus rapides », « pas de pâtes cette semaine »), mets "changer": true et résume ses critères dans "criteres" (en quelques mots, avec les jours s’il y en a) ; l’application refait aussitôt les plats concernés et affiche le résultat juste après ton message, donc dis simplement que c’est fait. Sinon "changer": false.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
 - Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
-Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
+Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": ""}`;
   }
   /** Réponse sans IA (assistant indisponible ou très sollicité) : conseils tirés du coach et du bilan de la semaine. */
   function reponseLocaleCoach(q) {
@@ -5060,8 +5060,32 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   }
   /* ---------- coachs : changer les plats de la semaine sur demande (« plus de poisson, rien au-dessus de 20 min ») ---------- */
   const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’']/g, ' ');
-  const RX_CHANGER = /\b(chang|remplac|refai|refais|refaire|modifi|revoi|adapt|recompos)|\b(autres?|d autres|nouveaux|nouvelles?) (plats?|recettes?|menus?|repas)|\b(mets?|mettez|ajoute[sz]?|propose[sz]?|fais|faites|prevois|prevoyez|veux|voudrais|aimerais)\b.{0,50}\b(plus de|moins de|sans|pas de|que des|du poisson|vegetarien|leger|rapide|moins cher)/;
-  function demandeChangement(texte) { return !!S.plan && RX_CHANGER.test(sansAccents(texte)); }
+  // « change / remplace / refais », ou une demande (« mets », « je veux », « peux-tu ») qui porte sur les plats avec un critère
+  const RX_CHANGER = /\b(chang|remplac|refai|refais|refaire|modifi|revoi|adapt|recompos|enleve|enlever|retire|retirer|interverti)|\b(autres?|d autres|nouveaux|nouvelles?) (plats?|recettes?|menus?|repas)/;
+  const RX_DEMANDE = /\b(mets?|mettre|mettez|ajoute[sz]?|ajouter|propose[sz]?|proposer|fais|faire|faites|prevoi[st]|prevoir|prevoyez|veux|voudrais|voudrait|aimerais|peux|pourrais|pouvez|souhaite|evite[sz]?|eviter|plus de|moins de|sans|pas de|que des)\b/;
+  const RX_SUJET = /\b(plats?|repas|menus?|recettes?|semaine|midi|soir|diner|dejeuner|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain)\b/;
+  function demandeChangement(texte) {
+    if (!S.plan) return false;
+    const t = sansAccents(texte);
+    if (/\?\s*$/.test(t) && !RX_CHANGER.test(t) && !/\b(peux|pourrais|pouvez)\b/.test(t)) return false;   // une vraie question (« est-ce équilibré ? »)
+    if (RX_CHANGER.test(t)) return true;
+    if (!RX_DEMANDE.test(t)) return false;
+    const c = criteresLocaux(texte);
+    return RX_SUJET.test(t) || !!(c.tempsMax || c.vegetarien || c.moinsCher || c.leger || c.legumes || c.exclure.length || resumePreferences(c.prefs).length);
+  }
+  /** Repas visés par la demande (« mardi soir », « demain », « ce soir ») : null = toute la semaine. */
+  function repasVises(texte) {
+    const t = sansAccents(texte), J = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const jours = new Set();
+    J.forEach((n, j) => { if (new RegExp('\\b' + n + 's?\\b').test(t)) jours.add(j); });
+    const auj = aujPlan();
+    if (/\b(ce soir|ce midi|aujourd hui)\b/.test(t)) jours.add(auj);
+    if (/\bdemain\b/.test(t)) jours.add((auj + 1) % 7);
+    if (!jours.size) return null;
+    const midi = /\b(midi|dejeuner)\b/.test(t), soir = /\b(soir|diner)\b/.test(t);
+    const slots = midi && !soir ? ['dejeuner'] : soir && !midi ? ['diner'] : E.SLOTS;
+    return new Set([...jours].flatMap((j) => slots.map((sl) => j + '-' + sl)));
+  }
   function criteresLocaux(texte) {
     const t = sansAccents(texte);
     const c = { prefs: E.preferencesDepuisTexte(texte), tempsMax: null, vegetarien: false, moinsCher: false, leger: false, legumes: false, exclure: [] };
@@ -5133,10 +5157,11 @@ Réponds uniquement avec un objet JSON de cette forme :
       .filter((x) => !/^moins de /.test(x) || !c.exclure.some((id) => x.includes(sansAccents(E.ING[id].nom).split(' ')[0].slice(0, 4))))
       .concat([...new Set(c.exclure.map((id) => 'sans ' + E.ING[id].nom.replace(/\s*\([^)]*\)/, '').toLowerCase().split(/\s+/)[0]))])
       .concat(c.tempsMax ? [`${c.tempsMax} min maximum`] : [], c.vegetarien ? ['végétarien'] : [], c.moinsCher ? ['moins cher'] : [], c.leger ? ['plus léger'] : [], c.legumes ? ['plus de légumes'] : []);
-    if (!compris.length) return null;   // rien de précis : le coach répond simplement
+    const cibles = repasVises(texte);
+    if (!compris.length) compris.push(cibles ? 'd’autres plats' : 'plus de variété');   // « change mes plats » : d'autres plats, simplement
     if (E.recettesCompatibles(p).length < 20) return { n: 0, compris, impossible: true };
     const avant = S.plan.jours.map((jp) => E.SLOTS.map((sl) => jp[sl] && jp[sl].recette));
-    const n = refairePlats(p);
+    refairePlats(p, cibles);
     const lignes = [];
     S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl, k) => { const r = jp[sl] && jp[sl].recette; if (r && r !== avant[j][k] && E.REC[r]) lignes.push(`${JOURS_COURTS[j]} ${sl === 'dejeuner' ? 'midi' : 'soir'} : ${E.REC[r].nom}`); }));
     sauver();
@@ -5164,19 +5189,18 @@ Réponds uniquement avec un objet JSON de cette forme :
     }
     coachChat.tours.push({ role: 'user', content: texte }); coachChat.message = '';
     coachChat.attente = true; rendre(); defilerChat();
-    // « change mes plats : plus de poisson, rien au-dessus de 20 min » : le coach le fait vraiment
-    const action = changer ? await changerSemaineSelonDemande(texte) : null;
+    let r = null;
+    if (iaDispo) {
+      try { r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() }, ...coachChat.tours.filter((t) => t.role !== 'action').slice(-8)], { cache: false }); }
+      catch (e) { if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.'; }
+    } else await new Promise((ok) => setTimeout(ok, 400));
+    // « mets du poisson mardi », « des plats plus rapides » : le coach change vraiment la semaine
+    const aChanger = !!S.plan && (changer || !!(r && r.changer === true));
+    const action = aChanger ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
+    const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Je n’ai rien pu changer cette fois.') : reponseLocaleCoach(texte);
+    const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
+    coachChat.tours.push({ role: 'assistant', content: (action && !action.n ? secours : rep).slice(0, 1500) });
     if (action) coachChat.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
-    const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Dites-moi ce que vous voulez changer en priorité, je refais les plats.') : reponseLocaleCoach(texte);
-    if (!iaDispo) { setTimeout(() => { coachChat.tours.push({ role: 'assistant', content: secours }); coachChat.attente = false; rendre(); defilerChat(); }, 500); rendre(); defilerChat(); return; }
-    rendre(); defilerChat();
-    try {
-      const r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() + consigneAction(action) }, ...coachChat.tours.filter((t) => t.role !== 'action').slice(-8)], { cache: false });
-      coachChat.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
-    } catch (e) {
-      if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.';
-      coachChat.tours.push({ role: 'assistant', content: secours });
-    }
     coachChat.attente = false; rendre(); defilerChat();
   }
   /* ---------- aide et contact : assistant IA (hébergé par le site), avec relais vers l'équipe par e-mail ---------- */
@@ -5461,7 +5485,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
     }));
     return out;
   }
-  function refairePlats(profilMoment) {
+  function refairePlats(profilMoment, cibles) {
     if (!S.plan) return 0;
     const pr = profilMoment || S.profil;
     const avant = JSON.parse(JSON.stringify(S.plan));
@@ -5477,8 +5501,16 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         const k = j + '-' + sl, m = jp[sl];
         const passe = posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21));
         if ((jp.passes || []).includes(sl) || !m) continue;
-        if (S.deduits[k] || m.choisi || m.choisiPar || m.dehors || passe) { garde.push(k); continue; }
-        const nm = neuf.jours[j][sl];
+        if (S.deduits[k] || m.choisi || m.choisiPar || m.dehors || passe || (cibles && !cibles.has(k))) { garde.push(k); continue; }
+        let nm = neuf.jours[j][sl];
+        // demandé pour ce repas précis (« mardi soir ») : le plat qui colle le mieux à la demande, et pas celui d'avant
+        if (cibles) {
+          const tmax = j < 5 ? pr.temps.semaine : pr.temps.weekend;
+          const dans = new Set(S.plan.jours.flatMap((q) => E.SLOTS.map((s2) => q[s2] && q[s2].recette)));
+          const cand = E.recettesCompatibles(pr).filter((r) => r.repas.includes(sl) && r.temps <= tmax && !dans.has(r.id) && E.coutPortion(r) <= 3.5)
+            .map((r) => [r, E.scoreGout(r, pr.gouts) + (pr.envie && pr.envie.leger && r.tags.includes('leger') ? 3 : 0) + Math.random() * 0.8]).sort((a, b) => b[1] - a[1]);
+          if (cand.length) nm = { recette: cand[0][0].id, portions: m.portions };
+        }
         if (nm && E.REC[nm.recette]) { x[sl] = { ...nm, portions: m.portions }; n++; }
       }
       delete x.gamelleRecette;
