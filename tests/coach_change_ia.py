@@ -13,6 +13,7 @@ def ia(route):
         elif "Tu traduis une demande" in corps and "poisson" in dernier: rep = {"ingredients": {"saumon": 3, "colin": 3, "thon": 3}}
         elif "Tu traduis une demande" in corps: rep = {"ingredients": {"poulet_filet": 3, "cuisses_poulet": 3}}
         elif "assez de ces menus" in dernier: rep = {"reponse": "C’est fait, plus de poulet !", "changer": True, "criteres": "plus de poulet"}
+        elif "Mets du poisson" in dernier: rep = {"reponse": "C’est fait.", "changer": True, "criteres": "poisson mardi soir"}
         else: rep = {"reponse": "D’accord.", "changer": False, "criteres": ""}
         return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(rep))
     return route.abort()

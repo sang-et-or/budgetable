@@ -18,6 +18,7 @@ def ia(route):
         if "Tu écris des recettes" in tout:
             longs.append(corps.get("long")); assert "Nuggets inventés" in tout, "la conversation est transmise"
             rep = PLATS
+        elif "change ma semaine" in dernier.lower(): rep = {"reponse": "Voici mes plats : Lundi – Nuggets inventés ; Mardi – Boulettes.", "creer": False, "changer": False}
         elif "crée" in dernier.lower(): rep = {"reponse": "Très bien, je les ajoute à votre semaine !", "creer": True, "changer": False, "criteres": ""}
         else: rep = {"reponse": "Voici mes idées : Lundi – Nuggets inventés ; Mardi – Boulettes.", "creer": False, "changer": False}
         return route.fulfill(status=200, headers=h, content_type="application/json", body=json.dumps(rep))
@@ -38,7 +39,7 @@ with sync_playwright() as p:
     etat = lambda: page.evaluate("JSON.parse(localStorage.getItem('budgetable.v1'))")
     page.locator("[data-a=chat-ouvrir]").first.click(); page.wait_for_selector("#coach-chat-texte")
     envoyer = lambda t: (page.fill("#coach-chat-texte", t), page.locator("form[data-form=coach-chat] button[type=submit]").click(), page.wait_for_timeout(1800))
-    envoyer("Propose-moi des plats à l’air fryer avec de la viande")
+    envoyer("Tu aurais des idées de plats à l’air fryer avec de la viande ?")
     # elle ferme l'appli puis revient : la discussion est toujours là, et « crée ces plats » reprend les plats proposés
     page.reload(); page.wait_for_timeout(800)
     page.locator("[data-a=chat-ouvrir]").first.click(); page.wait_for_selector("#coach-chat-texte")
@@ -57,7 +58,11 @@ with sync_playwright() as p:
     page.evaluate("(r) => { const b = [...document.querySelectorAll('[data-a=fiche]')].find((x) => x.dataset.j === '0' && x.dataset.s === 'diner'); if (b) b.click(); }", None)
     page.wait_for_timeout(300)
     if page.locator(".fiche").count(): assert "200 °C" in page.locator(".fiche").inner_text()
-    # annuler remet la semaine d'avant (les recettes restent dans Mes recettes)
+    # l'IA oublie de mettre « creer », mais la demande est claire : les plats sont quand même créés
+    page.locator("[data-a=chat-ouvrir]").first.click(); page.wait_for_selector("#coach-chat-texte")
+    n = page.locator(".chat-action").count()
+    envoyer("Change ma semaine avec des plats à l’air fryer")
+    assert page.locator(".chat-action").count() == n + 1 and "J’ai créé" in page.locator(".chat-action").last.inner_text()
     nav.close()
 assert not erreurs, erreurs
 print("OK le coach crée ses plats et les met dans la semaine")

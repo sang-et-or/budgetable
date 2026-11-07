@@ -4532,8 +4532,8 @@ Règles :
 - Jamais de régime extrême, de jeûne prolongé, de « brûle-graisses », de médicament ou de complément ; jamais moins de 1 200 kcal par jour.
 - Aucun jugement sur le corps ou le poids. Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, conseille avec douceur d’en parler à son médecin et cite Anorexie Boulimie Info Écoute (09 69 325 900).
 - Pour une question médicale (maladie, traitement, grossesse), renvoie vers le médecin.
-- Tu peux proposer tes propres idées de plats. Si elle veut que TES plats (proposés ici ou plus haut, ou qu’elle décrit) soient mis dans sa semaine, mets "creer": true : l’application crée ces recettes et les place dans sa semaine.
-- Si elle demande seulement des critères (plus léger, plus de poisson…), mets "changer": true et résume-les dans "criteres" : l’application choisit parmi ses recettes.
+- Tu es un coach CRÉATEUR de plats. Quand elle demande des idées de plats ou de changer / ajouter des plats dans sa semaine (avec ou sans critères), invente TES PROPRES plats nouveaux et adaptés (jamais un plat déjà prévu), avec le jour et le repas, et mets "creer": true : l’application écrit ces recettes et les place dans sa semaine. « Crée ces plats » : "creer": true avec les plats proposés plus haut.
+- "changer": true seulement si elle demande explicitement de choisir parmi les recettes de l’application, avec ses critères dans "criteres".
 - Dans ces deux cas, l’application affiche juste après la liste réelle : dis simplement que c’est fait. Sinon "changer": false et "creer": false.
 Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": "", "creer": false}`;
   }
@@ -4551,9 +4551,9 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": f
       catch (e) { if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.'; }
     }
     const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
-    const aCreer = !!S.plan && !!(r && r.creer === true);
+    const aCreer = !!S.plan && (!!(r && r.creer === true) || (!!r && r.changer !== true && (changer || demandeCreation(texte))));
     if (aCreer) coachMinceur.tours.push({ role: 'assistant', content: rep.slice(0, 1500) });
-    const action = aCreer ? await creerPlatsDepuisConversation(coachMinceur.tours) : S.plan && (changer || (r && r.changer === true)) ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
+    const action = aCreer ? await creerPlatsDepuisConversation(coachMinceur.tours) : S.plan && (r ? r.changer === true : changer) ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const court = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
     if (!aCreer) coachMinceur.tours.push({ role: 'assistant', content: (action ? (action.n ? (r ? court(rep) : 'C’est fait ! Vos portions restent adaptées à votre programme.') : 'Je n’ai rien pu changer cette fois.') : rep).slice(0, 1500) });
     if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
@@ -5047,6 +5047,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
   }
   function consignesCoachAlimentaire() {
     const p = S.profil, c = coachCourant(), g = E.resumeGouts(p.gouts);
+    const libres = S.plan ? repasLibresCoach().length : 0;
     const semaine = S.plan ? S.plan.jours.map((jp, j) => `${E.JOURS[j]} : ${['dejeuner', 'diner'].map((sl) => jp[sl] && E.REC[jp[sl].recette] ? E.REC[jp[sl].recette].nom : '—').join(' / ')}`).join(' ; ') : 'pas encore de semaine';
     const bil = resumeBilanCoach();
     return `Tu es le ${c.k ? c.nom.toLowerCase() : 'coach'} de Budgétable, une application française de menus de la semaine à petit budget. Tu discutes par messagerie avec la personne.
@@ -5056,13 +5057,11 @@ Sa semaine : ${semaine}.
 Bilan nutritionnel de la semaine : ${bil ? bil.texte : 'non disponible'}.
 Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
-- Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
-- Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
-- Tu peux proposer tes propres idées de plats (simples, peu chers, faits avec des ingrédients de supermarché), avec le jour et le repas si elle le souhaite.
-- Si elle veut de nouveaux plats créés pour sa semaine et que tu n’as encore rien proposé dans la conversation, propose-les dans ta réponse (nom de chaque plat, avec le jour) et mets "creer": true.
-- Si elle veut que TES plats (ceux que tu proposes dans ce message ou plus haut, ou ceux qu’elle décrit précisément) soient mis dans sa semaine (« crée ces plats », « mets tes plats dans ma semaine », « change ma semaine avec ces plats »), mets "creer": true : l’application crée ces recettes et les place dans sa semaine.
-- Si elle demande seulement des critères (« plus de poisson », « des plats plus rapides », « pas de pâtes cette semaine ») sans plats précis, mets "changer": true et résume ses critères dans "criteres" : l’application choisit parmi ses recettes.
-- Dans ces deux cas, l’application affiche juste après ton message la liste réelle de ce qui a changé : dis simplement que c’est fait. Sinon "changer": false et "creer": false.
+- Appuie-toi sur ses goûts ; tes idées sont simples et peu chères.
+- Tu es un coach CRÉATEUR de plats. Quand elle demande des idées de plats, de nouveaux plats, ou de changer / remplacer / ajouter des plats dans sa semaine (avec ou sans critères : air fryer, viande, poisson, léger, rapide, pas de pâtes…), invente TES PROPRES plats, nouveaux et adaptés à ses critères : jamais un plat déjà prévu dans sa semaine. Donne le nom de chaque plat avec le jour et le repas (environ ${libres} repas sont encore libres cette semaine, propose-en autant sauf si elle en demande moins). Mets alors "creer": true : l’application écrit ces recettes (ingrédients, étapes) et les place dans sa semaine.
+- « Crée ces plats », « mets tes plats dans ma semaine » : "creer": true, avec les plats que tu as proposés plus haut.
+- "changer": true seulement si elle demande explicitement de choisir parmi les recettes de l’application (« prends des recettes du site »), avec ses critères dans "criteres".
+- Quand "creer" ou "changer" est true, l’application affiche juste après ton message la liste réelle de ce qui a changé : présente tes plats en une ou deux phrases et dis que c’est fait. Sinon "changer": false et "creer": false.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
 - Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
@@ -5238,13 +5237,7 @@ Réponds uniquement avec un objet JSON de cette forme :
       crees.push({ rec, j, sl });
     }
     if (!crees.length) return { n: 0, refuses, lignes: [], creation: true };
-    // places libres de la semaine : pas mangées, pas passées, pas choisies à la main
-    const t = aujPlan(), h = new Date().getHours();
-    const libre = (j, sl) => {
-      const m = S.plan.jours[j] && S.plan.jours[j][sl], k = j + '-' + sl;
-      if (!S.plan.jours[j] || (S.plan.jours[j].passes || []).includes(sl) || S.deduits[k] || (m && (m.choisi || (m.choisiPar && m.choisiPar !== 'coach') || m.dehors))) return false;
-      return !(posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21)));
-    };
+    const libre = repasLibreCoach;
     const prises = new Set();
     const ordre = ordreJours().flatMap((j) => [[j, 'dejeuner'], [j, 'diner']]);
     const avant = JSON.parse(JSON.stringify(S.plan));
@@ -5265,6 +5258,15 @@ Réponds uniquement avec un objet JSON de cette forme :
     sauver();
     return { n: crees.length, refuses, lignes, creation: true };
   }
+  /** Repas que le coach peut remplir : pas mangés, pas passés, pas pris dehors, pas choisis à la main (ses propres plats, oui). */
+  function repasLibreCoach(j, sl) {
+    const t = aujPlan(), h = new Date().getHours();
+    const jp = S.plan && S.plan.jours[j], m = jp && jp[sl], k = j + '-' + sl;
+    if (!jp || (jp.passes || []).includes(sl) || S.deduits[k] || (m && m.dehors)) return false;
+    if (m && m.choisiPar !== 'coach' && (m.choisi || m.choisiPar)) return false;
+    return !(posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21)));
+  }
+  const repasLibresCoach = () => ordreJours().flatMap((j) => [[j, 'dejeuner'], [j, 'diner']]).filter(([j, sl]) => repasLibreCoach(j, sl));
   async function creerPlatsDepuisConversation(tours) {
     if (!iaDispo) return { n: 0, refuses: [], lignes: [], sansIA: true };
     const conv = tours.filter((t) => t.role === 'user' || t.role === 'assistant').slice(-8).map((t) => `${t.role === 'user' ? 'La personne' : 'Le coach'} : ${t.content}`).join('\n\n');
@@ -5308,10 +5310,11 @@ Réponds uniquement avec un objet JSON de cette forme :
       catch (e) { if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.'; }
     } else await new Promise((ok) => setTimeout(ok, 400));
     // « crée ces plats » : les plats proposés par le coach deviennent de vraies recettes, placées dans la semaine
-    const aCreer = !!S.plan && (!!(r && r.creer === true) || (!r && !!iaDispo && demandeCreation(texte)));
+    // l'IA a oublié de le dire mais la demande est claire (« change ma semaine », « crée ces plats ») : on crée aussi
+    const aCreer = !!S.plan && (!!(r && r.creer === true) || (!!r && r.changer !== true && (changer || demandeCreation(texte))) || (!r && !!iaDispo && demandeCreation(texte)));
     if (aCreer && r && typeof r.reponse === 'string') coachChat.tours.push({ role: 'assistant', content: r.reponse.trim().slice(0, 1500) });
     // « mets du poisson mardi », « des plats plus rapides » : le coach change vraiment la semaine
-    const aChanger = !aCreer && !!S.plan && (changer || !!(r && r.changer === true));
+    const aChanger = !aCreer && !!S.plan && (r ? r.changer === true : changer);
     const action = aCreer ? await creerPlatsDepuisConversation(coachChat.tours) : aChanger ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Je n’ai rien pu changer cette fois.') : reponseLocaleCoach(texte);
     const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
