@@ -706,6 +706,15 @@
     if (rec.perso) s += RECENTS.has(rec.id) ? 1.5 : 4.5;
     // variété d'une semaine à l'autre : un plat mangé ou prévu récemment attend un peu (moins pour les favoris)
     else if (RECENTS.has(rec.id)) s -= ctx.classiques.includes(rec.id) ? 1 : 3;
+    // … et un plat qui y RESSEMBLE aussi : même plat avec une autre épice, même format avec la même protéine
+    // (« curry de poulet » puis « curry de poulet aux épinards »), même format avec les mêmes légumes
+    if (!rec.perso && !ctx.classiques.includes(rec.id)) {
+      if (!RECENTS.has(rec.id) && RECENTS_PROFIL.sigs.has(rec.sig || rec.id)) s -= 3;
+      if (rec.modele !== 'maison' && RECENTS_PROFIL.formats.has(rec.modele + '|' + (rec.prot || ''))) s -= 2.5;
+      let l = 0; for (const id of legumesPrincipaux(rec)) if (RECENTS_PROFIL.formats.has(rec.modele + '|' + id)) l++;
+      s -= Math.min(2, l * 1.1);
+      if (rec.modele !== 'maison') s -= Math.min(2.4, (RECENTS_PROFIL.modeles[rec.modele] || 0) * 0.8);
+    }
     // « nos classiques » : 2 par semaine environ (valeurs sûres), sans les répéter
     if (ctx.classiques.includes(rec.id) && !ctx.utilisations[rec.id] && ctx.nbClassiques < ctx.cibleClassiques) s += 6;
     return s;
@@ -713,7 +722,20 @@
 
   // plats des deux dernières semaines (journal, semaine précédente) : pour varier d'une semaine à l'autre
   let RECENTS = new Set();
-  function definirRecents(ids) { RECENTS = new Set((ids || []).filter(Boolean)); }
+  let RECENTS_PROFIL = { sigs: new Set(), formats: new Set(), modeles: {} };
+  function definirRecents(ids) {
+    RECENTS = new Set((ids || []).filter(Boolean));
+    const sigs = new Set(), formats = new Set(), modeles = {};
+    for (const id of RECENTS) {
+      const r = REC[id]; if (!r || r.perso) continue;
+      sigs.add(r.sig || r.id);
+      if (r.modele === 'maison') continue;
+      modeles[r.modele] = (modeles[r.modele] || 0) + 1;
+      formats.add(r.modele + '|' + (r.prot || ''));
+      for (const l of legumesPrincipaux(r)) formats.add(r.modele + '|' + l);
+    }
+    RECENTS_PROFIL = { sigs, formats, modeles };
+  }
   function candidats(p, jour, slot, ctx, exclure = []) {
     let base = recettesCompatibles(p).filter((r) => r.repas.includes(slot) && !exclure.includes(r.id) && !(ctx.notes[r.id] > 0 && ctx.notes[r.id] <= 2) && r.proposer !== false);
     const sansDeteste = base.filter((r) => !contientDeteste(r, p.gouts));
