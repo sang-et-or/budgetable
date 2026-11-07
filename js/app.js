@@ -4510,7 +4510,7 @@
         <div><button class="btn btn-plein" data-a="prog-point">Faire le point avec mon coach</button></div>
         ${pr.dernierPoint ? `<div class="bandeau bandeau-info small" role="status"><span>${esc(pr.dernierPoint)}</span></div><div><button class="btn btn-plein" data-a="prog-semaine">Préparer ma semaine suivante</button></div>` : ''}</section>
       <section class="carte stack" style="gap:8px"><h2>Une question pour votre coach ?</h2>
-        <div class="chat" aria-live="polite">${coachMinceur.tours.length ? coachMinceur.tours.map((t) => `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! J’ai faim le soir, je mange au restaurant samedi, mon poids stagne… Posez-moi votre question.</p>'}${coachMinceur.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
+        <div class="chat" aria-live="polite">${coachMinceur.tours.length ? coachMinceur.tours.map((t, i, l) => t.role === 'action' ? bulleAction(t, !l.slice(i + 1).some((x) => x.role === 'action')) : `<p class="bulle-chat ${t.role === 'user' ? 'moi' : ''}">${esc(t.content)}</p>`).join('') : '<p class="bulle-chat">Bonjour ! J’ai faim le soir, je mange au restaurant samedi, mon poids stagne… Posez-moi votre question.</p>'}${coachMinceur.attente ? '<p class="bulle-chat"><span class="muted">Je réfléchis…</span></p>' : ''}</div>
         ${coachMinceur.message ? `<p class="small" style="color:var(--tomate)">${esc(coachMinceur.message)}</p>` : ''}
         <div class="row" style="gap:6px">${['J’ai faim le soir', 'Je vais au restaurant', 'Mon poids stagne', 'Quel sport ?'].map((q) => `<button class="chip chip-petit" data-a="coach-m-q" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
         <div class="row" style="gap:8px;flex-wrap:nowrap"><label class="champ" style="flex:1;min-width:0"><span class="sr">Votre question</span><input type="text" id="coach-m-texte" placeholder="Votre question…" autocomplete="off" enterkeyhint="send"></label><button class="btn btn-plein" data-a="coach-m-envoyer" ${coachMinceur.attente ? 'disabled' : ''}>Envoyer</button></div></section>
@@ -4540,10 +4540,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     const cible = cibleProg();
     const secours = P.repondreLocal(texte, { cible, repartition: P.repartition(cible), collations: P.collations(S.profil.gouts) });
     coachMinceur.tours.push({ role: 'user', content: texte });
-    if (!iaDispo) { coachMinceur.tours.push({ role: 'assistant', content: secours }); rendre(); return; }
     coachMinceur.attente = true; coachMinceur.message = ''; rendre();
+    const action = demandeChangement(texte) ? await changerSemaineSelonDemande(texte) : null;
+    if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
+    if (!iaDispo) { coachMinceur.tours.push({ role: 'assistant', content: action ? 'C’est fait ! Vos portions restent adaptées à votre programme.' : secours }); coachMinceur.attente = false; rendre(); return; }
     try {
-      const r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() }, ...coachMinceur.tours.slice(-8)]);
+      const r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() + consigneAction(action) }, ...coachMinceur.tours.filter((t) => t.role !== 'action').slice(-8)]);
       coachMinceur.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
     } catch (e) {
       if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.';
@@ -5037,6 +5039,7 @@ Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
 - Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
 - Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
+- Quand la personne te demande de changer ses plats (plus de poisson, plus rapide, sans pâtes…), l’application refait les plats de sa semaine selon sa demande : invite-la à préciser ses critères si besoin.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
 - Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
@@ -5055,18 +5058,120 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     if (/40|menopause|calcium|os\b/.test(t)) return COACHS.femme40.accroche + ' ' + COACHS.femme40.pour;
     return c.astuces.slice(0, 2).join(' ') + ' Posez-moi une question sur vos repas ou votre semaine.';
   }
+  /* ---------- coachs : changer les plats de la semaine sur demande (« plus de poisson, rien au-dessus de 20 min ») ---------- */
+  const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’']/g, ' ');
+  const RX_CHANGER = /\b(chang|remplac|refai|refais|refaire|modifi|revoi|adapt|recompos)|\b(autres?|d autres|nouveaux|nouvelles?) (plats?|recettes?|menus?|repas)|\b(mets?|mettez|ajoute[sz]?|propose[sz]?|fais|faites|prevois|prevoyez|veux|voudrais|aimerais)\b.{0,50}\b(plus de|moins de|sans|pas de|que des|du poisson|vegetarien|leger|rapide|moins cher)/;
+  function demandeChangement(texte) { return !!S.plan && RX_CHANGER.test(sansAccents(texte)); }
+  function criteresLocaux(texte) {
+    const t = sansAccents(texte);
+    const c = { prefs: E.preferencesDepuisTexte(texte), tempsMax: null, vegetarien: false, moinsCher: false, leger: false, legumes: false, exclure: [] };
+    const m = t.match(/(\d{1,3})\s*(min|mn)/);
+    if (m && +m[1] >= 5 && +m[1] <= 120) c.tempsMax = +m[1]; else if (/rapide|vite|presse|express/.test(t)) c.tempsMax = 20;
+    if (/vegetarien|veggie|sans viande|pas de viande/.test(t)) c.vegetarien = true;
+    if (/moins cher|pas cher|econom|petit budget|budget serre|moins couteu/.test(t)) c.moinsCher = true;
+    if (/leger|light|moins gras|moins calori/.test(t)) c.leger = true;
+    if (/(plus de|davantage de|beaucoup de) legumes/.test(t)) c.legumes = true;
+    // « pas de pâtes », « sans champignons » : écartés pour cette fois (« trop de… » baisse seulement).
+    // Le mot doit correspondre exactement (« pâtes » n'écarte ni le pâté ni la pâte à pizza).
+    const mots = new Set(t.split(/[^a-z]+/).filter(Boolean));
+    for (const prop of t.split(/[.;!?\n]|\bmais\b|\bet\b|,/)) {
+      if (!/\b(pas de|pas d|sans|aucun|aucune|plus de .{0,20}jamais|ni)\b|\bni\b/.test(prop) || /\btrop\b|moins de/.test(prop)) continue;
+      const ici = new Set(prop.split(/[^a-z]+/).filter(Boolean));
+      for (const i of E.DATA.ingredients.concat(Object.values(E.ING).filter((x) => !E.DATA.ingredients.includes(x)))) {
+        if (!i || i.perso || !['P', 'L', 'F', 'D'].includes(i.groupe)) continue;
+        const premier = sansAccents(i.nom.replace(/\([^)]*\)/g, '')).trim().split(/\s+/)[0];
+        const sing = premier.replace(/(s|x)$/, '');
+        if (premier.length >= 3 && (ici.has(premier) || ici.has(sing) || ici.has(sing + 's') || ici.has(sing + 'x')) && !c.exclure.includes(i.id)) c.exclure.push(i.id);
+      }
+      for (const [mot, ids] of Object.entries({ viande: ['poulet_filet', 'cuisses_poulet', 'boeuf_hache', 'jambon', 'lardons', 'saucisse'], poisson: ['saumon', 'colin', 'thon'] })) if (ici.has(mot)) ids.forEach((id) => { if (E.ING[id] && !c.exclure.includes(id)) c.exclure.push(id); });
+    }
+    void mots;
+    // les ingrédients écartés ne sont plus « à baisser » en plus (affichage plus clair)
+    for (const id of c.exclure) delete (c.prefs.ingredients || {})[id];
+    for (const k of Object.keys(c.prefs.ingredients || {})) if (c.prefs.ingredients[k] <= -3 && !c.exclure.includes(k)) delete c.prefs.ingredients[k];   // mot ambigu : on n'y touche pas
+    return c;
+  }
+  function consignesChangement() {
+    const ings = E.DATA.ingredients.filter((i) => ['P', 'L', 'F', 'D'].includes(i.groupe)).map((i) => `${i.id}=${i.nom}`).join(', ');
+    const cuis = Object.entries(L.cuisines).map(([k, v]) => `${k}=${v}`).join(', ');
+    const mods = Object.entries(E.MODELES).filter(([k]) => k !== 'maison').map(([k, v]) => `${k}=${v.libelle}`).join(', ');
+    return `Tu traduis une demande de changement des menus de la semaine (application Budgétable) en critères chiffrés.
+Utilise UNIQUEMENT ces identifiants. Ingrédients : ${ings}. Cuisines : ${cuis}. Types de plats : ${mods}.
+Poids de -3 (à éviter) à 3 (à mettre en avant). « exclure » : ingrédients que la personne ne veut PAS DU TOUT cette semaine. N’invente rien : ne mets que ce que la demande dit.
+Ne déduis jamais d’allergie ni de régime médical.
+Réponds uniquement avec un objet JSON de cette forme :
+{"ingredients": {"saumon": 2}, "cuisines": {"asiatique": 1}, "modeles": {"poelee": -2}, "exclure": ["champignon"], "tempsMax": 20, "vegetarien": false, "moinsCher": false, "leger": false, "legumes": false}`;
+  }
+  /** Applique la demande : nouveaux plats sur les repas pas encore mangés ni choisis, avec un retour possible. */
+  async function changerSemaineSelonDemande(texte) {
+    const c = criteresLocaux(texte);
+    if (iaDispo) {
+      try {
+        const r = await iaDispo.json([{ role: 'user', content: consignesChangement() }, { role: 'user', content: String(texte).slice(0, 500) }], { cache: false, modelTier: 'quick' });
+        if (r && typeof r === 'object') {
+          c.prefs = E.fusionPreferences(r, c.prefs);
+          for (const k of ['vegetarien', 'moinsCher', 'leger', 'legumes']) if (r[k] === true) c[k] = true;
+          const tm = Number(r.tempsMax); if (Number.isFinite(tm) && tm >= 5 && tm <= 120) c.tempsMax = c.tempsMax ? Math.min(c.tempsMax, tm) : tm;
+          for (const id of Array.isArray(r.exclure) ? r.exclure : []) if (E.ING[id] && !c.exclure.includes(id)) c.exclure.push(id);
+        }
+      } catch (e) { /* critères compris sans IA */ }
+    }
+    // profil du moment : la demande compte fort, pour cette fois seulement (le profil n'est pas modifié)
+    const p = JSON.parse(JSON.stringify(S.profil));
+    const g = p.gouts || { ing: {}, cuisine: {}, modele: {} };
+    for (const [t, src] of [['ing', c.prefs.ingredients], ['cuisine', c.prefs.cuisines], ['modele', c.prefs.modeles]]) {
+      g[t] = g[t] || {};
+      for (const [k, v] of Object.entries(src || {})) if (Number.isFinite(+v)) g[t][k] = (g[t][k] || 0) * 0.5 + (+v) * 2;
+    }
+    p.gouts = g;
+    if (c.tempsMax) p.temps = { semaine: Math.min(p.temps.semaine, c.tempsMax), weekend: Math.min(p.temps.weekend, c.tempsMax) };
+    if (c.vegetarien && ['aucun', 'flexitarien', 'sans_porc', 'halal'].includes(p.regime)) p.regime = 'vegetarien';
+    if (c.moinsCher && !p.objectifs.includes('economies')) p.objectifs = p.objectifs.concat('economies');
+    p.envie = { leger: c.leger, legumes: c.legumes };
+    p.exclure = c.exclure;
+    const compris = resumePreferences({ ...c.prefs, ingredients: Object.fromEntries(Object.entries(c.prefs.ingredients || {}).filter(([k]) => !c.exclure.includes(k))) })
+      .filter((x) => !/^moins de /.test(x) || !c.exclure.some((id) => x.includes(sansAccents(E.ING[id].nom).split(' ')[0].slice(0, 4))))
+      .concat([...new Set(c.exclure.map((id) => 'sans ' + E.ING[id].nom.replace(/\s*\([^)]*\)/, '').toLowerCase().split(/\s+/)[0]))])
+      .concat(c.tempsMax ? [`${c.tempsMax} min maximum`] : [], c.vegetarien ? ['végétarien'] : [], c.moinsCher ? ['moins cher'] : [], c.leger ? ['plus léger'] : [], c.legumes ? ['plus de légumes'] : []);
+    if (!compris.length) return null;   // rien de précis : le coach répond simplement
+    if (E.recettesCompatibles(p).length < 20) return { n: 0, compris, impossible: true };
+    const avant = S.plan.jours.map((jp) => E.SLOTS.map((sl) => jp[sl] && jp[sl].recette));
+    const n = refairePlats(p);
+    const lignes = [];
+    S.plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl, k) => { const r = jp[sl] && jp[sl].recette; if (r && r !== avant[j][k] && E.REC[r]) lignes.push(`${JOURS_COURTS[j]} ${sl === 'dejeuner' ? 'midi' : 'soir'} : ${E.REC[r].nom}`); }));
+    sauver();
+    return { n: lignes.length, compris, lignes };
+  }
+  /** Bulle « c'est fait » dans le chat, et ce que l'IA doit savoir pour répondre. */
+  function texteAction(a) {
+    if (a.impossible) return `Je n’ai pas trouvé assez de recettes avec tous ces critères (${a.compris.join(', ')}) : vos plats n’ont pas changé. Essayez avec un critère de moins.`;
+    if (!a.n) return `Critères notés (${a.compris.join(', ')}), mais tous vos repas restants sont déjà mangés, passés ou choisis par vous : rien à changer.`;
+    return `J’ai changé ${a.n} plat${a.n > 1 ? 's' : ''} de votre semaine (${a.compris.join(', ')}) :\n${a.lignes.slice(0, 14).join('\n')}`;
+  }
+  const consigneAction = (a) => a ? `\nIMPORTANT : l’application vient d’appliquer sa demande sur sa semaine. Résultat : ${texteAction(a).replace(/\n/g, ' ; ')}. Confirme-le en une phrase (sans répéter la liste) et ajoute au besoin un conseil. Ne dis jamais que tu ne peux pas modifier sa semaine.` : '';
+  function bulleAction(t, derniere) {
+    return `<div class="chat-ligne coach"><div class="chat-bulle chat-action">✅ ${esc(t.content).replace(/\n/g, '<br>')}${derniere && t.annulable && S.planAvantRefaire ? '<div class="row" style="gap:6px;margin-top:8px"><button class="btn btn-petit btn-plein" data-a="chat-voir-semaine">Voir ma semaine</button><button class="btn btn-petit" data-a="refaire-annuler">Annuler</button></div>' : ''}</div></div>`;
+  }
+
   async function envoyerCoachChat(question) {
     const texte = String(question || '').trim().slice(0, 500);
     if (!texte || coachChat.attente) return;
     // « trop de poêlées », « pas de champignons » : écrit au coach, c'est aussi un goût pour les menus
-    const pref = E.preferencesDepuisTexte(texte), compris = resumePreferences(pref);
-    if (compris.length) { S.profil.gouts = E.fusionnerGouts(S.profil.gouts, pref); toast(`Noté pour vos menus : ${compris.join(', ')}. « Refaire les plats » pour l’appliquer`); }
+    const changer = demandeChangement(texte);
+    if (!changer) {
+      const pref = E.preferencesDepuisTexte(texte), compris = resumePreferences(pref);
+      if (compris.length) { S.profil.gouts = E.fusionnerGouts(S.profil.gouts, pref); toast(`Noté pour vos menus : ${compris.join(', ')}. « Refaire les plats » pour l’appliquer`); }
+    }
     coachChat.tours.push({ role: 'user', content: texte }); coachChat.message = '';
-    const secours = reponseLocaleCoach(texte);
-    if (!iaDispo) { coachChat.attente = true; rendre(); setTimeout(() => { coachChat.tours.push({ role: 'assistant', content: secours }); coachChat.attente = false; rendre(); defilerChat(); }, 700); defilerChat(); return; }
     coachChat.attente = true; rendre(); defilerChat();
+    // « change mes plats : plus de poisson, rien au-dessus de 20 min » : le coach le fait vraiment
+    const action = changer ? await changerSemaineSelonDemande(texte) : null;
+    if (action) coachChat.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
+    const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Dites-moi ce que vous voulez changer en priorité, je refais les plats.') : reponseLocaleCoach(texte);
+    if (!iaDispo) { setTimeout(() => { coachChat.tours.push({ role: 'assistant', content: secours }); coachChat.attente = false; rendre(); defilerChat(); }, 500); rendre(); defilerChat(); return; }
+    rendre(); defilerChat();
     try {
-      const r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() }, ...coachChat.tours.slice(-8)], { cache: false });
+      const r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() + consigneAction(action) }, ...coachChat.tours.filter((t) => t.role !== 'action').slice(-8)], { cache: false });
       coachChat.tours.push({ role: 'assistant', content: (r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse : secours).slice(0, 1500) });
     } catch (e) {
       if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.';
@@ -5161,7 +5266,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
     return `<div class="voile" data-a="chat-fond"><div class="fiche fenetre-chat" role="dialog" aria-modal="true" aria-label="Discussion avec votre coach">
       <header class="chat-tete"><span class="chat-avatar" aria-hidden="true">${c.emoji}</span><div class="stack" style="gap:0;min-width:0;flex:1"><strong>Votre coach Budgétable</strong><small>${esc(c.k ? c.nom : 'Coach équilibre')} · ${iaDispo ? 'en ligne' : 'conseils rapides'}</small></div><button class="btn btn-petit" data-a="chat-fermer">Fermer</button></header>
       <div class="chat-fil" aria-live="polite">
-        ${bulles.map((t) => `<div class="chat-ligne ${t.role === 'user' ? 'moi' : 'coach'}"><div class="chat-bulle">${esc(t.content)}</div></div>`).join('')}
+        ${bulles.map((t, i) => t.role === 'action' ? bulleAction(t, !bulles.slice(i + 1).some((x) => x.role === 'action')) : `<div class="chat-ligne ${t.role === 'user' ? 'moi' : 'coach'}"><div class="chat-bulle">${esc(t.content)}</div></div>`).join('')}
         ${coachChat.attente ? '<div class="chat-ligne coach"><div class="chat-bulle chat-frappe" aria-label="Votre coach écrit"><i></i><i></i><i></i></div></div>' : ''}
         ${coachChat.tours.length ? '' : `<div class="chat-suggestions">${QUESTIONS_COACH.map((q) => `<button class="chip" data-a="chat-question" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
       </div>
@@ -5356,11 +5461,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
     }));
     return out;
   }
-  function refairePlats() {
+  function refairePlats(profilMoment) {
     if (!S.plan) return 0;
+    const pr = profilMoment || S.profil;
     const avant = JSON.parse(JSON.stringify(S.plan));
     majRecents(true);
-    const neuf = E.genererSemaine(S.profil, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
+    const neuf = E.genererSemaine(pr, { seed: Math.floor(Math.random() * 1e9), notes: S.notes, classiques: S.classiques });
     majRecents(false);
     const t = aujPlan(), h = new Date().getHours();
     const garde = [];
@@ -5379,7 +5485,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       return x;
     });
     let plan = { ...S.plan, jours, seed: neuf.seed, remplacements: (S.plan.remplacements || 0) + 1 };
-    plan = E.dedoublonner(plan, S.profil, { verrous: garde, notes: S.notes, classiques: S.classiques }).plan;
+    plan = E.dedoublonner(plan, pr, { verrous: garde, notes: S.notes, classiques: S.classiques }).plan;
     S.plan = plan;
     S.planAvantRefaire = avant;
     S.ceSoirOuvert = false;
@@ -6097,6 +6203,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       case 'coach-voir': coachChat.ouvert = false; S.coachVoir = el.dataset.k; break;
       case 'chat-ouvrir': S.coachVoir = null; coachChat.ouvert = true; defilerChat(); setTimeout(() => { const c = document.getElementById('coach-chat-texte'); if (c && window.matchMedia('(min-width: 700px)').matches) c.focus(); }, 60); break;
       case 'chat-fermer': coachChat.ouvert = false; break;
+      case 'chat-voir-semaine': coachChat.ouvert = false; S.coachVoir = null; S.vue = 'app'; S.onglet = 'semaine'; window.scrollTo(0, 0); break;
       case 'aide-ouvrir': aide.ouvert = true; S.menuPlus = false; coachChat.ouvert = false; defilerChat(); setTimeout(() => { const c = document.getElementById('aide-texte'); if (c && window.matchMedia('(min-width: 700px)').matches) c.focus(); }, 60); break;
       case 'aide-fermer': aide.ouvert = false; break;
       case 'aide-fond': if (ev.target !== el) return; aide.ouvert = false; break;
