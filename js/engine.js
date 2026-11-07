@@ -1226,19 +1226,20 @@
     const besoins = {};
     // repas de la semaine qui utilisent chaque ingrédient (« Lun soir », « gamelle Mar »…), affichés dans la liste
     const usages = {};
-    const noter = (rec, lib) => { for (const id of new Set(rec.ing.map(([k]) => k))) (usages[id] = usages[id] || []).push(lib); };
+    const refs = {};
+    const noter = (rec, lib, j, sl) => { for (const id of new Set(rec.ing.map(([k]) => k))) { (usages[id] = usages[id] || []).push(lib); (refs[id] = refs[id] || []).push({ j, sl: sl || null }); } };
     plan.jours.forEach((jp, j) => {
       const jour = JOURS[j].slice(0, 3);
       SLOTS.forEach((slot) => {
         const m = jp[slot];
         if (!m || !REC[m.recette]) return;
         const n = aCuisiner(m);
-        if (n > 0) { for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * n; noter(REC[m.recette], `${jour} ${slot === 'dejeuner' ? 'midi' : 'soir'}`); }
+        if (n > 0) { for (const [id, q] of REC[m.recette].ing) besoins[id] = (besoins[id] || 0) + q * n; noter(REC[m.recette], `${jour} ${slot === 'dejeuner' ? 'midi' : 'soir'}`, j, slot); }
       });
       // gamelles préparées à part
-      if (jp.gamelles && jp.gamelles.mode === 'plat' && REC[jp.gamelles.recette]) { for (const [id, q] of REC[jp.gamelles.recette].ing) besoins[id] = (besoins[id] || 0) + q * jp.gamelles.portions; noter(REC[jp.gamelles.recette], `gamelle ${jour}`); }
+      if (jp.gamelles && jp.gamelles.mode === 'plat' && REC[jp.gamelles.recette]) { for (const [id, q] of REC[jp.gamelles.recette].ing) besoins[id] = (besoins[id] || 0) + q * jp.gamelles.portions; noter(REC[jp.gamelles.recette], `gamelle ${jour}`, j); }
       // desserts et goûters ajoutés à la semaine
-      for (const g of jp.gourmand || []) if (REC[g.recette]) { for (const [id, q] of REC[g.recette].ing) besoins[id] = (besoins[id] || 0) + q * g.portions; noter(REC[g.recette], `${jour} ${REC[g.recette].type === 'dessert' ? 'dessert' : 'goûter'}`); }
+      for (const g of jp.gourmand || []) if (REC[g.recette]) { for (const [id, q] of REC[g.recette].ing) besoins[id] = (besoins[id] || 0) + q * g.portions; noter(REC[g.recette], `${jour} ${REC[g.recette].type === 'dessert' ? 'dessert' : 'goûter'}`, j); }
     });
     // programme minceur : l'assiette de la personne (moins de féculents, plus de légumes) et le pain des enfants si le plat n'a pas de féculent
     if (programmeActif(p)) plan.jours.forEach((jp, j) => SLOTS.forEach((slot) => {
@@ -1273,7 +1274,7 @@
         enStock: stock.has(id), auPlacard, reste: conditionnements * ing.cond - aAcheter
       };
     });
-    for (const a of articles) if (usages[a.id]) a.repas = usages[a.id];
+    for (const a of articles) if (usages[a.id]) { a.repas = usages[a.id]; a.repasRef = refs[a.id]; }
     // produits ajoutés à la main : [{ id: ingrédient du catalogue, n: paquets }] ou [{ nom: texte libre, n }]
     for (const x of plan.manuels || []) {
       const n = Math.max(1, Math.round(+x.n || 1));

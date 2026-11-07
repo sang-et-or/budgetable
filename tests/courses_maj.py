@@ -57,6 +57,9 @@ with sync_playwright() as p:
     t = page.locator(".article", has_text="Patates douces").first.inner_text()
     assert f"{len(apres['patate_douce']['repas'])} repas" in t and "Lun soir" in t and "Mar soir" in t, t
     page.locator(".article", has_text="Patates douces").first.screenshot(path="/tmp/claude-0/-home-claude/e7ca5389-2d6a-596d-9613-ea14ab557a7b/scratchpad/courses_repas.png")
+    # depuis la liste de courses, « Lun soir » ouvre la recette du repas
+    page.locator(".article", has_text="Patates douces").first.locator(".lien-repas", has_text="Lun soir").click(); page.wait_for_timeout(400)
+    assert "Frites de patate douce et poulet paprika" in page.locator(".fiche").inner_text()
     nav.close()
 assert not erreurs, erreurs
 print("OK la liste de courses suit les plats, avec le nombre de repas")
