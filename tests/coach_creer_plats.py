@@ -39,6 +39,10 @@ with sync_playwright() as p:
     page.locator("[data-a=chat-ouvrir]").first.click(); page.wait_for_selector("#coach-chat-texte")
     envoyer = lambda t: (page.fill("#coach-chat-texte", t), page.locator("form[data-form=coach-chat] button[type=submit]").click(), page.wait_for_timeout(1800))
     envoyer("Propose-moi des plats à l’air fryer avec de la viande")
+    # elle ferme l'appli puis revient : la discussion est toujours là, et « crée ces plats » reprend les plats proposés
+    page.reload(); page.wait_for_timeout(800)
+    page.locator("[data-a=chat-ouvrir]").first.click(); page.wait_for_selector("#coach-chat-texte")
+    assert "Nuggets inventés" in page.locator(".chat-fil").inner_text(), "discussion gardée"
     envoyer("Crée les plats que tu proposes et mets-les dans ma semaine")
     bulle = page.locator(".chat-action").last.inner_text()
     assert "J’ai créé 2 recettes" in bulle and "Lun soir : Nuggets de poulet et brocolis croustillants" in bulle and "Mar" in bulle, bulle

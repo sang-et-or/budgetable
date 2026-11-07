@@ -4525,7 +4525,7 @@
     return `Tu es le coach minceur de Budgétable, une application française de menus à petit budget. Tu accompagnes une personne adulte dans une perte de poids douce.
 Son programme : cible ${cible} kcal par jour (petit-déjeuner ${rep.petitdej}, déjeuner ${rep.dejeuner}, dîner ${rep.diner}, collation ${rep.collation}), poids de départ ${pr.poidsDepart} kg, aujourd’hui ${pr.poidsActuel || pr.poidsDepart} kg, objectif ${pr.objectif} kg, semaine ${pr.semaine || 1}.
 Elle aime : ${g.aime.join(', ') || 'non renseigné'}. Elle aime moins : ${g.evite.join(', ') || 'non renseigné'}. Régime : ${E.LIBELLES.regime[p.regime] || 'aucun'}. Allergies : ${(p.allergies || []).join(', ') || 'aucune'}.
-Sa semaine : ${semaine}.
+Plats déjà prévus dans sa semaine (ce ne sont PAS tes propositions) : ${semaine}.
 Règles :
 - Réponds en français, en vouvoyant, avec bienveillance, en 4 phrases maximum.
 - Conseils simples, peu chers, compatibles avec ses goûts, son régime et ses allergies.
@@ -4557,7 +4557,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": f
     const court = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
     if (!aCreer) coachMinceur.tours.push({ role: 'assistant', content: (action ? (action.n ? (r ? court(rep) : 'C’est fait ! Vos portions restent adaptées à votre programme.') : 'Je n’ai rien pu changer cette fois.') : rep).slice(0, 1500) });
     if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
-    coachMinceur.attente = false; rendre();
+    coachMinceur.attente = false; garderChats(); rendre();
   }
 
   /* ---------- coach sportif : programme d'entraînement, séance guidée, progression ---------- */
@@ -5024,6 +5024,19 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   /* ---------- parler à son coach alimentaire (messagerie) ---------- */
   const coachChat = { ouvert: false, tours: [], attente: false, message: '' };
+  // la discussion avec le coach est gardée sur l'appareil : « crée ces plats » marche aussi après avoir fermé l'appli
+  const CLE_CHATS = 'budgetable.coachs';
+  function garderChats() {
+    try { localStorage.setItem(CLE_CHATS, JSON.stringify({ coach: coachChat.tours.slice(-24), minceur: coachMinceur.tours.slice(-24), le: Date.now() })); } catch (e) { /* stockage plein ou bloqué */ }
+  }
+  function reprendreChats() {
+    try {
+      const o = JSON.parse(localStorage.getItem(CLE_CHATS) || 'null');
+      if (!o || Date.now() - (o.le || 0) > 14 * 864e5) return;   // au-delà de deux semaines, on repart à zéro
+      const ok = (l) => (Array.isArray(l) ? l : []).filter((t) => t && ['user', 'assistant', 'action'].includes(t.role) && typeof t.content === 'string').map((t) => ({ role: t.role, content: t.content.slice(0, 3000), annulable: false }));
+      coachChat.tours = ok(o.coach); coachMinceur.tours = ok(o.minceur);
+    } catch (e) { /* rien */ }
+  }
   const QUESTIONS_COACH = ['Ma semaine est-elle équilibrée ?', 'Comment manger plus de légumes ?', 'Une idée de dîner léger ?', 'Mes enfants boudent les légumes'];
   function coachCourant() { const k = S.profil.coach; return k && COACHS[k] ? { k, ...COACHS[k] } : { k: null, nom: 'Coach Budgétable', emoji: '🥗', court: 'Équilibre', accroche: 'Des repas variés et équilibrés, à petit budget.', pour: 'Des légumes à chaque repas, des protéines variées, des féculents complets, peu de produits trop gras, salés ou sucrés.', astuces: ['Remplissez la moitié de l’assiette de légumes.', 'Alternez viande, poisson, œufs et légumineuses dans la semaine.', 'Préférez l’eau aux boissons sucrées.', 'Un fruit ou un yaourt nature en dessert.'] }; }
   function resumeBilanCoach() {
@@ -5046,6 +5059,7 @@ Règles :
 - Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
 - Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
 - Tu peux proposer tes propres idées de plats (simples, peu chers, faits avec des ingrédients de supermarché), avec le jour et le repas si elle le souhaite.
+- Si elle veut de nouveaux plats créés pour sa semaine et que tu n’as encore rien proposé dans la conversation, propose-les dans ta réponse (nom de chaque plat, avec le jour) et mets "creer": true.
 - Si elle veut que TES plats (ceux que tu proposes dans ce message ou plus haut, ou ceux qu’elle décrit précisément) soient mis dans sa semaine (« crée ces plats », « mets tes plats dans ma semaine », « change ma semaine avec ces plats »), mets "creer": true : l’application crée ces recettes et les place dans sa semaine.
 - Si elle demande seulement des critères (« plus de poisson », « des plats plus rapides », « pas de pâtes cette semaine ») sans plats précis, mets "changer": true et résume ses critères dans "criteres" : l’application choisit parmi ses recettes.
 - Dans ces deux cas, l’application affiche juste après ton message la liste réelle de ce qui a changé : dis simplement que c’est fait. Sinon "changer": false et "creer": false.
@@ -5185,7 +5199,7 @@ Réponds uniquement avec un objet JSON de cette forme :
   function consignesCreation() {
     return `Tu écris des recettes pour l’application Budgétable à partir de la conversation entre la personne et son coach : les plats que le coach a proposés (dans son dernier message ou plus haut) ou que la personne a décrits, et qu’elle veut mettre dans sa semaine.
 Pour chaque plat : un nom clair et appétissant (sans parenthèse), le jour (lundi…dimanche) et le repas ("dejeuner" ou "diner") s’ils sont indiqués (sinon null), le temps total en minutes, les ingrédients pour UNE portion adulte avec les identifiants de la liste fournie (quantité dans l’unité indiquée entre parenthèses : g, ml ou pièce), les petits ingrédients absents de la liste dans "autres" (noms courts), et 3 à 6 étapes courtes et concrètes. Si le plat se fait à l’air fryer, précise la température et le temps dans les étapes.
-Un plat = un repas complet (avec légumes et féculent si possible). 7 plats au maximum. Reste fidèle aux plats de la conversation, sans en inventer d’autres.
+Un plat = un repas complet (avec légumes et féculent si possible). 7 plats au maximum. Prends les plats proposés par le coach dans ses messages les plus récents (ou décrits par la personne), sans en inventer d’autres. Ne reprends JAMAIS les plats déjà prévus dans sa semaine. S’il n’y a aucun plat proposé dans la conversation, réponds {"plats": []}.
 Réponds uniquement avec un objet JSON de cette forme :
 {"plats": [{"nom": "Nuggets de poulet maison et brocolis rôtis", "jour": "lundi", "repas": "diner", "temps": 30, "ingredients": [["poulet_filet", 120], ["chapelure", 25], ["oeufs", 0.5], ["brocoli", 150]], "autres": ["parmesan"], "etapes": ["…", "…"]}]}`;
   }
@@ -5263,7 +5277,7 @@ Réponds uniquement avec un objet JSON de cette forme :
   function texteAction(a) {
     if (a.creation || a.sansIA || a.erreur) {
       if (a.sansIA) return 'Le coach en ligne n’est pas disponible pour écrire les recettes : réessayez dans un moment.';
-      if (!a.n) return `Je n’ai pas réussi à créer ces plats${a.refuses && a.refuses.length ? ` : ${a.refuses.join(' ; ')}` : ''}. Réessayez en me redonnant les plats voulus.`;
+      if (!a.n) return a.refuses && a.refuses.length ? `Je n’ai pas pu ajouter ces plats : ${a.refuses.join(' ; ')}.` : 'Je n’ai pas trouvé de nouveaux plats proposés dans notre discussion. Demandez-moi d’abord des idées (par exemple « propose-moi 5 plats à l’air fryer avec de la viande »), puis « crée ces plats ».';
       return `J’ai créé ${a.n} recette${a.n > 1 ? 's' : ''} et ${a.n > 1 ? 'les ai mises' : 'l’ai mise'} dans votre semaine :\n${a.lignes.join('\n')}${a.refuses.length ? `\nPas ajouté (incompatible avec votre profil) : ${a.refuses.join(' ; ')}` : ''}\nRetrouvez-les aussi dans Mes recettes, avec les ingrédients et les étapes.`;
     }
     if (a.impossible) return `Je n’ai pas trouvé assez de recettes avec tous ces critères (${a.compris.join(', ')}) : vos plats n’ont pas changé. Essayez avec un critère de moins.`;
@@ -5304,7 +5318,7 @@ Réponds uniquement avec un objet JSON de cette forme :
     const premierePhrase = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
     if (!aCreer || !r) coachChat.tours.push({ role: 'assistant', content: (action && !action.creation && !action.sansIA ? (action.n ? premierePhrase(rep) : secours) : aCreer ? 'Je crée ces plats pour vous.' : rep).slice(0, 1500) });
     if (action) coachChat.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
-    coachChat.attente = false; rendre(); defilerChat();
+    coachChat.attente = false; garderChats(); rendre(); defilerChat();
   }
   /* ---------- aide et contact : assistant IA (hébergé par le site), avec relais vers l'équipe par e-mail ---------- */
   const aide = { ouvert: false, tours: [], attente: false, transmettre: false, message: '' };
@@ -7019,6 +7033,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     } catch (e) { /* on garde la semaine telle quelle */ }
   }
   detecterIA();
+  reprendreChats();
   // essai gratuit : à partir du premier jour d'utilisation (puis de la création du compte, tenue par le serveur)
   if (!S.essaiDebut) { S.essaiDebut = ISO(new Date()); sauver(); }
   if (S.vue === 'app') lancerTutoSiPremiereFois();   // personnes qui avaient déjà une semaine avant la visite guidée
