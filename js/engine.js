@@ -524,12 +524,14 @@
     for (const e of rec.equip) if (!p.equipement.includes(e) && !(e === 'four' && p.equipement.includes('airfryer'))) return { ok: false, raison: 'équipement : ' + e };
     if (p.niveau === 'debutant' && rec.niveau >= 3) return { ok: false, raison: 'niveau' };
     if (p.refus.includes('epice') && rec.tags.includes('epice')) return { ok: false, raison: 'épicé' };
+    // écartés pour cette fois (demande au coach : « pas de pâtes cette semaine »)
+    if (p.exclure && p.exclure.length && rec.ing.some(([id]) => p.exclure.includes(id))) return { ok: false, raison: 'écarté cette semaine' };
     return { ok: true };
   }
 
   const cacheCompat = new Map();
   function recettesCompatibles(p) {
-    const cle = JSON.stringify([p.allergies, p.regime, p.refus, p.equipement, p.niveau, versionPerso, moisCourant()]);
+    const cle = JSON.stringify([p.allergies, p.regime, p.refus, p.equipement, p.niveau, p.exclure || [], versionPerso, moisCourant()]);
     if (!cacheCompat.has(cle)) {
       if (cacheCompat.size > 50) cacheCompat.clear();
       const duMois = SAISON.filter((r) => !SAISON_ACTIF.includes(r) && (r.mois || []).includes(moisCourant()));
@@ -671,6 +673,9 @@
     if ((p.objectifs.includes('muscle') || p.seancesSport >= 2) && rec.tags.includes('proteines')) s += 2;
     if (p.objectifs.includes('perte') && rec.tags.includes('leger')) s += 2;
     if (p.objectifs.includes('legumes')) s += equilibre(rec).grammesLegumes / 100;
+    // envies du moment, demandées au coach (pour une semaine) : plus léger, plus de légumes
+    if (p.envie && p.envie.leger && rec.tags.includes('leger')) s += 3;
+    if (p.envie && p.envie.legumes) s += equilibre(rec).grammesLegumes / 70;
     if (p.objectifs.includes('rapide')) s -= rec.temps / 30;
     s -= coutPortion(rec) * (p.objectifs.includes('economies') ? 1.5 : 0.5);
     const note = ctx.notes[rec.id];
