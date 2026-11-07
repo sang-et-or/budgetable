@@ -5183,9 +5183,11 @@ Réponds uniquement avec un objet JSON de cette forme :
     if (!texte || coachChat.attente) return;
     // « trop de poêlées », « pas de champignons » : écrit au coach, c'est aussi un goût pour les menus
     const changer = demandeChangement(texte);
-    if (!changer) {
+    // « pas de champignons » : retenu pour les prochaines semaines aussi, sauf si c'est pour cette fois (« cette semaine », « mardi »…)
+    const pourUneFois = /\b(cette semaine|cette fois|ce soir|ce midi|demain|aujourd hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/.test(sansAccents(texte));
+    if (!pourUneFois) {
       const pref = E.preferencesDepuisTexte(texte), compris = resumePreferences(pref);
-      if (compris.length) { S.profil.gouts = E.fusionnerGouts(S.profil.gouts, pref); toast(`Noté pour vos menus : ${compris.join(', ')}. « Refaire les plats » pour l’appliquer`); }
+      if (compris.length) { S.profil.gouts = E.fusionnerGouts(S.profil.gouts, pref); if (!changer) toast(`Noté pour vos menus : ${compris.join(', ')}. « Refaire les plats » pour l’appliquer`); }
     }
     coachChat.tours.push({ role: 'user', content: texte }); coachChat.message = '';
     coachChat.attente = true; rendre(); defilerChat();
