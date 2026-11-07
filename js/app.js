@@ -4526,6 +4526,7 @@
 Son programme : cible ${cible} kcal par jour (petit-déjeuner ${rep.petitdej}, déjeuner ${rep.dejeuner}, dîner ${rep.diner}, collation ${rep.collation}), poids de départ ${pr.poidsDepart} kg, aujourd’hui ${pr.poidsActuel || pr.poidsDepart} kg, objectif ${pr.objectif} kg, semaine ${pr.semaine || 1}.
 Elle aime : ${g.aime.join(', ') || 'non renseigné'}. Elle aime moins : ${g.evite.join(', ') || 'non renseigné'}. Régime : ${E.LIBELLES.regime[p.regime] || 'aucun'}. Allergies : ${(p.allergies || []).join(', ') || 'aucune'}.
 Plats déjà prévus dans sa semaine (ce ne sont PAS tes propositions) : ${semaine}.
+Repas encore libres, avec qui est à table et les gamelles : ${S.plan ? tablesCoach().join(' ; ') || 'aucun' : 'pas de semaine'}.
 Règles :
 - Réponds en français, en vouvoyant, avec bienveillance, en 4 phrases maximum.
 - Conseils simples, peu chers, compatibles avec ses goûts, son régime et ses allergies.
@@ -5053,7 +5054,8 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
     return `Tu es le ${c.k ? c.nom.toLowerCase() : 'coach'} de Budgétable, une application française de menus de la semaine à petit budget. Tu discutes par messagerie avec la personne.
 Ton rôle : ${c.accroche} Dans ses menus : ${c.pour}
 Son foyer : ${p.foyer.adultes || 1} adulte(s) et ${(p.foyer.enfants || []).length} enfant(s). Elle aime : ${g.aime.join(', ') || 'non renseigné'}. Elle aime moins : ${g.evite.join(', ') || 'non renseigné'}. Régime : ${E.LIBELLES.regime[p.regime] || 'aucun'}. Allergies : ${(p.allergies || []).join(', ') || 'aucune'}.
-Sa semaine : ${semaine}.
+Plats déjà prévus dans sa semaine (ce ne sont PAS tes propositions) : ${semaine}.
+Repas encore libres, avec qui est à table et les gamelles : ${S.plan ? tablesCoach().join(' ; ') || 'aucun' : 'pas de semaine'}.
 Bilan nutritionnel de la semaine : ${bil ? bil.texte : 'non disponible'}.
 Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
@@ -5061,6 +5063,7 @@ Règles :
 - Tu es un coach CRÉATEUR de plats. Quand elle demande des idées de plats, de nouveaux plats, ou de changer / remplacer / ajouter des plats dans sa semaine (avec ou sans critères : air fryer, viande, poisson, léger, rapide, pas de pâtes…), invente TES PROPRES plats, originaux, gourmands et actuels (pas des classiques vieillots ni les recettes de l’application), adaptés à ses critères : jamais un plat déjà prévu dans sa semaine. Donne le nom de chaque plat avec le jour et le repas (environ ${libres} repas sont encore libres cette semaine, propose-en autant sauf si elle en demande moins). Mets alors "creer": true : l’application écrit ces recettes (ingrédients, étapes) et les place dans sa semaine.
 - « Crée ces plats », « mets tes plats dans ma semaine » : "creer": true, avec les plats que tu as proposés plus haut.
 - "changer": true seulement si elle demande explicitement de choisir parmi les recettes de l’application (« prends des recettes du site »), avec ses critères dans "criteres".
+- Adapte chaque plat aux personnes à table ce jour-là (plats que les enfants aiment quand il y en a, quantités pour tout le monde) et aux gamelles : un dîner qui sert aussi de gamelle le lendemain doit se transporter et se réchauffer bien (pas de friture croustillante ni de plat qui ne supporte pas d’attendre).
 - Quand "creer" ou "changer" est true, l’application affiche juste après ton message la liste réelle de ce qui a changé : présente tes plats en une ou deux phrases et dis que c’est fait. Sinon "changer": false et "creer": false.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
@@ -5201,6 +5204,7 @@ Réponds uniquement avec un objet JSON de cette forme :
     return `Tu écris des recettes pour l’application Budgétable à partir de la conversation entre la personne et son coach : les plats que le coach a proposés (dans son dernier message ou plus haut) ou que la personne a décrits, et qu’elle veut mettre dans sa semaine.
 Pour chaque plat : un nom clair et appétissant (sans parenthèse), le jour (lundi…dimanche) et le repas ("dejeuner" ou "diner") s’ils sont indiqués (sinon null), le temps total en minutes, les ingrédients pour UNE portion adulte avec les identifiants de la liste fournie (quantité dans l’unité indiquée entre parenthèses : g, ml ou pièce), les petits ingrédients absents de la liste dans "autres" (noms courts), et 3 à 6 étapes courtes et concrètes. Si le plat se fait à l’air fryer, précise la température et le temps dans les étapes.
 Un plat = un repas complet (avec légumes et féculent si possible), original, gourmand et actuel (pas de classique vieillot), simple et pas cher. Combien : ${n} plats (les repas libres de sa semaine), sauf si la personne en demande moins. Prends d’abord les plats proposés par le coach dans ses messages les plus récents ; s’il en manque ou si sa dernière demande appelle de nouveaux plats, invente-les toi-même en respectant ses critères. Ne reprends JAMAIS ces plats déjà prévus dans sa semaine : ${prevus}.
+Repas à remplir, avec qui est à table et les gamelles : ${tablesCoach().join(' ; ')}. Place chaque plat sur un de ces repas (jour et repas). Adapte le plat aux personnes présentes (enfants) et, quand il sert de gamelle le lendemain, choisis un plat qui se transporte et se réchauffe bien. Les quantités restent pour UNE portion adulte : l’application calcule les portions de chacun et les gamelles.
 Réponds uniquement avec un objet JSON de cette forme :
 {"plats": [{"nom": "Nuggets de poulet maison et brocolis rôtis", "jour": "lundi", "repas": "diner", "temps": 30, "ingredients": [["poulet_filet", 120], ["chapelure", 25], ["oeufs", 0.5], ["brocoli", 150]], "autres": ["parmesan"], "etapes": ["…", "…"]}]}`;
   }
@@ -5264,9 +5268,23 @@ Réponds uniquement avec un objet JSON de cette forme :
   function repasLibreCoach(j, sl) {
     const t = aujPlan(), h = new Date().getHours();
     const jp = S.plan && S.plan.jours[j], m = jp && jp[sl], k = j + '-' + sl;
-    if (!jp || (jp.passes || []).includes(sl) || S.deduits[k] || (m && m.dehors)) return false;
+    if (!jp || (jp.passes || []).includes(sl) || S.deduits[k] || (m && (m.dehors || m.deRestes || !(m.portions > 0)))) return false;
     if (m && m.choisiPar !== 'coach' && (m.choisi || m.choisiPar)) return false;
     return !(posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21)));
+  }
+  /** Pour chaque repas libre : qui est à table et les gamelles à prévoir (« Mar soir : 2 adultes, 1 enfant (6-10 ans) · + 2 gamelles pour mer. midi »). */
+  function tablesCoach() {
+    const p = S.profil, enf = p.foyer.enfants || [];
+    return repasLibresCoach().map(([j, sl]) => {
+      const pr = E.presence(p, j, sl), m = S.plan.jours[j][sl];
+      const a = pr.a + (pr.invA || 0), e = enf.filter((_, k) => pr.e[k]);
+      const qui = [a ? `${a} adulte${a > 1 ? 's' : ''}` : '', e.length ? `${e.length} enfant${e.length > 1 ? 's' : ''} (${e.join(', ')} ans)` : '', pr.invE ? `${pr.invE} enfant(s) invité(s)` : ''].filter(Boolean).join(', ') || `${m.portions} portion(s)`;
+      const suiv = S.plan.jours[(j + 1) % 7];
+      const gam = sl === 'diner' && suiv && suiv.gamelles && suiv.gamelles.mode === 'restes' && suiv.gamelles.source === j && suiv.gamelles.n ? ` · + ${suiv.gamelles.n} gamelle${suiv.gamelles.n > 1 ? 's' : ''} à emporter le lendemain midi avec les restes (plat qui se transporte et se réchauffe bien)` : '';
+      const restes = sl === 'diner' && suiv && suiv.dejeuner && suiv.dejeuner.deRestes ? ' · les restes font aussi le déjeuner du lendemain' : '';
+      const gamMidi = sl === 'dejeuner' && S.plan.jours[j].gamelles && S.plan.jours[j].gamelles.n ? ` · ${S.plan.jours[j].gamelles.n} personne(s) emportent une gamelle ce midi` : '';
+      return `${JOURS_COURTS[j]} ${sl === 'dejeuner' ? 'midi' : 'soir'} : ${qui}${gam}${restes}${gamMidi}`;
+    });
   }
   const repasLibresCoach = () => ordreJours().flatMap((j) => [[j, 'dejeuner'], [j, 'diner']]).filter(([j, sl]) => repasLibreCoach(j, sl));
   async function creerPlatsDepuisConversation(tours) {
