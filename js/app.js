@@ -4532,8 +4532,10 @@ Règles :
 - Jamais de régime extrême, de jeûne prolongé, de « brûle-graisses », de médicament ou de complément ; jamais moins de 1 200 kcal par jour.
 - Aucun jugement sur le corps ou le poids. Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, conseille avec douceur d’en parler à son médecin et cite Anorexie Boulimie Info Écoute (09 69 325 900).
 - Pour une question médicale (maladie, traitement, grossesse), renvoie vers le médecin.
-- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats, mets "changer": true et résume ses critères dans "criteres" (quelques mots, avec les jours s’il y en a) ; l’application refait les plats et affiche la vraie liste : dis seulement que c’est fait, en une phrase, sans citer de plats. Sinon "changer": false. N’écris jamais toi-même un menu de la semaine.
-Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": ""}`;
+- Tu peux proposer tes propres idées de plats. Si elle veut que TES plats (proposés ici ou plus haut, ou qu’elle décrit) soient mis dans sa semaine, mets "creer": true : l’application crée ces recettes et les place dans sa semaine.
+- Si elle demande seulement des critères (plus léger, plus de poisson…), mets "changer": true et résume-les dans "criteres" : l’application choisit parmi ses recettes.
+- Dans ces deux cas, l’application affiche juste après la liste réelle : dis simplement que c’est fait. Sinon "changer": false et "creer": false.
+Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": "", "creer": false}`;
   }
   async function envoyerCoachMinceur(question) {
     const texte = String(question || '').trim().slice(0, 500);
@@ -4548,10 +4550,12 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": f
       try { r = await iaDispo.json([{ role: 'user', content: consignesCoachMinceur() }, ...coachMinceur.tours.filter((t) => t.role !== 'action').slice(-8)]); }
       catch (e) { if (e && e.code === 'rate_limited') coachMinceur.message = e.message || 'Le coach est très sollicité : voici une réponse rapide.'; }
     }
-    const action = S.plan && (changer || (r && r.changer === true)) ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
+    const aCreer = !!S.plan && !!(r && r.creer === true);
+    if (aCreer) coachMinceur.tours.push({ role: 'assistant', content: rep.slice(0, 1500) });
+    const action = aCreer ? await creerPlatsDepuisConversation(coachMinceur.tours) : S.plan && (changer || (r && r.changer === true)) ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const court = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
-    coachMinceur.tours.push({ role: 'assistant', content: (action ? (action.n ? (r ? court(rep) : 'C’est fait ! Vos portions restent adaptées à votre programme.') : 'Je n’ai rien pu changer cette fois.') : rep).slice(0, 1500) });
+    if (!aCreer) coachMinceur.tours.push({ role: 'assistant', content: (action ? (action.n ? (r ? court(rep) : 'C’est fait ! Vos portions restent adaptées à votre programme.') : 'Je n’ai rien pu changer cette fois.') : rep).slice(0, 1500) });
     if (action) coachMinceur.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
     coachMinceur.attente = false; rendre();
   }
@@ -5041,12 +5045,14 @@ Règles :
 - Réponds en français, en vouvoyant, chaleureux et concret, en 4 phrases maximum, avec au plus un émoji.
 - Appuie-toi sur ses plats et ses goûts ; propose des idées simples et peu chères.
 - Si sa semaine peut être améliorée, dis-le et propose d’utiliser « Améliorer ma semaine ».
-- Tu peux modifier les plats de sa semaine. Si son message demande de changer, remplacer, ajouter ou enlever des plats (même sans le mot « changer » : « mets du poisson mardi », « des plats plus rapides », « pas de pâtes cette semaine »), mets "changer": true et résume ses critères dans "criteres" (en quelques mots, avec les jours s’il y en a) ; l’application refait aussitôt les plats concernés et affiche le résultat juste après ton message, donc dis simplement que c’est fait, en une phrase, SANS citer de plats : l’application choisit parmi ses propres recettes et affiche la vraie liste. Sinon "changer": false.
-- N’écris jamais toi-même un menu de la semaine ou une liste de plats « pour sa semaine » : seuls les plats choisis par l’application comptent. Pour une idée de recette, une ou deux suffisent.
+- Tu peux proposer tes propres idées de plats (simples, peu chers, faits avec des ingrédients de supermarché), avec le jour et le repas si elle le souhaite.
+- Si elle veut que TES plats (ceux que tu proposes dans ce message ou plus haut, ou ceux qu’elle décrit précisément) soient mis dans sa semaine (« crée ces plats », « mets tes plats dans ma semaine », « change ma semaine avec ces plats »), mets "creer": true : l’application crée ces recettes et les place dans sa semaine.
+- Si elle demande seulement des critères (« plus de poisson », « des plats plus rapides », « pas de pâtes cette semaine ») sans plats précis, mets "changer": true et résume ses critères dans "criteres" : l’application choisit parmi ses recettes.
+- Dans ces deux cas, l’application affiche juste après ton message la liste réelle de ce qui a changé : dis simplement que c’est fait. Sinon "changer": false et "creer": false.
 - Jamais de régime extrême, de jeûne, de « brûle-graisses », de médicament ou de complément. Aucun jugement sur le corps ou le poids.
 - Si la personne parle de se faire vomir, de ne plus manger, de culpabilité intense ou de malaise, réponds avec douceur et conseille d’en parler à son médecin ou à un proche de confiance.
 - Pour une question médicale (maladie, traitement, grossesse, allergie grave), renvoie vers le médecin.
-Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": ""}`;
+Réponds uniquement avec un objet JSON : {"reponse": "ton message", "changer": false, "criteres": "", "creer": false}`;
   }
   /** Réponse sans IA (assistant indisponible ou très sollicité) : conseils tirés du coach et du bilan de la semaine. */
   function reponseLocaleCoach(q) {
@@ -5173,8 +5179,93 @@ Réponds uniquement avec un objet JSON de cette forme :
     sauver();
     return { n: lignes.length, compris, lignes };
   }
+  /* ---------- coachs : créer les plats qu'ils proposent et les mettre dans la semaine ---------- */
+  const RX_CREER = /\b(ces|tes|vos) (plats?|recettes?|idees?|propositions?|menus?)\b|\bce que (tu|vous) (proposes?|proposez|as propose|avez propose)\b|\b(cree|creer|creez|crees)\b|\btes idees\b|\bta (proposition|semaine|liste)\b/;
+  const demandeCreation = (texte) => { const t = sansAccents(texte); return !!S.plan && RX_CREER.test(t) && (RX_CHANGER.test(t) || RX_DEMANDE.test(t) || /\b(cree|creer|creez|crees)\b/.test(t)); };
+  function consignesCreation() {
+    return `Tu écris des recettes pour l’application Budgétable à partir de la conversation entre la personne et son coach : les plats que le coach a proposés (dans son dernier message ou plus haut) ou que la personne a décrits, et qu’elle veut mettre dans sa semaine.
+Pour chaque plat : un nom clair et appétissant (sans parenthèse), le jour (lundi…dimanche) et le repas ("dejeuner" ou "diner") s’ils sont indiqués (sinon null), le temps total en minutes, les ingrédients pour UNE portion adulte avec les identifiants de la liste fournie (quantité dans l’unité indiquée entre parenthèses : g, ml ou pièce), les petits ingrédients absents de la liste dans "autres" (noms courts), et 3 à 6 étapes courtes et concrètes. Si le plat se fait à l’air fryer, précise la température et le temps dans les étapes.
+Un plat = un repas complet (avec légumes et féculent si possible). 7 plats au maximum. Reste fidèle aux plats de la conversation, sans en inventer d’autres.
+Réponds uniquement avec un objet JSON de cette forme :
+{"plats": [{"nom": "Nuggets de poulet maison et brocolis rôtis", "jour": "lundi", "repas": "diner", "temps": 30, "ingredients": [["poulet_filet", 120], ["chapelure", 25], ["oeufs", 0.5], ["brocoli", 150]], "autres": ["parmesan"], "etapes": ["…", "…"]}]}`;
+  }
+  const listeIngredientsIA = () => {
+    const l = Object.values(E.ING).filter((i) => !i.perso && !i.libre).map((i) => `${i.id}=${i.nom.replace(/\s*\([^)]*\)/g, '')} (${i.unite})`);
+    const moitie = Math.ceil(l.length / 2);
+    return [`Ingrédients disponibles (1/2) : ${l.slice(0, moitie).join(', ')}`, `Ingrédients disponibles (2/2) : ${l.slice(moitie).join(', ')}`];
+  };
+  /** Transforme la réponse de l'IA en recettes « Mes recettes » sûres pour le profil, puis les place dans la semaine. */
+  function creerPlatsCoach(plats) {
+    const J = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const crees = [], refuses = [];
+    for (const x of (Array.isArray(plats) ? plats : []).slice(0, 7)) {
+      if (!x || typeof x.nom !== 'string' || x.nom.trim().length < 3) continue;
+      const ing = [];
+      for (const it of Array.isArray(x.ingredients) ? x.ingredients : []) {
+        const [id, q] = Array.isArray(it) ? it : [it && it.id, it && it.q];
+        const ig = E.ING[id], n = Number(q);
+        if (!ig || ig.perso || !(n > 0)) continue;
+        const max = ig.unite === 'pièce' ? 6 : 600;
+        if (!ing.some((y) => y[0] === id)) ing.push([id, Math.min(max, Math.round(n * 100) / 100)]);
+      }
+      if (ing.length < 2) continue;
+      const extras = (Array.isArray(x.autres) ? x.autres : []).map((n) => String(n).trim().toLowerCase().slice(0, 40)).filter((n) => n.length >= 2).slice(0, 8)
+        .map((n) => ({ nom: n, tags: (window.Saisie && window.Saisie.tagsExtra && window.Saisie.tagsExtra(n)) || [] }));
+      const etapes = (Array.isArray(x.etapes) ? x.etapes : []).map((e) => String(e).trim().slice(0, 300)).filter(Boolean).slice(0, 8);
+      const temps = Math.round(Number(x.temps));
+      const rec = { id: 'p-coach-' + Date.now().toString(36) + crees.length + refuses.length, nom: x.nom.trim().replace(/\s+/g, ' ').slice(0, 90), lien: '', personnes: personnesFoyer(), photo: null, photoSource: '',
+        repas: ['dejeuner', 'diner'], temps: temps > 0 && temps < 300 ? temps : 30, ing, extras, etapes, proposer: true, coach: true, cree: ISO(new Date()) };
+      // sécurité : jamais un plat qui contredit les allergies ou le régime du profil
+      E.definirPerso(S.bibliotheque.concat(rec));
+      const r = E.REC[rec.id], ok = r && E.recetteCompatible(r, S.profil);
+      E.definirPerso(S.bibliotheque);
+      if (!ok || !ok.ok) { refuses.push(`${rec.nom} (${ok ? ok.raison : 'incomplet'})`); continue; }
+      const j = J.indexOf(sansAccents(x.jour || '').trim()), sl = x.repas === 'dejeuner' || x.repas === 'diner' ? x.repas : null;
+      crees.push({ rec, j, sl });
+    }
+    if (!crees.length) return { n: 0, refuses, lignes: [], creation: true };
+    // places libres de la semaine : pas mangées, pas passées, pas choisies à la main
+    const t = aujPlan(), h = new Date().getHours();
+    const libre = (j, sl) => {
+      const m = S.plan.jours[j] && S.plan.jours[j][sl], k = j + '-' + sl;
+      if (!S.plan.jours[j] || (S.plan.jours[j].passes || []).includes(sl) || S.deduits[k] || (m && (m.choisi || (m.choisiPar && m.choisiPar !== 'coach') || m.dehors))) return false;
+      return !(posJour(j) < posJour(t) || (j === t && (sl === 'dejeuner' ? h >= 14 : h >= 21)));
+    };
+    const prises = new Set();
+    const ordre = ordreJours().flatMap((j) => [[j, 'dejeuner'], [j, 'diner']]);
+    const avant = JSON.parse(JSON.stringify(S.plan));
+    S.bibliotheque = crees.map((c) => c.rec).concat(S.bibliotheque);
+    E.definirPerso(S.bibliotheque);
+    const lignes = [];
+    for (const c of crees) {
+      let place = null;
+      if (c.j >= 0) for (const sl of c.sl ? [c.sl] : ['diner', 'dejeuner']) if (libre(c.j, sl) && !prises.has(c.j + '-' + sl)) { place = [c.j, sl]; break; }
+      if (!place) place = ordre.find(([j, sl]) => libre(j, sl) && !prises.has(j + '-' + sl) && (!c.sl || c.sl === sl)) || ordre.find(([j, sl]) => libre(j, sl) && !prises.has(j + '-' + sl));
+      if (!place) { lignes.push(`${c.rec.nom} : gardé dans Mes recettes (plus de repas libre cette semaine)`); continue; }
+      prises.add(place.join('-'));
+      S.plan = E.placerRecette(S.plan, place[0], place[1], c.rec.id);
+      const m = S.plan.jours[place[0]][place[1]]; if (m) m.choisiPar = 'coach';
+      lignes.push(`${JOURS_COURTS[place[0]]} ${place[1] === 'dejeuner' ? 'midi' : 'soir'} : ${c.rec.nom}`);
+    }
+    S.planAvantRefaire = avant;
+    sauver();
+    return { n: crees.length, refuses, lignes, creation: true };
+  }
+  async function creerPlatsDepuisConversation(tours) {
+    if (!iaDispo) return { n: 0, refuses: [], lignes: [], sansIA: true };
+    const conv = tours.filter((t) => t.role === 'user' || t.role === 'assistant').slice(-8).map((t) => `${t.role === 'user' ? 'La personne' : 'Le coach'} : ${t.content}`).join('\n\n');
+    try {
+      const r = await iaDispo.json([{ role: 'user', content: consignesCreation() }, ...listeIngredientsIA().map((c) => ({ role: 'user', content: c })), { role: 'user', content: `Conversation :\n${conv.slice(-5000)}` }], { long: true });
+      return creerPlatsCoach(r && r.plats);
+    } catch (e) { return { n: 0, refuses: [], lignes: [], erreur: true }; }
+  }
   /** Bulle « c'est fait » dans le chat, et ce que l'IA doit savoir pour répondre. */
   function texteAction(a) {
+    if (a.creation || a.sansIA || a.erreur) {
+      if (a.sansIA) return 'Le coach en ligne n’est pas disponible pour écrire les recettes : réessayez dans un moment.';
+      if (!a.n) return `Je n’ai pas réussi à créer ces plats${a.refuses && a.refuses.length ? ` : ${a.refuses.join(' ; ')}` : ''}. Réessayez en me redonnant les plats voulus.`;
+      return `J’ai créé ${a.n} recette${a.n > 1 ? 's' : ''} et ${a.n > 1 ? 'les ai mises' : 'l’ai mise'} dans votre semaine :\n${a.lignes.join('\n')}${a.refuses.length ? `\nPas ajouté (incompatible avec votre profil) : ${a.refuses.join(' ; ')}` : ''}\nRetrouvez-les aussi dans Mes recettes, avec les ingrédients et les étapes.`;
+    }
     if (a.impossible) return `Je n’ai pas trouvé assez de recettes avec tous ces critères (${a.compris.join(', ')}) : vos plats n’ont pas changé. Essayez avec un critère de moins.`;
     if (!a.n) return `Critères notés (${a.compris.join(', ')}), mais tous vos repas restants sont déjà mangés, passés ou choisis par vous : rien à changer.`;
     return `J’ai changé ${a.n} plat${a.n > 1 ? 's' : ''} de votre semaine (${a.compris.join(', ')}) :\n${a.lignes.slice(0, 14).join('\n')}`;
@@ -5202,13 +5293,16 @@ Réponds uniquement avec un objet JSON de cette forme :
       try { r = await iaDispo.json([{ role: 'user', content: consignesCoachAlimentaire() }, ...coachChat.tours.filter((t) => t.role !== 'action').slice(-8)], { cache: false }); }
       catch (e) { if (e && e.code === 'rate_limited') coachChat.message = 'Votre coach est très sollicité : voici une réponse rapide.'; }
     } else await new Promise((ok) => setTimeout(ok, 400));
+    // « crée ces plats » : les plats proposés par le coach deviennent de vraies recettes, placées dans la semaine
+    const aCreer = !!S.plan && (!!(r && r.creer === true) || (!r && !!iaDispo && demandeCreation(texte)));
+    if (aCreer && r && typeof r.reponse === 'string') coachChat.tours.push({ role: 'assistant', content: r.reponse.trim().slice(0, 1500) });
     // « mets du poisson mardi », « des plats plus rapides » : le coach change vraiment la semaine
-    const aChanger = !!S.plan && (changer || !!(r && r.changer === true));
-    const action = aChanger ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
+    const aChanger = !aCreer && !!S.plan && (changer || !!(r && r.changer === true));
+    const action = aCreer ? await creerPlatsDepuisConversation(coachChat.tours) : aChanger ? await changerSemaineSelonDemande(texte + (r && typeof r.criteres === 'string' && r.criteres.trim() ? ' . ' + r.criteres.slice(0, 300) : '')) : null;
     const secours = action ? (action.n ? 'C’est fait ! Si un plat ne vous convient pas, changez-le d’un geste dans la semaine, ou annulez pour retrouver les plats d’avant.' : 'Je n’ai rien pu changer cette fois.') : reponseLocaleCoach(texte);
     const rep = r && typeof r.reponse === 'string' && r.reponse.trim() ? r.reponse.trim() : secours;
     const premierePhrase = (x) => { const m = x.match(/^[\s\S]{10,220}?[.!…](\s|$)/); return m ? m[0].trim() : x.slice(0, 220); };
-    coachChat.tours.push({ role: 'assistant', content: (action ? (action.n ? premierePhrase(rep) : secours) : rep).slice(0, 1500) });
+    if (!aCreer || !r) coachChat.tours.push({ role: 'assistant', content: (action && !action.creation && !action.sansIA ? (action.n ? premierePhrase(rep) : secours) : aCreer ? 'Je crée ces plats pour vous.' : rep).slice(0, 1500) });
     if (action) coachChat.tours.push({ role: 'action', content: texteAction(action), annulable: action.n > 0 });
     coachChat.attente = false; rendre(); defilerChat();
   }
@@ -6861,10 +6955,10 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message"}`;
 
   // l'assistant IA est celui du site (lecteur Budgétable sur Render) : aucun compte à créer pour les visiteurs
   const assistantSite = {
-    async json(messages) {
+    async json(messages, opts) {
       let rep;
       try {
-        rep = await fetch(`${LECTEUR}/ia`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ messages }), signal: AbortSignal.timeout ? AbortSignal.timeout(70000) : undefined });
+        rep = await fetch(`${LECTEUR}/ia`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(opts && opts.long ? { messages, long: true } : { messages }), signal: AbortSignal.timeout ? AbortSignal.timeout(70000) : undefined });
       } catch (e) { throw Object.assign(new Error('reseau'), { code: 'reseau' }); }
       const j = await rep.json().catch(() => ({}));
       if (rep.status === 503) throw Object.assign(new Error('non configuré'), { code: 'not_granted' });
