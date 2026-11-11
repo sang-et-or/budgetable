@@ -26,7 +26,7 @@ with sync_playwright() as p:
         if nom != "ordinateur": assert not page.locator(".accueil-entete [data-k=inscription]").is_visible()
         r = page.locator(".rassurance").inner_text()
         for t in ["Sans inscription pour tester", "Menus personnalisés", "7 jours d’essai gratuit dès la création du compte"]: assert t in r, t
-        assert "2,99 € par mois, sans engagement" in page.locator(".accueil-hero").inner_text()
+        assert "2,99 € par mois" in page.locator(".accueil-hero").inner_text() and "sans engagement" in page.locator(".accueil-hero").inner_text()
         e = page.locator(".etapes").inner_text()
         for t in ["Je choisis mes goûts et mon budget.", "Je découvre gratuitement mes menus de la semaine, sans compte.", "Je crée mon compte pour profiter des fonctionnalités complètes et conserver mes menus.", "rien n’est enregistré"]: assert t in e, t
         # exemple réel : des plats du moteur, avec un prix estimé, et un extrait de la liste

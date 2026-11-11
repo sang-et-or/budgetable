@@ -784,6 +784,11 @@
   /* ---------- abonnement : 7 jours d'essai gratuit, puis 2,99 € par mois (paiement Stripe, géré par le serveur) ---------- */
   let abo = { etat: null, charge: false, erreur: '', ouvert: false, attente: false };
   const PRIX_ABO = '2,99 €';
+  // offre de lancement : 1er mois offert à qui s'abonne avant le 25 novembre (le serveur fait foi, la date sert de secours)
+  const PROMO_FIN = '2026-11-25T23:59:59+01:00';
+  const promoAbo = () => { const e = abo && abo.etat; if (e && 'promo' in e) return e.promo; return Date.now() <= Date.parse(PROMO_FIN) ? { fin: PROMO_FIN, joursOfferts: 30 } : null; };
+  const prixMois = () => (promoAbo() ? `${PRIX_ABO} par mois, avec le 1er mois offert si vous vous abonnez avant le 25 novembre` : `${PRIX_ABO} par mois`);
+  const badgePromo = (cls = '') => (promoAbo() ? `<div class="badge-promo ${cls}">🎁 <strong>Offre de lancement :</strong> le 1er mois d’abonnement offert · jusqu’au 25 novembre</div>` : '');
   async function chargerAbonnement(force) {
     if (abo.charge && !force) return;
     abo.charge = true;
@@ -820,8 +825,8 @@
   }
   function bandeauAbo() {
     const d = droitsAbo();
-    if (d.mode === 'essai' && d.reste <= 3) return `<div class="bandeau bandeau-info small bandeau-abo"><span>🎁 Plus que ${pluriel(d.reste, 'jour')} d’essai gratuit. Ensuite, ${PRIX_ABO} par mois, sans engagement.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">Voir l’abonnement</button></div>`;
-    if (d.mode === 'expire') return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>Votre semaine d’essai est terminée. Vos menus, votre liste et votre placard restent là ; pour préparer de nouvelles semaines : ${PRIX_ABO} par mois.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">M’abonner</button></div>`;
+    if (d.mode === 'essai' && d.reste <= 3) return `<div class="bandeau bandeau-info small bandeau-abo"><span>🎁 Plus que ${pluriel(d.reste, 'jour')} d’essai gratuit. Ensuite, ${prixMois()}, sans engagement.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">Voir l’abonnement</button></div>`;
+    if (d.mode === 'expire') return `<div class="bandeau bandeau-alerte small bandeau-abo"><span>Votre semaine d’essai est terminée. Vos menus, votre liste et votre placard restent là ; pour préparer de nouvelles semaines : ${prixMois()}.</span><button class="btn btn-petit btn-plein" data-a="abo-ouvrir">M’abonner</button></div>`;
     return '';
   }
   /* ---------- parrainage : « Invitez une amie : un mois offert à toutes les deux » ---------- */
@@ -879,8 +884,8 @@
     else if (d.mode === 'abonne') corps = `<p><strong>✓ Vous êtes abonné(e)</strong> · ${PRIX_ABO} par mois.</p><p class="small muted">${e.statut === 'trialing' ? `Essai gratuit en cours : premier prélèvement le ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.` : d.resiliation ? `Résiliation demandée : accès jusqu’au ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.` : `Prochain renouvellement le ${new Date(d.fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}.`}</p>
       <div><button class="btn btn-petit" data-a="abo-gerer" ${abo.attente ? 'disabled' : ''}>Gérer mon abonnement (carte, factures, résiliation)</button></div>`;
     else corps = `<p>${d.mode === 'essai' ? `🎁 <strong>Essai gratuit</strong> : encore ${pluriel(d.reste, 'jour')}.` : '<strong>Votre essai gratuit est terminé.</strong>'}</p>
-      <div class="offre active"><span class="prix-offre num">${PRIX_ABO}<span class="small muted" style="font:500 .9rem var(--f-texte)"> / mois</span></span>${avantages}<span class="small muted">Sans engagement : résiliable à tout moment en deux clics. Paiement sécurisé par Stripe (carte, Apple Pay, Google Pay).${d.mode === 'essai' ? ' En vous abonnant maintenant, les jours d’essai restants sont offerts : aucun prélèvement avant la fin de l’essai.' : ''}</span></div>
-      ${C.connecte() ? `<div><button class="btn btn-plein btn-grand" data-a="abo-payer" ${abo.attente ? 'disabled' : ''}>${abo.attente ? 'Ouverture du paiement…' : `M’abonner — ${PRIX_ABO} par mois`}</button></div>` : '<p class="small">Pour vous abonner, créez d’abord votre compte gratuit : l’abonnement vous suit sur tous vos appareils.</p><div class="row" style="gap:8px"><button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">Se connecter</button></div>'}`;
+      ${badgePromo()}<div class="offre active"><span class="prix-offre num">${promoAbo() ? `0 €<span class="small muted" style="font:500 .9rem var(--f-texte)"> le 1er mois, puis ${PRIX_ABO} / mois</span>` : `${PRIX_ABO}<span class="small muted" style="font:500 .9rem var(--f-texte)"> / mois</span>`}</span>${avantages}<span class="small muted">Sans engagement : résiliable à tout moment en deux clics. Paiement sécurisé par Stripe (carte, Apple Pay, Google Pay).${d.mode === 'essai' ? ' En vous abonnant maintenant, les jours d’essai restants sont offerts : aucun prélèvement avant la fin de l’essai.' : ''}</span></div>
+      ${C.connecte() ? `<div><button class="btn btn-plein btn-grand" data-a="abo-payer" ${abo.attente ? 'disabled' : ''}>${abo.attente ? 'Ouverture du paiement…' : (promoAbo() ? 'M’abonner — 1er mois offert' : `M’abonner — ${PRIX_ABO} par mois`)}</button></div>` : '<p class="small">Pour vous abonner, créez d’abord votre compte gratuit : l’abonnement vous suit sur tous vos appareils.</p><div class="row" style="gap:8px"><button class="btn btn-plein" data-a="compte-ouvrir" data-k="inscription">Créer mon compte</button><button class="btn" data-a="compte-ouvrir" data-k="connexion">Se connecter</button></div>'}`;
     return `<section class="stack bloc-abonnement" style="gap:10px"><div class="spread"><h2>Mon abonnement</h2>${etiquetteAbo()}</div>${abo.erreur ? `<p class="bandeau bandeau-alerte small" role="alert">${esc(abo.erreur)}</p>` : ''}${corps}</section>`;
   }
   /* ---------- d'où vient la visite (pour le compteur anonyme) ---------- */
@@ -1179,13 +1184,14 @@
       <header class="accueil-entete"><div class="marque">${LOGO}Budgétable</div>
         <div class="row" style="gap:8px">${boutonInstaller('btn-petit')}${S.plan ? '<button class="btn btn-petit btn-plein" data-a="compte-reprendre">Ma semaine →</button>' : ''}${connecte ? (S.plan ? '' : '<button class="btn btn-petit" data-a="compte-reprendre">Mon espace</button>') : `<button class="btn btn-petit" data-a="compte-ouvrir" data-k="connexion">Se connecter</button>${S.plan ? '' : '<button class="btn btn-petit btn-plein cacher-mobile" data-a="compte-ouvrir" data-k="inscription">Créer un compte</button>'}`}</div></header>
       ${codeRecu() && !connecte ? '<div class="bandeau bandeau-ok"><span>🎁 <strong>Une amie vous invite :</strong> créez votre compte et confirmez votre adresse e-mail, vous aurez <strong>un mois offert</strong>, et elle aussi.</span></div>' : ''}
+      ${badgePromo('promo-accueil')}
       <section class="accueil-hero">
         <div class="stack hero-texte" style="gap:14px">
           <h1>Et si vos repas de la semaine étaient déjà organisés ?</h1>
           <p class="accueil-sous">Des menus adaptés à vos goûts et à votre budget, avec des recettes simples et une liste de courses pour mieux maîtriser vos dépenses.</p>
           <div class="hero-actions">${S.plan ? '<button class="btn btn-plein btn-grand btn-hero" data-a="compte-reprendre">Retrouver ma semaine</button>' : `<button class="btn btn-plein btn-grand btn-hero" data-a="commencer">${connecte ? '🍽️ Préparer ma semaine' : '🍽️ Tester gratuitement sans compte'}</button>`}</div>
           ${connecte ? '' : `<ul class="rassurance"><li>✓ Sans inscription pour tester</li><li>✓ Menus personnalisés</li><li>✓ 7 jours d’essai gratuit dès la création du compte</li></ul>
-          <p class="small muted" style="margin:0">Ensuite ${PRIX_ABO} par mois, sans engagement. Sans compte, vos menus ne sont pas enregistrés.</p>`}
+          <p class="small muted" style="margin:0">Ensuite ${prixMois()}, sans engagement. Sans compte, vos menus ne sont pas enregistrés.</p>`}
         </div>
         <div class="stickers">${ILLU_TABLE}<span class="sticker s1">Zéro gaspi</span><span class="sticker s2">Petit budget</span><span class="sticker s3">Fait maison</span></div>
       </section>
@@ -1219,7 +1225,7 @@
       </section>
       <section class="stack" style="gap:10px"><div class="titre-section"><p class="eyebrow">Questions fréquentes</p><h2>Bon à savoir</h2></div>
         <div class="faq">
-          <details><summary>Combien ça coûte ?</summary><p>La première semaine est un essai gratuit. Ensuite, l’abonnement coûte 2,99 € par mois, sans engagement : vous pouvez résilier à tout moment depuis votre profil. Si vous ne vous abonnez pas, vos menus, votre liste et votre placard restent consultables.</p></details>
+          <details><summary>Combien ça coûte ?</summary><p>La première semaine est un essai gratuit. Ensuite, l’abonnement coûte ${prixMois()}, sans engagement : vous pouvez résilier à tout moment depuis votre profil. Si vous ne vous abonnez pas, vos menus, votre liste et votre placard restent consultables.</p></details>
           <details><summary>Faut-il créer un compte ?</summary><p>Pas pour essayer : sans compte, tout fonctionne, mais rien n’est enregistré et votre semaine s’efface quand vous fermez Budgétable. Le compte gratuit garde vos menus, votre liste et vos recettes, sur tous vos appareils.</p></details>
           <details><summary>Les prix sont-ils ceux de mon magasin ?</summary><p>Pas au départ : ce sont des prix indicatifs estimés par Budgétable, pas des prix relevés en magasin. Ils servent à préparer un budget. Scannez un ticket de caisse ou collez le récapitulatif de votre panier drive : l’appli compare ses estimations aux prix payés et peut utiliser vos vrais prix. Vous pouvez aussi corriger un prix dans la liste. Les promotions viennent des sites des enseignes, avec leurs dates, et restent à vérifier en magasin.</p></details>
           <details><summary>Et mes allergies ?</summary><p>Budgétable écarte des menus les recettes dont un ingrédient contient un allergène que vous avez signalé, et signale les produits qui peuvent en contenir selon la marque (bouillon, épices, charcuterie…). Il ne connaît pas la composition exacte de chaque produit ni les risques de traces : vérifiez toujours la liste des ingrédients et les mentions « peut contenir » sur l’étiquette. En cas d’allergie sévère, suivez l’avis de votre médecin. Ces informations de santé ne sont enregistrées qu’avec votre accord.</p></details>
@@ -5359,7 +5365,7 @@ Réponds uniquement avec un objet JSON de cette forme :
     return `Tu es l’assistant du service client de Budgétable (budgetable.fr), une application française qui prépare les menus de la semaine (déjeuners et dîners) selon les goûts, le budget et le foyer, avec les recettes et la liste de courses.
 Situation de la personne : ${situation}.
 Ce que tu sais (ne dis rien d’autre, n’invente jamais) :
-- Essai gratuit de 7 jours, compté à partir de la création du compte (ou du premier jour d’utilisation sans compte). Ensuite ${PRIX_ABO} par mois, sans engagement, paiement sécurisé par Stripe.
+- Essai gratuit de 7 jours, compté à partir de la création du compte (ou du premier jour d’utilisation sans compte). Ensuite ${prixMois()}, sans engagement, paiement sécurisé par Stripe.
 - Résilier : onglet « Mon profil », rubrique « Abonnement », bouton « Gérer mon abonnement (carte, factures, résiliation) », puis suivre la page sécurisée Stripe. Sans engagement.
 - Après l’essai sans abonnement : la semaine en cours, la liste de courses, le placard et les recettes restent consultables ; préparer de nouvelles semaines, refaire les plats et parler aux coachs demandent l’abonnement.
 - Sans compte, on peut tout essayer mais rien n’est enregistré : la semaine s’efface à la fermeture. Le compte gratuit garde menus, liste et recettes sur tous les appareils (bouton « Créer un compte », puis cliquer le lien reçu par e-mail).
@@ -5382,7 +5388,7 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
   function reponseLocaleAide(q) {
     const t = TK && TK.norm ? TK.norm(q) : String(q).toLowerCase();
     if (/resili|annul|desabonn|arret/.test(t)) return { reponse: `Pour résilier : onglet « Mon profil », rubrique « Abonnement », bouton « Gérer mon abonnement », puis suivez la page sécurisée. C’est sans engagement.`, transmettre: false };
-    if (/prix|cout|combien|tarif|abonnement|payer|essai|gratuit/.test(t)) return { reponse: `La première semaine est un essai gratuit (7 jours dès la création du compte). Ensuite, ${PRIX_ABO} par mois, sans engagement, résiliable à tout moment.`, transmettre: false };
+    if (/prix|cout|combien|tarif|abonnement|payer|essai|gratuit/.test(t)) return { reponse: `La première semaine est un essai gratuit (7 jours dès la création du compte). Ensuite, ${prixMois()}, sans engagement, résiliable à tout moment.`, transmettre: false };
     if (/mot de passe|connect|identifi/.test(t)) return { reponse: 'Touchez « Se connecter », puis « Mot de passe oublié ? » : un lien pour en choisir un nouveau arrive par e-mail. Pensez à regarder vos courriers indésirables.', transmettre: false };
     if (/enregistr|sauvegard|perdu|efface|compte/.test(t)) return { reponse: 'Sans compte, rien n’est enregistré : la semaine s’efface quand vous fermez Budgétable. Avec un compte gratuit, vos menus, votre liste et vos recettes sont gardés sur tous vos appareils.', transmettre: false };
     if (/magasin|prix reel|ticket|promo/.test(t)) return { reponse: 'Les prix sont des estimations de Budgétable. Scannez un ticket de caisse ou collez votre panier drive : l’appli utilisera vos vrais prix. Les promos sont à vérifier en magasin.', transmettre: false };

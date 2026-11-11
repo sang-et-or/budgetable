@@ -43,12 +43,13 @@ test('paiement : abonnement mensuel à 2,99 €, jours d’essai restants offert
   assert.ok(decodeURIComponent(cree.o.body).includes('metadata[budgetable_id]=u-1'));
   const corps = decodeURIComponent(appels.find((x) => x.url.includes('/checkout/sessions')).o.body);
   assert.ok(corps.includes('mode=subscription') && corps.includes('[unit_amount]=299') && corps.includes('[currency]=eur') && corps.includes('[interval]=month'), corps);
-  assert.ok(/trial_period_days\]=[34]/.test(corps), 'reste de l’essai offert : ' + corps);
+  assert.ok(A.promoActive() ? /trial_period_days\]=3[45](&|$)/.test(corps) : /trial_period_days\]=[45](&|$)/.test(corps), 'reste de l’essai offert : ' + corps);
   assert.ok(corps.includes('success_url=https://budgetable.fr/?abonnement=merci'));
   // essai fini : pas de jours offerts
   const b = faux({ creeIlYa: 10, clients: [{ id: 'cus_1' }] });
   await A.paiement('bon', b.f);
-  assert.ok(!decodeURIComponent(b.appels.find((x) => x.url.includes('/checkout/sessions')).o.body).includes('trial_period_days'));
+  const cb = decodeURIComponent(b.appels.find((x) => x.url.includes('/checkout/sessions')).o.body);
+  assert.ok(A.promoActive() ? /trial_period_days\]=30(&|$)/.test(cb) : !cb.includes('trial_period_days'), cb);
 });
 test('espace client Stripe (résilier, carte, factures)', async () => {
   const r = await A.portail('bon', faux({ clients: [{ id: 'cus_1' }] }).f);
@@ -97,4 +98,15 @@ test('compte administrateur (table admins) : accès offert sans Stripe ni régla
   await assert.rejects(A.paiement('admin', f), /offert/);
   const e2 = await A.etat('bon', faux({ creeIlYa: 30 }).f);   // compte ordinaire, essai fini : pas offert
   assert.notStrictEqual(e2.offert, true);
+});
+test('offre de lancement : premier mois offert jusqu’au 25 novembre (jours d’essai restants + 30 jours)', async () => {
+  const actif = A.promoActive(Date.parse('2026-11-20T12:00:00+01:00')), fini = A.promoActive(Date.parse('2026-11-26T00:30:00+01:00'));
+  assert.strictEqual(actif, true); assert.strictEqual(fini, false);
+  if (!A.promoActive()) return;   // la date du jour est passée : rien d'autre à vérifier
+  A._viderCache();
+  const corps = async (creeIlYa) => { const { f, appels } = faux({ creeIlYa }); await A.paiement('bon', f); return decodeURIComponent(appels.find((x) => x.url.includes('/checkout/sessions')).o.body); };
+  assert.match(await corps(30), /subscription_data\[trial_period_days\]=30(&|$)/);   // essai fini : un mois offert
+  assert.match(await corps(2), /subscription_data\[trial_period_days\]=3[45](&|$)/);    // jours d'essai restants + 30
+  const e = await A.etat('bon', faux({ creeIlYa: 2 }).f);
+  assert.strictEqual(e.promo.joursOfferts, 30);
 });

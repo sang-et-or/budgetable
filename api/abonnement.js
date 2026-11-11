@@ -7,6 +7,7 @@
  * Variables d'environnement (Render) : STRIPE_SECRET_KEY (obligatoire pour vendre), SUPABASE_URL, SUPABASE_ANON_KEY
  * (publique), PRIX_CENTIMES (299), ESSAI_JOURS (7), SITE (https://budgetable.fr),
  * COMPTES_OFFERTS (adresses e-mail séparées par des virgules : accès complet sans payer, adresse confirmée exigée).
+ * PROMO_FIN (fin de l'offre, ex. 2026-11-25T23:59:59+01:00) et PROMO_JOURS_OFFERTS (30) : premier mois offert à qui s'abonne avant la fin.
  * Les comptes administrateurs (table admins de Supabase, vérifiée avec le jeton de la personne) ont aussi l'accès offert.
  */
 'use strict';
@@ -32,6 +33,12 @@ async function estAdmin(jeton, f) {
 const offertA = async (u, jeton, f) => offert(u) || estAdmin(jeton, f);
 
 const erreur = (msg, code) => Object.assign(new Error(msg), { code });
+
+// offre de lancement : le premier mois est offert à qui s'abonne avant la fin de l'offre (en plus des jours d'essai restants)
+const PROMO_FIN = Date.parse(process.env.PROMO_FIN || '2026-11-25T23:59:59+01:00');
+const PROMO_JOURS = +(process.env.PROMO_JOURS_OFFERTS || 30);
+const promoActive = (maintenant = Date.now()) => Number.isFinite(PROMO_FIN) && maintenant <= PROMO_FIN && PROMO_JOURS > 0;
+const promoInfo = () => (promoActive() ? { fin: new Date(PROMO_FIN).toISOString(), joursOfferts: PROMO_JOURS } : null);
 
 /** Qui appelle ? Le jeton de session est vérifié par Supabase (impossible de se faire passer pour un autre compte). */
 async function utilisateur(jeton, f = fetch) {
@@ -72,10 +79,10 @@ const cache = new Map();   // état d'abonnement gardé 2 min par compte (moins 
 
 /** État : essai (jours restants), abonnement actif ou non, fin de période, résiliation demandée. */
 async function etat(jeton, f = fetch, _site) {
-  if (!actif()) return { disponible: false, prix: PRIX, essaiJours: ESSAI_JOURS };   // paiement pas encore branché : rien n'est bloqué
+  if (!actif()) return { disponible: false, prix: PRIX, essaiJours: ESSAI_JOURS, promo: promoInfo() };   // paiement pas encore branché : rien n'est bloqué
   const u = await utilisateur(jeton, f);
   let finEssai = u.cree + ESSAI_JOURS * 86400000;
-  const base = () => ({ disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false });
+  const base = () => ({ disponible: actif(), prix: PRIX, essaiJours: ESSAI_JOURS, finEssai: new Date(finEssai).toISOString(), enEssai: Date.now() < finEssai, abonne: false, promo: promoInfo() });
   if (await offertA(u, jeton, f)) return { ...base(), abonne: true, offert: true, statut: 'offert' };
   const c = cache.get(u.id);
   if (c && Date.now() - c.t < 120000) { finEssai = Math.max(finEssai, c.finEssai || 0); return { ...base(), ...c.v }; }
@@ -103,10 +110,12 @@ async function paiement(jeton, f = fetch, site = SITE) {
   if (await offertA(u, jeton, f)) throw erreur('Votre accès est offert : rien à payer', 400);
   const client = await clientDe(u, true, f);
   const resteEssai = Math.floor((Math.max(u.cree + ESSAI_JOURS * 86400000, accesOffert(client)) - Date.now()) / 86400000);
+  // pendant l'offre : un mois offert en plus (le premier prélèvement a lieu un mois après la fin de l'essai)
+  const joursGratuits = Math.max(0, resteEssai) + (promoActive() ? PROMO_JOURS : 0);
   const s = await stripe('/checkout/sessions', { methode: 'POST', corps: {
     mode: 'subscription', customer: client.id, client_reference_id: u.id, locale: 'fr',
     line_items: { 0: { quantity: 1, price_data: { currency: 'eur', unit_amount: PRIX, recurring: { interval: 'month' }, product_data: { name: 'Budgétable — abonnement mensuel', description: 'Menus de la semaine, liste de courses, coachs et toutes les fonctions. Sans engagement.' } } } },
-    subscription_data: { metadata: { budgetable_id: u.id }, ...(resteEssai >= 1 ? { trial_period_days: Math.min(400, resteEssai) } : {}) },
+    subscription_data: { metadata: { budgetable_id: u.id }, ...(joursGratuits >= 1 ? { trial_period_days: Math.min(730, joursGratuits) } : {}), ...(promoActive() ? { description: 'Offre de lancement : premier mois offert' } : {}) },
     allow_promotion_codes: 'true',
     success_url: site + '/?abonnement=merci', cancel_url: site + '/?abonnement=annule',
   } }, f);
@@ -126,4 +135,4 @@ async function portail(jeton, f = fetch, site = SITE) {
   return { url: s.url };
 }
 
-module.exports = { etat, paiement, portail, actif, PRIX, ESSAI_JOURS, utilisateur, stripe, clientDe, accesOffert, oublier: (id) => cache.delete(id), _viderCache: () => cache.clear() };
+module.exports = { etat, paiement, portail, actif, promoActive, promoInfo, PRIX, ESSAI_JOURS, utilisateur, stripe, clientDe, accesOffert, oublier: (id) => cache.delete(id), _viderCache: () => cache.clear() };
