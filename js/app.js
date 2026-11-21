@@ -107,7 +107,7 @@
       delete p.programme;
       delete p.sport;
     }
-    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, prixPerso: S.prixPerso || {}, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null, semainePrecedente: S.semainePrecedente || null };
+    const a = { v: 1, profil: p, sensibleNonEnregistre: marque, vue: S.vue === 'questionnaire' ? 'accueil' : S.vue === 'test' ? (S.plan ? 'app' : 'profil') : S.vue, onglet: S.onglet, plan: S.plan, notes: S.notes, coches: S.coches, premium: S.premium, compteLocal: S.compteLocal, drives: S.drives, classiques: S.classiques, tourEnfant: S.tourEnfant, rituelsVus: S.rituelsVus, tutoVu: !!S.tutoVu, prixPerso: S.prixPerso || {}, modeCourses: S.modeCourses, bibliotheque: S.bibliotheque, ranges: S.ranges, deduits: S.deduits, planDu: S.planDu, dernierRangement: S.dernierRangement || null, vue3d: S.vue3d, gourmandPerso: S.gourmandPerso, budgetCalc: S.budgetCalc || null, budgetPeriode: S.budgetPeriode || 'semaine', presencesGarder: !!S.presencesGarder, retraits: S.retraits || {}, journal: S.journal || [], ajouts: S.ajouts || [], objectifKcal: S.objectifKcal || null, calcKcal: S.calcKcal || null, saisonGardees: S.saisonGardees || [], variantes: S.variantes || [], versionsPreferees: S.versionsPreferees || {}, ingredientsManuels: S.ingredientsManuels || [], alertesPromos: S.alertesPromos || [], alertesVues: (S.alertesVues || []).slice(-800), alertesNotif: !!S.alertesNotif, alertesNotifiees: S.alertesNotifiees || [], installIgnore: !!S.installIgnore, prixMagasins: S.prixMagasins || {}, tickets: S.tickets || [], magasinActif: S.magasinActif || '', correspondances: S.correspondances || {}, corrV2: !!S.corrV2, essaiDebut: S.essaiDebut || null, semainePrecedente: S.semainePrecedente || null, historiqueSemaines: S.historiqueSemaines || [] };
     const texte = JSON.stringify(a);
     // compte : on n'envoie que quand quelque chose a vraiment changé
     if (texte !== dernierEnregistre) {
@@ -153,7 +153,7 @@
     try {
       const a = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (!a || a.v !== 1) return;
-      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, prixPerso: a.prixPerso && typeof a.prixPerso === 'object' ? a.prixPerso : {}, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null, semainePrecedente: a.semainePrecedente || null });
+      Object.assign(S, { profil: { ...E.profilParDefaut(), ...a.profil }, vue: a.vue || 'accueil', onglet: a.onglet || 'semaine', plan: a.plan, notes: a.notes || {}, coches: a.coches || {}, premium: !!a.premium, compteLocal: !!a.compteLocal, sensibleNonEnregistre: !!a.sensibleNonEnregistre, drives: { ...S.drives, ...(a.drives || {}) }, classiques: a.classiques || [], tourEnfant: a.tourEnfant || 0, rituelsVus: !!a.rituelsVus, tutoVu: !!a.tutoVu, prixPerso: a.prixPerso && typeof a.prixPerso === 'object' ? a.prixPerso : {}, modeCourses: a.modeCourses || null, bibliotheque: Array.isArray(a.bibliotheque) ? a.bibliotheque : [], ranges: a.ranges || {}, deduits: a.deduits || {}, planDu: a.planDu || null, dernierRangement: a.dernierRangement || null, vue3d: a.vue3d, gourmandPerso: Array.isArray(a.gourmandPerso) ? a.gourmandPerso : [], budgetCalc: a.budgetCalc || null, budgetPeriode: a.budgetPeriode || 'semaine', presencesGarder: !!a.presencesGarder, retraits: a.retraits || {}, journal: Array.isArray(a.journal) ? a.journal : [], ajouts: Array.isArray(a.ajouts) ? a.ajouts : [], objectifKcal: a.objectifKcal || null, calcKcal: a.calcKcal || null, saisonGardees: Array.isArray(a.saisonGardees) ? a.saisonGardees : [], variantes: Array.isArray(a.variantes) ? a.variantes : [], versionsPreferees: a.versionsPreferees || {}, ingredientsManuels: Array.isArray(a.ingredientsManuels) ? a.ingredientsManuels : [], alertesPromos: Array.isArray(a.alertesPromos) ? a.alertesPromos : [], alertesVues: Array.isArray(a.alertesVues) ? a.alertesVues : [], alertesNotif: !!a.alertesNotif, alertesNotifiees: Array.isArray(a.alertesNotifiees) ? a.alertesNotifiees : [], installIgnore: !!a.installIgnore, prixMagasins: a.prixMagasins || {}, tickets: Array.isArray(a.tickets) ? a.tickets : [], magasinActif: a.magasinActif || '', correspondances: a.correspondances || {}, corrV2: !!a.corrV2, essaiDebut: a.essaiDebut || null, semainePrecedente: a.semainePrecedente || null, historiqueSemaines: Array.isArray(a.historiqueSemaines) ? a.historiqueSemaines : [] });
       enregistrerManuels();
       E.definirPerso(S.bibliotheque);
       // comptes créés avant : les provisions du questionnaire n'étaient pas rangées au placard
@@ -2663,6 +2663,81 @@
     jp.debutAuDiner = true;
     E.organiserRestes(S.plan, S.profil);
   }
+  /* ---------- Reprendre des plats des 6 dernières semaines ---------- */
+  const HIST_SEMAINES = 6;
+  function platsDuPlan(plan) {
+    const plats = [];
+    if (!plan || !plan.jours) return plats;
+    plan.jours.forEach((jp, j) => E.SLOTS.forEach((sl) => { const m = jp && jp[sl]; if (m && m.recette && E.REC[m.recette] && !m.dehors && !plats.some((x) => x.r === m.recette)) plats.push({ r: m.recette, j, s: sl }); }));
+    return plats;
+  }
+  /** Garde la semaine qui se termine dans l'historique (6 semaines au plus). */
+  function archiverSemaine(plan, du) {
+    if (!plan || !du) return;
+    const plats = platsDuPlan(plan).map(({ r, j, s }) => ({ r, j, s }));
+    if (!plats.length) return;
+    const h = (S.historiqueSemaines || []).filter((x) => x && x.du !== du);
+    h.push({ du, plats });
+    S.historiqueSemaines = h.sort((a, b) => b.du.localeCompare(a.du)).slice(0, HIST_SEMAINES + 1);
+  }
+  /** Les semaines dont on peut reprendre des plats : la semaine en cours, puis les 6 précédentes (historique, semaine gardée, et journal des repas pour les plus anciennes). */
+  function semainesARevoir() {
+    const res = [], vus = new Set();
+    const plusJour = (iso, k) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + k); return ISO(d); };
+    const ajouter = (du, plats, enCours) => { if (!du || (!enCours && vus.has(du))) return; const ok = (plats || []).filter((x) => x && E.REC[x.r]); if (!ok.length) return; if (!enCours) vus.add(du); res.push({ du, plats: ok, enCours: !!enCours }); };
+    if (S.plan && S.planDu) ajouter(S.planDu, platsDuPlan(S.plan), true);
+    for (const h of S.historiqueSemaines || []) ajouter(h.du, h.plats);
+    if (S.semainePrecedente && S.semainePrecedente.plan) ajouter(S.semainePrecedente.planDu, platsDuPlan(S.semainePrecedente.plan));
+    // repas notés dans le journal en dehors de ces semaines (anciens comptes) : regroupés par semaine du lundi
+    const couvert = (d) => res.some((w) => d >= w.du && d <= plusJour(w.du, 6));
+    const depuis = ISO(new Date(Date.now() - 7 * (HIST_SEMAINES + 1) * 86400000));
+    const parLundi = {};
+    for (const x of S.journal || []) {
+      if (!x || !x.d || x.d < depuis || x.c || x.gamelle || !E.REC[x.r] || !E.SLOTS.includes(x.s) || couvert(x.d)) continue;
+      const d = new Date(x.d + 'T12:00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      const l = ISO(d); (parLundi[l] = parLundi[l] || []);
+      if (!parLundi[l].some((y) => y.r === x.r)) parLundi[l].push({ r: x.r, j: (new Date(x.d + 'T12:00:00').getDay() + 6) % 7, s: x.s });
+    }
+    Object.keys(parLundi).forEach((l) => ajouter(l, parLundi[l]));
+    const enCours = res.filter((w) => w.enCours);
+    const autres = res.filter((w) => !w.enCours).sort((a, b) => b.du.localeCompare(a.du)).slice(0, HIST_SEMAINES);
+    return enCours.concat(autres);
+  }
+  function blocRevoir(n) {
+    const semaines = semainesARevoir();
+    if (!semaines.length) return '';
+    const coches = new Set(n.revoir || []);
+    const court = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const titre = (w) => (w.enCours ? 'Semaine en cours' : 'Semaine du ' + court(w.du));
+    // (une semaine refaite le jour même garde la même date de début : elle reste listée à part)
+    const entete = `<button class="btn btn-revoir" data-a="nouvelle-revoir-ouvrir" aria-expanded="${n.revoirOuvert ? 'true' : 'false'}">🔁 Reprendre des plats des 6 dernières semaines${coches.size ? ` <span class="pastille-revoir">${coches.size} coché${coches.size > 1 ? 's' : ''}</span>` : ''}<span aria-hidden="true">${n.revoirOuvert ? '▴' : '▾'}</span></button>`;
+    if (!n.revoirOuvert) return `<div class="revoir">${entete}</div>`;
+    const liste = semaines.map((w) => {
+      const tous = w.plats.every((x) => coches.has(x.r));
+      return `<div class="revoir-semaine"><div class="spread" style="flex-wrap:nowrap"><strong>${titre(w)}</strong><button class="btn-lien small" data-a="nouvelle-revoir-tout" data-k="${w.enCours ? 'en-cours' : w.du}">${tous ? 'Tout décocher' : 'Tout cocher'}</button></div>
+        <div class="revoir-liste">${w.plats.map((x) => `<label class="case small revoir-plat"><input type="checkbox" data-a="nouvelle-revoir" data-r="${esc(x.r)}" ${coches.has(x.r) ? 'checked' : ''}><span>${esc(E.REC[x.r].nom)} <span class="muted">· ${JOURS_COURTS[x.j]} ${x.s === 'dejeuner' ? 'midi' : 'soir'}</span></span></label>`).join('')}</div></div>`;
+    }).join('');
+    return `<div class="revoir">${entete}<p class="small muted" style="margin:6px 0 0">Cochez les plats que vous voulez refaire : ils seront placés dans la nouvelle semaine, le reste est proposé comme d’habitude.</p><div class="revoir-semaines">${liste}</div>${coches.size ? `<button class="btn-lien small" data-a="nouvelle-revoir-vider">Tout décocher</button>` : ''}</div>`;
+  }
+  /** Place les plats cochés sur les repas libres de la nouvelle semaine (de préférence au même moment : midi ou soir). */
+  function placerPlatsRevus(ids, infos) {
+    const libre = (j, sl) => repasLibreCoach(j, sl) && !(S.plan.jours[j][sl] && S.plan.jours[j][sl].manuel);
+    const ordre = ordreJours().flatMap((j) => [[j, 'dejeuner'], [j, 'diner']]);
+    const prises = new Set(), places = [], restes = [];
+    for (const r of ids) {
+      if (!E.REC[r]) continue;
+      const deja = ordre.find(([j, sl]) => S.plan.jours[j][sl] && S.plan.jours[j][sl].recette === r && !S.plan.jours[j][sl].deRestes);
+      if (deja && !prises.has(deja.join('-'))) { prises.add(deja.join('-')); const m = S.plan.jours[deja[0]][deja[1]]; m.choisi = true; places.push(r); continue; }
+      const pref = (infos[r] && infos[r].s) || 'diner';
+      const place = ordre.find(([j, sl]) => sl === pref && libre(j, sl) && !prises.has(j + '-' + sl)) || ordre.find(([j, sl]) => libre(j, sl) && !prises.has(j + '-' + sl));
+      if (!place) { restes.push(r); continue; }
+      prises.add(place.join('-'));
+      S.plan = E.placerRecette(S.plan, place[0], place[1], r);
+      places.push(r);
+    }
+    if (places.length) E.organiserRestes(S.plan, S.profil);
+    return { places, restes };
+  }
   /** Nouvelle semaine alors qu'une semaine existe : à partir de quel jour ? (et le ticket de l'ancienne semaine est effacé) */
   function vueNouvelleSemaine() {
     const n = S.nouvelleSemaine;
@@ -2682,6 +2757,7 @@
       ${(() => { const auj = ISO(new Date()); if (n.debut !== auj) return `<p class="small" style="margin:0">✓ D’ici là, les plats déjà prévus restent au menu (vous les retrouverez en haut de la semaine).</p>`; const sp = { plan: S.plan, planDu: S.planDu }; const h = new Date().getHours(); const m = ['dejeuner', 'diner'].filter((sl) => !(sl === 'dejeuner' ? h >= 13 : h >= 21)).map((sl) => [sl, repasAncien(sp, auj, sl)]).filter((x) => x[1]); if (!m.length) return ''; return `<label class="case-garder small"><input type="checkbox" data-a="nouvelle-garder" ${n.garderAuj !== false ? 'checked' : ''}> Garder les plats déjà prévus aujourd’hui : ${m.map(([sl, x]) => `${sl === 'dejeuner' ? 'midi' : 'soir'} « ${esc(E.REC[x.recette].nom)} »`).join(', ')}</label>`; })()}
       <p class="small muted" style="margin:0">Votre semaine ira du ${n.repas === 'diner' ? 'dîner du ' : ''}${court(choisi)} au ${court(fin)}. Votre semaine actuelle est gardée : vous pourrez y revenir. Vos goûts, vos favoris et votre placard ne changent pas.</p>
       ${tickets.length ? `<div class="bandeau bandeau-info small" style="margin:0"><span>🧾 ${tickets.length > 1 ? `Les ${tickets.length} tickets de caisse` : 'Le ticket de caisse'} de la semaine actuelle (${tickets.map((x) => `${esc(x.nom)}, ${euros(x.paye)}`).join(' · ')}) ${tickets.length > 1 ? 'seront effacés' : 'sera effacé'} de l’historique. Les prix appris avec ${tickets.length > 1 ? 'eux' : 'lui'} sont gardés.</span></div>` : ''}
+      ${blocRevoir(n)}
       <div class="row" style="gap:8px"><button class="btn btn-plein" data-a="nouvelle-ok">Créer la semaine</button><button class="btn" data-a="nouvelle-annuler">Annuler</button></div>
     </div></div>`;
   }
@@ -5848,6 +5924,23 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
       case 'nouvelle-garder': if (S.nouvelleSemaine) S.nouvelleSemaine.garderAuj = el.checked; break;
       case 'nouvelle-repas': if (S.nouvelleSemaine && (el.dataset.k === 'diner' || dejeunerPossible(S.nouvelleSemaine.debut))) S.nouvelleSemaine.repas = el.dataset.k; break;
       case 'nouvelle-annuler': case 'nouvelle-fond': if (el.dataset.a === 'nouvelle-fond' && ev.target !== el) return; S.nouvelleSemaine = null; break;
+      case 'nouvelle-revoir-ouvrir': if (S.nouvelleSemaine) S.nouvelleSemaine.revoirOuvert = !S.nouvelleSemaine.revoirOuvert; break;
+      case 'nouvelle-revoir': {
+        const n = S.nouvelleSemaine; if (!n) break;
+        const r = el.dataset.r, set = new Set(n.revoir || []);
+        if (el.checked) set.add(r); else set.delete(r);
+        n.revoir = [...set];
+        break;
+      }
+      case 'nouvelle-revoir-tout': {
+        const n = S.nouvelleSemaine; if (!n) break;
+        const w = semainesARevoir().find((x) => (el.dataset.k === 'en-cours' ? x.enCours : !x.enCours && x.du === el.dataset.k)); if (!w) break;
+        const set = new Set(n.revoir || []), tous = w.plats.every((x) => set.has(x.r));
+        w.plats.forEach((x) => (tous ? set.delete(x.r) : set.add(x.r)));
+        n.revoir = [...set];
+        break;
+      }
+      case 'nouvelle-revoir-vider': if (S.nouvelleSemaine) S.nouvelleSemaine.revoir = []; break;
       case 'nouvelle-ok': {
         if (!S.nouvelleSemaine) break;
         const debut = S.nouvelleSemaine.debut, auDiner = S.nouvelleSemaine.repas === 'diner', garderAuj = S.nouvelleSemaine.garderAuj !== false;
@@ -5857,13 +5950,18 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         const anciens = ticketsSemaineEnCours();
         if (anciens.length) S.tickets = (S.tickets || []).filter((x) => !anciens.includes(x));
         S.ticket = null;
+        const revoir = (S.nouvelleSemaine.revoir || []).filter((r) => E.REC[r]);
+        const infosRevoir = {}; semainesARevoir().forEach((w) => w.plats.forEach((x) => { if (!infosRevoir[x.r]) infosRevoir[x.r] = x; }));
+        archiverSemaine(ancienne.plan, ancienne.planDu);
         nouvellePlanification(debut);
         if (auDiner) commencerAuDiner();
         S.semainePrecedente = { ...ancienne, tickets: anciens, creeLe: new Date().toISOString() };
         if (debut === ISO(new Date())) garderPlatsAujourdhui(ancienne, garderAuj, auDiner);
+        const revus = revoir.length ? placerPlatsRevus(revoir, infosRevoir) : null;
         S.nouvelleSemaine = null;
         const j = new Date(debut + 'T12:00:00');
         toast(`Nouvelle semaine créée, à partir ${auDiner ? 'du dîner ' : 'du déjeuner '}${debut === ISO(new Date()) ? 'd’aujourd’hui' : 'de ' + j.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })}${anciens.length ? ' · ancien ticket effacé' : ''}`);
+        if (revus && revus.places.length) toast(`Nouvelle semaine créée avec ${revus.places.length} plat${revus.places.length > 1 ? 's' : ''} repris${revus.restes.length ? ` (${revus.restes.length} sans place libre)` : ''}`);
         break;
       }
       case 'changer': {
