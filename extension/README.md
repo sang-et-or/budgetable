@@ -20,7 +20,12 @@ Fonctionne aussi avec Edge et Brave (mêmes étapes, `edge://extensions`).
 2. La liste arrive directement dans l'extension (un message le confirme). Si Budgétable est ouvert ailleurs
    (fichier, autre adresse), la liste est copiée : cliquez sur l'icône Budgétable, collez, puis **Enregistrer la liste**.
 3. Allez sur votre drive et **connectez-vous vous-même** à votre compte, en choisissant votre magasin.
-4. Le panneau Budgétable apparaît en bas à droite :
+4. Le panneau Budgétable apparaît en bas à droite. **« 🛒 Tout mettre au panier »** remplit le panier tout seul :
+   pour chaque article, l'extension ouvre la recherche du site, ajoute le produit le moins cher qui correspond
+   (au kilo quand c'est affiché, jamais un plat préparé) et la quantité prévue, puis passe au suivant.
+   Elle s'arrête si le site cache les prix (magasin pas choisi) ou ouvre une fenêtre (connexion, créneau) ;
+   « Reprendre » repart où elle en était. Un bilan liste les articles introuvables et les quantités à vérifier.
+   Ce qui est déjà au panier sur ce drive n'est pas rajouté. Article par article, à la main :
    - **Chercher** ouvre la recherche de l'article sur le site ;
    - le panneau montre les 3 produits correspondants les moins chers (au kilo quand le site l'affiche) ;
    - **Ajouter au panier** ajoute le produit choisi ; **Retenir ce prix** note le prix sans l'ajouter ;
@@ -33,7 +38,8 @@ Fonctionne aussi avec Edge et Brave (mêmes étapes, `edge://extensions`).
 ## Ce que fait l'extension, et ce qu'elle ne fait pas
 
 - Elle lit **seulement ce qui est affiché** sur la page que vous regardez. Elle n'envoie aucune requête en arrière-plan.
-- Elle n'agit **que quand vous cliquez**. Elle ne commande et ne paie jamais.
+- Elle n'agit **que quand vous cliquez** (un article, ou « Tout mettre au panier », que vous pouvez arrêter). Elle ne commande et ne paie jamais.
+- En remplissage automatique, elle attend 1,5 à 2,5 secondes entre deux recherches pour ne pas surcharger le site.
 - Elle ne voit **aucun mot de passe** et n'envoie **aucune donnée** à Budgétable ni à personne : tout reste dans Chrome, sur votre ordinateur.
 - Les frais de retrait et les trajets ne sont pas encore comptés dans la comparaison.
 

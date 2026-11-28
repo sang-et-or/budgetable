@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Budgétable – courses en drive",
   "short_name": "Budgétable",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Votre liste Budgétable sur le site de votre drive : repérez les produits les moins chers affichés et ajoutez-les d’un clic.",
   "homepage_url": "https://budgetable.fr/extension.html",
   "icons": {
