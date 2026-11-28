@@ -1809,7 +1809,8 @@
         ${etat ? `<span class="tag ${etat === 'panier' ? 'tag-ok' : 'tag-simu'}">${etat === 'panier' ? 'Dans votre panier' : 'Pas trouvé'}</span>` : ''}
       </div>
       <a class="btn btn-grand btn-chercher" href="${d.url(termeRecherche(a.nom))}" target="_blank" rel="noopener">1. Chercher « ${esc(termeRecherche(a.nom))} » chez ${esc(d.nom)} ↗</a>
-      <p class="small muted">Le site du drive s’ouvre dans un nouvel onglet. Ajoutez le produit à votre panier, puis revenez ici.</p>
+      <p class="small muted">Le site du drive s’ouvre dans un nouvel onglet. Connecté à votre compte, appuyez sur « Ajouter » sur le produit choisi (quantité : ${a.libre ? 'selon vos besoins' : a.sansPrix ? 'selon votre recette' : `${a.conditionnements} × ${esc(a.condLabel)}`}), puis revenez ici.</p>
+      ${S.drives.enseigne === 'leclerc' && !magasinLeclerc() ? '<p class="small bandeau bandeau-info" style="margin:0">Leclerc Drive : enregistrez votre magasin dans l’onglet Courses (« Faire mes courses sur mon drive ») pour que ce bouton ouvre directement la recherche dans votre magasin.</p>' : ''}
       <button class="btn btn-plein btn-grand" data-a="courses-panier" data-id="${a.id}">2. ✓ C’est dans mon panier</button>
       <label class="champ prix-paye"><span>Prix affiché (facultatif, pour suivre votre budget réel)</span><input type="text" inputmode="decimal" autocomplete="off" pattern="[0-9]+([,.][0-9]{1,2})?" placeholder="ex. 1,89" data-a="courses-prix" data-id="${a.id}" value="${m.prix[a.id] || ''}"></label>
       <div class="row" style="justify-content:space-between"><button class="btn" data-a="courses-absent" data-id="${a.id}">Pas trouvé</button><button class="btn" data-a="courses-stock" data-id="${a.id}">J’en ai déjà</button></div>
@@ -2889,12 +2890,45 @@
    * verifie : adresse de recherche testée le 20/10/2026. Les autres sont à confirmer en cliquant. */
   const DRIVES = {
     carrefour: { nom: 'Carrefour', url: (q) => `https://www.carrefour.fr/s?q=${encodeURIComponent(q)}`, accueil: 'https://www.carrefour.fr/', verifie: true },
-    leclerc: { nom: 'E.Leclerc', url: (q) => `https://www.e.leclerc/recherche?q=${encodeURIComponent(q)}`, accueil: 'https://www.leclercdrive.fr/', verifie: false, note: 'Choisissez votre magasin sur le site pour voir ses prix.' },
+    // Leclerc Drive : chaque magasin a sa propre adresse (fdNN-courses.leclercdrive.fr/magasin-…) ; la recherche se fait dans ce magasin
+    leclerc: { nom: 'E.Leclerc Drive', url: (q) => { const m = magasinLeclerc(); return m ? `${m.base}recherche.aspx?TexteRecherche=${encodeURIComponent(q)}` : 'https://www.leclercdrive.fr/'; }, get accueil() { const m = magasinLeclerc(); return m ? m.base : 'https://www.leclercdrive.fr/'; }, verifie: true },
     auchan: { nom: 'Auchan', url: (q) => `https://www.auchan.fr/recherche?text=${encodeURIComponent(q)}`, accueil: 'https://www.auchan.fr/', verifie: true },
     intermarche: { nom: 'Intermarché', url: (q) => `https://www.intermarche.com/recherche/${encodeURIComponent(q)}`, accueil: 'https://www.intermarche.com/', verifie: false },
     coursesu: { nom: 'Courses U', url: (q) => `https://www.coursesu.com/recherche?q=${encodeURIComponent(q)}`, accueil: 'https://www.coursesu.com/', verifie: true },
     chronodrive: { nom: 'Chronodrive', url: () => 'https://www.chronodrive.com/', accueil: 'https://www.chronodrive.com/', verifie: true, note: 'Utilisez la recherche du site Chronodrive : sa recherche directe n’accepte pas les liens.' }
   };
+  /** Adresse du magasin Leclerc Drive enregistrée par la personne (collée depuis son navigateur). */
+  function lireAdresseLeclerc(texte) {
+    let u;
+    try { u = new URL(String(texte || '').trim().replace(/^(?!https?:\/\/)/, 'https://')); } catch (e) { return null; }
+    if (!/^[a-z0-9-]+\.leclercdrive\.fr$/i.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/(magasin-\d+-\d+-[A-Za-z0-9-]+)/);
+    if (!m) return null;
+    const ville = m[1].replace(/^magasin-\d+-\d+-/, '').replace(/-/g, ' ');
+    return { base: `https://${u.hostname.toLowerCase()}/${m[1]}/`, ville };
+  }
+  const magasinLeclerc = () => (S.drives && S.drives.leclerc && S.drives.leclerc.base ? S.drives.leclerc : null);
+  function blocMagasinLeclerc() {
+    const m = magasinLeclerc();
+    if (m) return `<p class="small">✓ Votre magasin Leclerc Drive : <strong>${esc(m.ville)}</strong>. Les recherches s’ouvrent directement dans ce magasin. <button class="btn-lien small" data-a="leclerc-oublier">Changer de magasin</button></p>`;
+    return `<div class="bandeau bandeau-info small stack" style="gap:8px;margin:0"><strong>Leclerc Drive : indiquez votre magasin une fois</strong>
+      <span>Chaque Leclerc Drive a sa propre adresse. Pour que « Chercher » ouvre le produit dans votre magasin (et pas sur le site E.Leclerc général) :</span>
+      <ol style="margin:0;padding-left:18px"><li><a href="https://www.leclercdrive.fr/" target="_blank" rel="noopener">Ouvrez leclercdrive.fr ↗</a> et choisissez votre magasin.</li>
+      <li>Copiez l’adresse de la page qui s’affiche (barre d’adresse en haut ; sur téléphone : bouton Partager › Copier). Elle ressemble à <em>fd12-courses.leclercdrive.fr/magasin-…</em></li>
+      <li>Collez-la ici :</li></ol>
+      <div class="row" style="gap:6px;flex-wrap:nowrap"><input type="url" id="leclerc-adresse" inputmode="url" autocomplete="off" placeholder="https://fd…-courses.leclercdrive.fr/magasin-…" style="flex:1;min-width:0"><button class="btn btn-petit btn-plein" data-a="leclerc-magasin">Enregistrer</button></div></div>`;
+  }
+  function aideRemplirPanier() {
+    return `<details class="aide-panier small" ${S.aidePanierOuverte === false ? '' : 'open'}><summary data-a="aide-panier"><strong>Comment mettre les articles dans le panier de mon drive ?</strong></summary>
+      <ol>
+        <li><strong>Connectez-vous à votre compte</strong> sur le site du drive (ou dans son appli) et <strong>choisissez votre magasin</strong> : sans cela, le site n’affiche ni les prix ni le bouton « Ajouter ». Votre panier est lié à votre compte : vous le retrouvez sur le site comme dans l’appli.</li>
+        <li>Choisissez votre drive ci-dessous, puis cliquez sur <strong>« Commencer mes courses »</strong>.</li>
+        <li>Pour chaque article, <strong>« Chercher »</strong> ouvre le produit sur votre drive dans un nouvel onglet. Appuyez sur <strong>« Ajouter »</strong> (ou « + ») sur le site, réglez la quantité indiquée par Budgétable, puis revenez ici et touchez <strong>« C’est dans mon panier »</strong>. Pas trouvé ? « Pas trouvé » et on passe au suivant.</li>
+        <li>À la fin, <strong>« Valider ma commande »</strong> ouvre votre drive : vérifiez le panier, choisissez le créneau de retrait et payez sur le site. Budgétable ne commande ni ne paie jamais à votre place.</li>
+      </ol>
+      <p style="margin:0">💻 <strong>Sur ordinateur, encore plus rapide :</strong> avec l’<a href="extension.html" target="_blank" rel="noopener">extension Budgétable</a> (Chrome ou Edge), le bouton « 🛒 Tout mettre au panier » ajoute tous les articles d’un coup, au meilleur prix.</p>
+    </details>`;
+  }
   // les enseignes de « mes drives » d'abord, avec la ville du magasin choisi
   function enseignesOrdonnees() {
     const r = S.drives.recherche, choisis = S.drives.choisis || [];
@@ -3763,7 +3797,9 @@
       <button class="bandeau-promos ecran-seul" data-a="onglet" data-k="promos"><span aria-hidden="true">🏷</span><span><strong>Promos du moment</strong> <span class="small">${promos && promos.offres ? (() => { const n = liste.articles.filter((a) => !a.enStock && promosPour(a.id, 'exact').length).length; return n ? pluriel(n, 'article de votre liste en promo', 'articles de votre liste en promo') : 'voir les bons plans de la semaine'; })() : 'comparer votre liste aux promotions de la semaine'}</span></span><span aria-hidden="true">→</span></button>
       <section class="carte stack ecran-seul panier-drive" style="gap:12px"><h2>Faire mes courses sur mon drive</h2>
         <p class="small">Choisissez votre drive, puis laissez-vous guider : un article à la fois, un bouton qui ouvre sa recherche sur le site du drive, et « C’est dans mon panier ». Sur téléphone comme sur ordinateur, rien à installer.</p>
+        ${aideRemplirPanier()}
         <div class="choix" role="radiogroup" aria-label="Mon drive">${enseignesOrdonnees().map(([k, d, lieu]) => `<button class="chip" role="radio" data-a="enseigne" data-k="${k}" aria-pressed="${S.drives.enseigne === k}" aria-checked="${S.drives.enseigne === k}">${esc(d.nom)}${lieu ? ` <span class="small muted">· ${esc(lieu)}</span>` : ''}</button>`).join('')}</div>
+        ${S.drives.enseigne === 'leclerc' ? blocMagasinLeclerc() : ''}
         ${S.drives.enseigne && DRIVES[S.drives.enseigne].note ? `<p class="small muted">${esc(DRIVES[S.drives.enseigne].note)}</p>` : ''}
         ${S.drives.enseigne && !DRIVES[S.drives.enseigne].verifie ? '<p class="small muted">Lien de recherche pas encore vérifié pour ce site : s’il n’affiche pas le bon produit, dites-le-nous.</p>' : ''}
         ${S.drives.enseigne ? `<div class="row"><button class="btn btn-plein btn-grand" data-a="courses-go">${resteCourses(liste) < aAcheter(liste).length && resteCourses(liste) > 0 ? `Reprendre mes courses (${resteCourses(liste)} restants)` : 'Commencer mes courses'}</button>
@@ -6726,6 +6762,15 @@ Réponds uniquement avec un objet JSON : {"reponse": "ton message", "transmettre
         break;
       }
       case 'courses-fermer': case 'courses-fond': S.modeCourses.ouvert = false; break;
+      case 'leclerc-magasin': {
+        const c = document.getElementById('leclerc-adresse');
+        const m = lireAdresseLeclerc(c ? c.value : '');
+        if (!m) { toast('Adresse non reconnue : copiez l’adresse de la page de votre magasin sur leclercdrive.fr (elle contient « magasin- »)'); if (c) c.focus(); return; }
+        S.drives.leclerc = m; toast(`Magasin Leclerc Drive enregistré : ${m.ville}`);
+        break;
+      }
+      case 'leclerc-oublier': if (S.drives) delete S.drives.leclerc; break;
+      case 'aide-panier': ev.preventDefault(); S.aidePanierOuverte = S.aidePanierOuverte === false; break;
       case 'courses-zero': aAcheter(E.listeCourses(S.plan, p)).forEach((x) => { S.coches[x.id] = false; }); S.modeCourses = { absents: {}, prix: {}, ouvert: true, i: 0 }; break;
       case 'abo-ouvrir': abo.ouvert = true; abo.erreur = ''; chargerAbonnement(true); break;
       case 'abo-fermer': if (ev.target !== el) return; abo.ouvert = false; break;
